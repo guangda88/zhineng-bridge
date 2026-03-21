@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智桥测试客户端</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .connection-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .connection-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .connection-form input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .connection-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: white;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+        
+        .status-dot.connected {
+            background: #28a745;
+        }
+        
+        .chat-container {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: white;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+        
+        .message-sender {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 13px;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            color: #6c757d;
+        }
+        
+        .message-content {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-top-left-radius: 4px;
+            display: inline-block;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        
+        .message.own .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 4px;
+        }
+        
+        .input-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .input-form {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-form input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .input-form input:disabled {
+            background: #e9ecef;
+            cursor: not-allowed;
+        }
+        
+        .terminal-state {
+            padding: 15px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .terminal-state h3 {
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #495057;
+        }
+        
+        .terminal-state pre {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌉 智桥测试客户端</h1>
+            <p>Zhineng Bridge Test Client</p>
+        </div>
+        
+        <div class="connection-panel">
+            <div class="connection-form">
+                <input type="text" id="serverUrl" value="ws://100.66.1.8:8001" placeholder="WebSocket服务器地址">
+                <button class="btn btn-primary" id="connectBtn" onclick="toggleConnection()">连接</button>
+                <div class="status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">未连接</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="message">
+                <div class="message-content">
+                    欢迎使用智桥测试客户端！请连接服务器开始测试。
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-panel">
+            <div class="input-form">
+                <input type="text" id="messageInput" placeholder="输入消息..." disabled onkeypress="handleKeyPress(event)">
+                <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>发送</button>
+            </div>
+        </div>
+        
+        <div class="terminal-state" id="terminalState" style="display: none;">
+            <h3>终端状态</h3>
+            <pre id="terminalStateContent">暂无终端状态</pre>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let clientId = null;
+        let channel = 'default';
+        
+        function toggleConnection() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+        
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            addMessage('系统', `正在连接到 ${serverUrl}...`);
+            
+            ws = new WebSocket(serverUrl);
+            
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                addMessage('系统', '已连接到服务器');
+                
+                // 加入默认频道
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    channel: channel
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            };
+            
+            ws.onerror = (error) => {
+                addMessage('系统', '连接错误: ' + error.message);
+            };
+            
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                addMessage('系统', '已断开连接');
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function handleMessage(message) {
+            switch (message.type) {
+                case 'connected':
+                    clientId = message.clientId;
+                    addMessage('系统', `已分配客户端ID: ${clientId}`);
+                    break;
+                
+                case 'joined':
+                    addMessage('系统', `已加入频道: ${message.channel}`);
+                    break;
+                
+                case 'message':
+                    const sender = message.senderId === clientId ? '我' : message.senderId.substring(0, 8);
+                    addMessage(sender, message.payload, message.senderId === clientId);
+                    break;
+                
+                case 'terminal_state':
+                    updateTerminalState(message.payload);
+                    break;
+                
+                case 'error':
+                    addMessage('系统', `错误: ${message.message}`);
+                    break;
+                
+                default:
+                    console.log('Received message:', message);
+            }
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            
+            ws.send(JSON.stringify({
+                type: 'message',
+                channel: channel,
+                payload: message
+            }));
+            
+            input.value = '';
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function addMessage(sender, content, isOwn = false) {
+            const container = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message${isOwn ? ' own' : ''}`;
+            
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="message-sender">${sender}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${escapeHtml(content)}</div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const btn = document.getElementById('connectBtn');
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接';
+                btn.textContent = '断开';
+                btn.className = 'btn btn-danger';
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+                btn.textContent = '连接';
+                btn.className = 'btn btn-primary';
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+            }
+        }
+        
+        function updateTerminalState(state) {
+            const terminalStateDiv = document.getElementById('terminalState');
+            const content = document.getElementById('terminalStateContent');
+            
+            terminalStateDiv.style.display = 'block';
+            content.textContent = JSON.stringify(state, null, 2);
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
