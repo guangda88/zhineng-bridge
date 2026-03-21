@@ -1,97 +1,108 @@
 #!/usr/bin/env node
-/**
- * 智桥 CLI 工具
- * 用于与智桥服务进行交互，支持终端状态同步
- */
 
 const WebSocket = require('ws');
 const readline = require('readline');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 
 class ZhinengBridgeCLI {
   constructor() {
     this.ws = null;
     this.clientId = null;
+    this.channel = 'default';
     this.sessionId = null;
+    this.terminalState = {
+      commandHistory: [],
+      currentInput: '',
+      cursorPosition: 0,
+      selection: null,
+      outputHistory: [],
+      screenSize: { rows: 24, cols: 80 }
+    };
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
       prompt: 'zhineng> '
     });
     this.config = this.loadConfig();
-    this.terminalState = {
-      commandHistory: [],
-      currentInput: '',
-      cursorPosition: 0,
-      selection: null,
-      outputHistory: []
-    };
   }
 
   loadConfig() {
-    const configPath = path.join(process.env.HOME || process.env.USERPROFILE, '.zhineng-bridge.json');
+    const configPath = path.join(process.env.HOME || process.env.USERPROFILE, '.zhineng-bridge', 'config.json');
     try {
       if (fs.existsSync(configPath)) {
-        return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       }
-    } catch (error) {
-      console.error('Failed to load config:', error.message);
-    }
+    } catch (e) {}
     return {
-      serverUrl: 'ws://100.66.1.8:8001',
-      defaultChannel: 'default'
+      serverUrl: process.env.ZHINENG_SERVER || 'ws://localhost:8001',
+      defaultChannel: 'default',
+      encryption: {
+        enabled: false,
+        key: null
+      }
     };
   }
 
-  saveConfig(config) {
-    const configPath = path.join(process.env.HOME || process.env.USERPROFILE, '.zhineng-bridge.json');
-    try {
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    } catch (error) {
-      console.error('Failed to save config:', error.message);
+  saveConfig() {
+    const configDir = path.join(process.env.HOME || process.env.USERPROFILE, '.zhineng-bridge');
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
     }
+    const configPath = path.join(configDir, 'config.json');
+    fs.writeFileSync(configPath, JSON.stringify(this.config, null, 2));
   }
 
   connect() {
-    console.log(`Connecting to ${this.config.serverUrl}...`);
-    
-    this.ws = new WebSocket(this.config.serverUrl);
+    return new Promise((resolve, reject) => {
+      console.log(`Connecting to ${this.config.serverUrl}...`);
+      
+      this.ws = new WebSocket(this.config.serverUrl);
 
-    this.ws.on('open', () => {
-      console.log('Connected to Zhineng Bridge server');
-      this.joinChannel(this.config.defaultChannel);
-      this.startPrompt();
-    });
+      this.ws.on('open', () => {
+        console.log('Connected to Zhineng Bridge server');
+        this.joinChannel(this.config.defaultChannel);
+        resolve();
+      });
 
-    this.ws.on('message', (data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        this.handleMessage(message);
-      } catch (error) {
-        console.error('Failed to parse message:', error.message);
-      }
-    });
+      this.ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data);
+          this.handleMessage(message);
+        } catch (e) {
+          console.error('Failed to parse message:', e);
+        }
+      });
 
-    this.ws.on('error', (error) => {
-      console.error('WebSocket error:', error.message);
-    });
+      this.ws.on('close', () => {
+        console.log('Disconnected from server');
+        this.reconnect();
+      });
 
-    this.ws.on('close', () => {
-      console.log('Disconnected from server');
-      this.rl.close();
+      this.ws.on('error', (error) => {
+        console.error('Connection error:', error.message);
+        reject(error);
+      });
     });
   }
 
+  reconnect() {
+    console.log('Reconnecting in 3 seconds...');
+    setTimeout(() => {
+      this.connect().catch(console.error);
+    }, 3000);
+  }
+
   joinChannel(channel) {
+    this.channel = channel;
+    this.send({ type: 'join', channel });
+  }
+
+  send(message) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const joinMessage = {
-        type: 'join',
-        channel
-      };
-      this.ws.send(JSON.stringify(joinMessage));
-      console.log(`Joining channel: ${channel}`);
+      this.ws.send(JSON.stringify(message));
     }
   }
 
@@ -99,140 +110,237 @@ class ZhinengBridgeCLI {
     switch (message.type) {
       case 'connected':
         this.clientId = message.clientId;
-        console.log(`Assigned client ID: ${this.clientId}`);
+        console.log(`Client ID: ${this.clientId}`);
         break;
+
       case 'joined':
-        console.log(`Successfully joined channel: ${message.channel}`);
+        console.log(`Joined channel: ${message.channel}`);
+        this.startPrompt();
         break;
+
       case 'message':
-        if (message.senderId !== this.clientId) {
-          console.log(`\n[${message.senderId}] ${message.payload}`);
-          this.rl.prompt();
-        }
+        console.log(`\n[${message.senderId}]: ${message.payload.content}`);
+        this.rl.prompt(true);
         break;
+
       case 'terminal_state':
-        this.updateTerminalState(message.payload);
+        this.syncTerminalState(message.payload);
         break;
-      case 'error':
-        console.error(`Error: ${message.message}`);
+
+      case 'command':
+        this.executeRemoteCommand(message.payload);
         break;
+
+      case 'session_created':
+        this.sessionId = message.session.id;
+        console.log(`\nSession created: ${message.session.name} (${message.session.id})`);
+        this.rl.prompt(true);
+        break;
+
+      case 'sessions_list':
+        console.log('\n=== Sessions ===');
+        message.sessions.forEach(s => {
+          console.log(`${s.id.slice(0, 8)} - ${s.name} (${s.isActive ? 'active' : 'paused'})`);
+        });
+        this.rl.prompt(true);
+        break;
+
+      case 'session_state':
+        this.restoreSessionState(message.payload);
+        break;
+
+      case 'offline_messages':
+        if (message.messages && message.messages.length > 0) {
+          console.log(`\nReceived ${message.messages.length} offline message(s)`);
+          message.messages.forEach(m => {
+            if (m.type === 'offline') {
+              console.log(`[Offline] ${m.encryptedContent ? '(encrypted)' : m.content}`);
+            }
+          });
+        }
+        this.rl.prompt(true);
+        break;
+
+      case 'pong':
+        break;
+
       default:
-        console.log(`Received message: ${JSON.stringify(message)}`);
+        console.log(`\nUnknown message:`, message);
+        this.rl.prompt(true);
     }
   }
 
-  updateTerminalState(state) {
+  syncTerminalState(state) {
     this.terminalState = { ...this.terminalState, ...state };
-    console.log('Terminal state updated:', state);
+    console.log('\r[Terminal state synced]');
+    this.rl.prompt(true);
   }
 
-  sendTerminalState() {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const stateMessage = {
-        type: 'terminal_state',
-        payload: this.terminalState
-      };
-      this.ws.send(JSON.stringify(stateMessage));
-    }
+  executeRemoteCommand(payload) {
+    const { command, sessionId } = payload;
+    console.log(`\n[Executing remote command]: ${command}`);
+    
+    const child = spawn(command, [], {
+      shell: true,
+      cwd: process.cwd()
+    });
+
+    let output = '';
+    child.stdout.on('data', (data) => {
+      output += data.toString();
+      process.stdout.write(data);
+    });
+
+    child.stderr.on('data', (data) => {
+      process.stderr.write(data);
+    });
+
+    child.on('close', (code) => {
+      this.send({
+        type: 'command_result',
+        payload: { command, output, exitCode: code, sessionId }
+      });
+      this.rl.prompt(true);
+    });
   }
 
   startPrompt() {
     this.rl.prompt();
-    
+
     this.rl.on('line', (line) => {
-      const command = line.trim();
+      const input = line.trim();
       
-      if (command === 'exit') {
-        this.disconnect();
-        return;
+      if (input.startsWith('/')) {
+        this.handleCommand(input);
+      } else if (input) {
+        this.sendMessage(input);
       }
       
-      if (command === 'help') {
-        this.showHelp();
-        this.rl.prompt();
-        return;
-      }
-      
-      if (command === 'status') {
-        this.showStatus();
-        this.rl.prompt();
-        return;
-      }
-      
-      // 发送消息
-      this.sendMessage(command);
-      
-      // 更新终端状态
-      this.terminalState.commandHistory.push(command);
+      this.terminalState.commandHistory.push(input);
       this.terminalState.currentInput = '';
-      this.terminalState.cursorPosition = 0;
-      this.sendTerminalState();
-      
-      this.rl.prompt();
-    }).on('close', () => {
-      console.log('Exiting Zhineng Bridge CLI');
+      this.rl.prompt(true);
+    });
+
+    this.rl.on('close', () => {
+      console.log('\nGoodbye!');
       process.exit(0);
     });
   }
 
-  sendMessage(message) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const payload = {
-        type: 'message',
-        channel: this.config.defaultChannel,
-        payload: message
-      };
-      this.ws.send(JSON.stringify(payload));
-      console.log(`[You] ${message}`);
-    } else {
-      console.error('Not connected to server');
-    }
-  }
+  handleCommand(input) {
+    const parts = input.split(' ');
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1);
 
-  showHelp() {
-    console.log('\nZhineng Bridge CLI Commands:');
-    console.log('  exit        - Disconnect and exit');
-    console.log('  help        - Show this help message');
-    console.log('  status      - Show connection status');
-    console.log('  Any other text will be sent as a message');
-  }
+    switch (cmd) {
+      case '/help':
+        console.log(`
+Commands:
+  /join <channel>     Join a channel
+  /leave               Leave current channel
+  /sessions            List all sessions
+  /create <name>      Create a new session
+  /switch <id>         Switch to a session
+  /pause               Pause current session
+  /resume              Resume current session
+  /sync                Force terminal state sync
+  /offline             Get offline messages
+  /quit                Exit CLI
+        `);
+        break;
 
-  showStatus() {
-    console.log('\nConnection Status:');
-    console.log(`  Server: ${this.config.serverUrl}`);
-    console.log(`  Client ID: ${this.clientId}`);
-    console.log(`  Channel: ${this.config.defaultChannel}`);
-    console.log(`  WebSocket State: ${this.ws ? this.getWebSocketState() : 'Disconnected'}`);
-  }
+      case '/join':
+        if (args[0]) {
+          this.send({ type: 'leave', channel: this.channel });
+          this.joinChannel(args[0]);
+        }
+        break;
 
-  getWebSocketState() {
-    if (!this.ws) return 'Disconnected';
-    switch (this.ws.readyState) {
-      case WebSocket.CONNECTING:
-        return 'Connecting';
-      case WebSocket.OPEN:
-        return 'Connected';
-      case WebSocket.CLOSING:
-        return 'Closing';
-      case WebSocket.CLOSED:
-        return 'Closed';
+      case '/leave':
+        this.send({ type: 'leave', channel: this.channel });
+        break;
+
+      case '/sessions':
+        this.send({ type: 'get_sessions' });
+        break;
+
+      case '/create':
+        this.send({
+          type: 'create_session',
+          payload: { name: args.join(' ') || 'Unnamed Session' }
+        });
+        break;
+
+      case '/switch':
+        if (args[0]) {
+          this.send({ type: 'switch_session', payload: { sessionId: args[0] } });
+        }
+        break;
+
+      case '/pause':
+        if (this.sessionId) {
+          this.send({ type: 'pause_session', payload: { sessionId: this.sessionId } });
+        }
+        break;
+
+      case '/resume':
+        if (this.sessionId) {
+          this.send({ type: 'resume_session', payload: { sessionId: this.sessionId } });
+        }
+        break;
+
+      case '/sync':
+        this.send({
+          type: 'terminal_state',
+          channel: this.channel,
+          payload: this.terminalState
+        });
+        console.log('Terminal state synced');
+        break;
+
+      case '/offline':
+        this.send({
+          type: 'get_offline_messages',
+          channel: this.channel,
+          payload: { since: 0 }
+        });
+        break;
+
+      case '/quit':
+      case '/exit':
+        this.rl.close();
+        break;
+
       default:
-        return 'Unknown';
+        console.log(`Unknown command: ${cmd}`);
     }
   }
 
-  disconnect() {
-    if (this.ws) {
-      this.ws.close();
+  sendMessage(content) {
+    this.send({
+      type: 'message',
+      channel: this.channel,
+      payload: { content }
+    });
+    
+    this.terminalState.outputHistory.push({
+      type: 'sent',
+      content,
+      timestamp: Date.now()
+    });
+  }
+
+  restoreSessionState(session) {
+    this.sessionId = session.id;
+    if (session.terminalState) {
+      this.terminalState = session.terminalState;
     }
-    this.rl.close();
+    if (session.messageHistory) {
+      this.terminalState.outputHistory = session.messageHistory;
+    }
+    console.log(`\nRestored session: ${session.name}`);
   }
 }
 
-// 启动CLI
-if (require.main === module) {
-  const cli = new ZhinengBridgeCLI();
-  cli.connect();
-}
-
-module.exports = ZhinengBridgeCLI;
+const cli = new ZhinengBridgeCLI();
+cli.connect().catch(console.error);
