@@ -38,8 +38,3 @@ npm-debug.log*
 tmp/
 temp/
 *.tmp
-
-# Keep important files
-!cli/index.js
-!relay-server/server.js
-!scripts/*.sh
