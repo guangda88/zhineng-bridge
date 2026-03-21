@@ -1,0 +1,25 @@
+{
+  "name": "zhineng-bridge",
+  "version": "1.0.0",
+  "description": "智桥 - 跨平台实时同步和通信SDK",
+  "main": "index.js",
+  "scripts": {
+    "start": "node relay-server/server.js",
+    "cli": "node cli/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "zhineng",
+    "bridge",
+    "websocket",
+    "real-time",
+    "sync",
+    "communication"
+  ],
+  "author": "Zhineng Bridge Team",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.16.0",
+    "uuid": "^9.0.1"
+  }
+}
