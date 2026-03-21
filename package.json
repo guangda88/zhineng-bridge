@@ -14,7 +14,9 @@
     "websocket",
     "real-time",
     "sync",
-    "communication"
+    "communication",
+    "e2e",
+    "encryption"
   ],
   "author": "Zhineng Bridge Team",
   "license": "MIT",
