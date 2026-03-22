@@ -1,21 +1,45 @@
+/**
+ * @fileoverview Zhineng Bridge Relay Server
+ * WebSocket服务器，提供实时消息中继、会话管理和终端状态同步
+ * @module relay-server/server
+ */
+
 const WebSocket = require('ws');
-const crypto = require('crypto');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 8001;
+const HTTP_STATUS_NOT_FOUND = 404;
+const HTTP_STATUS_OK = 200;
+
 const CLIENTS = new Map();
 const SESSIONS = new Map();
 const CHANNELS = new Map();
 const MESSAGE_QUEUE = new Map();
 
-const wss = new WebSocket.Server({ port: PORT });
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json'
+};
 
+/**
+ * 生成唯一ID
+ * @returns {string} 8字节随机十六进制字符串
+ */
 function generateId() {
   return crypto.randomBytes(8).toString('hex');
 }
 
+/**
+ * 广播消息到频道内所有客户端
+ * @param {string} channel - 频道名称
+ * @param {Object} message - 消息对象
+ * @param {WebSocket} [excludeClient] - 排除的客户端
+ */
 function broadcast(channel, message, excludeClient = null) {
   const data = JSON.stringify(message);
   CHANNELS.get(channel)?.forEach(client => {
@@ -25,11 +49,16 @@ function broadcast(channel, message, excludeClient = null) {
   });
 }
 
+/**
+ * 处理客户端消息
+ * @param {WebSocket} ws - WebSocket客户端
+ * @param {Object} message - 消息对象
+ */
 function handleMessage(ws, message) {
   const { type, channel, targetClientId, payload, sessionId } = message;
 
   switch (type) {
-    case 'join':
+    case 'join': {
       if (!CHANNELS.has(channel)) {
         CHANNELS.set(channel, new Set());
         MESSAGE_QUEUE.set(channel, []);
@@ -37,39 +66,43 @@ function handleMessage(ws, message) {
       CHANNELS.get(channel).add(ws);
       ws.channel = channel;
       ws.clientId = ws.clientId || generateId();
-      
+
       const session = SESSIONS.get(sessionId || channel);
       if (session) {
         ws.send(JSON.stringify({ type: 'session_state', payload: session }));
       }
-      
+
       ws.send(JSON.stringify({ type: 'joined', clientId: ws.clientId, channel }));
       broadcast(channel, { type: 'client_joined', clientId: ws.clientId }, ws);
       console.log(`Client ${ws.clientId} joined channel ${channel}`);
       break;
+    }
 
-    case 'leave':
+    case 'leave': {
       if (CHANNELS.has(channel)) {
         CHANNELS.get(channel).delete(ws);
       }
       ws.send(JSON.stringify({ type: 'left', channel }));
       break;
+    }
 
-    case 'message':
+    case 'message': {
       if (MESSAGE_QUEUE.has(channel)) {
         MESSAGE_QUEUE.get(channel).push({ ...payload, timestamp: Date.now() });
       }
       broadcast(channel, { type: 'message', payload, senderId: ws.clientId, timestamp: Date.now() }, ws);
       break;
+    }
 
-    case 'direct':
+    case 'direct': {
       const targetClient = Array.from(CLIENTS.values()).find(c => c.clientId === targetClientId);
       if (targetClient && targetClient.readyState === WebSocket.OPEN) {
         targetClient.send(JSON.stringify({ type: 'direct', payload, senderId: ws.clientId }));
       }
       break;
+    }
 
-    case 'terminal_state':
+    case 'terminal_state': {
       const currentSession = SESSIONS.get(sessionId || channel);
       if (currentSession) {
         currentSession.terminalState = payload;
@@ -77,12 +110,14 @@ function handleMessage(ws, message) {
       }
       broadcast(channel, { type: 'terminal_state', payload, senderId: ws.clientId, timestamp: Date.now() }, ws);
       break;
+    }
 
-    case 'command':
+    case 'command': {
       broadcast(channel, { type: 'command', payload, senderId: ws.clientId, timestamp: Date.now() }, ws);
       break;
+    }
 
-    case 'create_session':
+    case 'create_session': {
       const newSessionId = generateId();
       const newSession = {
         id: newSessionId,
@@ -97,21 +132,24 @@ function handleMessage(ws, message) {
       SESSIONS.set(newSessionId, newSession);
       ws.send(JSON.stringify({ type: 'session_created', session: newSession }));
       break;
+    }
 
-    case 'get_sessions':
+    case 'get_sessions': {
       const sessions = Array.from(SESSIONS.values());
       ws.send(JSON.stringify({ type: 'sessions_list', sessions }));
       break;
+    }
 
-    case 'switch_session':
+    case 'switch_session': {
       const targetSession = SESSIONS.get(payload.sessionId);
       if (targetSession) {
         ws.currentSessionId = payload.sessionId;
         ws.send(JSON.stringify({ type: 'session_state', payload: targetSession }));
       }
       break;
+    }
 
-    case 'pause_session':
+    case 'pause_session': {
       const pauseSession = SESSIONS.get(payload.sessionId);
       if (pauseSession) {
         pauseSession.isActive = false;
@@ -119,8 +157,9 @@ function handleMessage(ws, message) {
         ws.send(JSON.stringify({ type: 'session_paused', sessionId: payload.sessionId }));
       }
       break;
+    }
 
-    case 'resume_session':
+    case 'resume_session': {
       const resumeSession = SESSIONS.get(payload.sessionId);
       if (resumeSession) {
         resumeSession.isActive = true;
@@ -128,8 +167,9 @@ function handleMessage(ws, message) {
         ws.send(JSON.stringify({ type: 'session_resumed', session: resumeSession }));
       }
       break;
+    }
 
-    case 'offline_message':
+    case 'offline_message': {
       if (MESSAGE_QUEUE.has(channel)) {
         MESSAGE_QUEUE.get(channel).push({
           type: 'offline',
@@ -140,23 +180,59 @@ function handleMessage(ws, message) {
       }
       ws.send(JSON.stringify({ type: 'offline_queued', timestamp: Date.now() }));
       break;
+    }
 
-    case 'get_offline_messages':
+    case 'get_offline_messages': {
       const offlineMessages = MESSAGE_QUEUE.get(channel) || [];
-      const clientMessages = offlineMessages.filter(m => 
+      const clientMessages = offlineMessages.filter(m =>
         m.senderId === ws.clientId || m.timestamp > (payload.since || 0)
       );
       ws.send(JSON.stringify({ type: 'offline_messages', messages: clientMessages }));
       break;
+    }
 
-    case 'ping':
+    case 'ping': {
       ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
       break;
+    }
 
     default:
       console.log(`Unknown message type: ${type}`);
   }
 }
+
+/**
+ * HTTP请求处理 - 提供静态文件服务
+ * @param {http.IncomingMessage} req
+ * @param {http.ServerResponse} res
+ */
+function handleHttpRequest(req, res) {
+  if (req.url === '/health') {
+    res.writeHead(HTTP_STATUS_OK, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok' }));
+    return;
+  }
+
+  let filePath = req.url === '/' ? '/test-client.html' : req.url;
+  filePath = path.join(__dirname, '..', filePath);
+
+  const ext = path.extname(filePath);
+  const contentType = MIME_TYPES[ext] || 'text/plain';
+
+  fs.readFile(filePath, (err, content) => {
+    if (err) {
+      res.writeHead(HTTP_STATUS_NOT_FOUND);
+      res.end('Not Found');
+    } else {
+      res.writeHead(HTTP_STATUS_OK, { 'Content-Type': contentType });
+      res.end(content);
+    }
+  });
+}
+
+const httpServer = http.createServer(handleHttpRequest);
+
+const wss = new WebSocket.Server({ server: httpServer });
 
 wss.on('connection', (ws) => {
   console.log('New client connected');
@@ -168,7 +244,7 @@ wss.on('connection', (ws) => {
       const message = JSON.parse(data);
       handleMessage(ws, message);
     } catch (e) {
-      console.error('Failed to parse message:', e);
+      console.error('Failed to parse message:', e.message);
     }
   });
 
@@ -184,25 +260,14 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
+    console.error('WebSocket error:', error.message);
   });
 
   ws.send(JSON.stringify({ type: 'connected', clientId: ws.clientId }));
 });
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', clients: CLIENTS.size, sessions: SESSIONS.size }));
-  } else {
-    res.writeHead(404);
-    res.end();
-  }
+httpServer.listen(PORT, () => {
+  console.log(`Zhineng Bridge Relay Server running on port ${PORT}`);
+  console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
+  console.log(`HTTP server: http://localhost:${PORT}`);
 });
-
-server.listen(PORT + 1, () => {
-  console.log(`HTTP health check server running on port ${PORT + 1}`);
-});
-
-console.log(`Zhineng Bridge Relay Server running on port ${PORT}`);
-console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
