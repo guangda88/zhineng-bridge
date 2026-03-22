@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * @fileoverview Zhineng Bridge CLI
+ * 命令行客户端，提供与中继服务器的WebSocket连接和交互式终端
+ * @module cli/index
+ */
+
 const WebSocket = require('ws');
 const readline = require('readline');
 const crypto = require('crypto');
@@ -7,11 +13,15 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
+const DEFAULT_SERVER_URL = 'ws://localhost:8001';
+const DEFAULT_CHANNEL = 'default';
+const RECONNECT_DELAY_MS = 3000;
+
 class ZhinengBridgeCLI {
   constructor() {
     this.ws = null;
     this.clientId = null;
-    this.channel = 'default';
+    this.channel = DEFAULT_CHANNEL;
     this.sessionId = null;
     this.terminalState = {
       commandHistory: [],
@@ -29,16 +39,22 @@ class ZhinengBridgeCLI {
     this.config = this.loadConfig();
   }
 
+  /**
+   * 加载配置文件
+   * @returns {Object} 配置对象
+   */
   loadConfig() {
     const configPath = path.join(process.env.HOME || process.env.USERPROFILE, '.zhineng-bridge', 'config.json');
     try {
       if (fs.existsSync(configPath)) {
         return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to load config:', e.message);
+    }
     return {
-      serverUrl: process.env.ZHINENG_SERVER || 'ws://localhost:8001',
-      defaultChannel: 'default',
+      serverUrl: process.env.ZHINENG_SERVER || DEFAULT_SERVER_URL,
+      defaultChannel: DEFAULT_CHANNEL,
       encryption: {
         enabled: false,
         key: null
@@ -58,7 +74,7 @@ class ZhinengBridgeCLI {
   connect() {
     return new Promise((resolve, reject) => {
       console.log(`Connecting to ${this.config.serverUrl}...`);
-      
+
       this.ws = new WebSocket(this.config.serverUrl);
 
       this.ws.on('open', () => {
@@ -72,7 +88,7 @@ class ZhinengBridgeCLI {
           const message = JSON.parse(data);
           this.handleMessage(message);
         } catch (e) {
-          console.error('Failed to parse message:', e);
+          console.error('Failed to parse message:', e.message);
         }
       });
 
@@ -89,10 +105,10 @@ class ZhinengBridgeCLI {
   }
 
   reconnect() {
-    console.log('Reconnecting in 3 seconds...');
+    console.log(`Reconnecting in ${RECONNECT_DELAY_MS / 1000} seconds...`);
     setTimeout(() => {
       this.connect().catch(console.error);
-    }, 3000);
+    }, RECONNECT_DELAY_MS);
   }
 
   joinChannel(channel) {
@@ -106,6 +122,10 @@ class ZhinengBridgeCLI {
     }
   }
 
+  /**
+   * 处理服务器消息
+   * @param {Object} message - 消息对象
+   */
   handleMessage(message) {
     switch (message.type) {
       case 'connected':
@@ -120,6 +140,7 @@ class ZhinengBridgeCLI {
 
       case 'message':
         console.log(`\n[${message.senderId}]: ${message.payload.content}`);
+        this.sendMessage(`Echo: ${message.payload.content}`);
         this.rl.prompt(true);
         break;
 
@@ -176,10 +197,14 @@ class ZhinengBridgeCLI {
     this.rl.prompt(true);
   }
 
+  /**
+   * 执行远程命令
+   * @param {Object} payload - 命令载荷
+   */
   executeRemoteCommand(payload) {
     const { command, sessionId } = payload;
     console.log(`\n[Executing remote command]: ${command}`);
-    
+
     const child = spawn(command, [], {
       shell: true,
       cwd: process.cwd()
@@ -209,13 +234,13 @@ class ZhinengBridgeCLI {
 
     this.rl.on('line', (line) => {
       const input = line.trim();
-      
+
       if (input.startsWith('/')) {
         this.handleCommand(input);
       } else if (input) {
         this.sendMessage(input);
       }
-      
+
       this.terminalState.commandHistory.push(input);
       this.terminalState.currentInput = '';
       this.rl.prompt(true);
@@ -227,6 +252,10 @@ class ZhinengBridgeCLI {
     });
   }
 
+  /**
+   * 处理CLI命令
+   * @param {string} input - 命令输入
+   */
   handleCommand(input) {
     const parts = input.split(' ');
     const cmd = parts[0].toLowerCase();
@@ -322,7 +351,7 @@ Commands:
       channel: this.channel,
       payload: { content }
     });
-    
+
     this.terminalState.outputHistory.push({
       type: 'sent',
       content,
