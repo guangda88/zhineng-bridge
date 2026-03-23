@@ -211,6 +211,157 @@ class SessionManager:
         
         return session_id
     
+    async def start_session(self, session_id: str) -> None:
+        """
+        启动会话
+        
+        Args:
+            session_id: 会话 ID
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status != "created":
+            raise ValueError(f"会话状态不正确: {session.status}")
+        
+        print(f"🚀 启动会话: {session_id}")
+        print(f"   工具: {session.tool_name}")
+        print(f"   参数: {session.args}")
+        
+        try:
+            # 创建包装器
+            wrapper = create_wrapper(
+                session.tool_name,
+                session.work_dir
+            )
+            
+            # 启动会话
+            await wrapper.start_session(session.args)
+            
+            # 保存包装器
+            session.wrapper = wrapper
+            session.status = "running"
+            session.started_at = datetime.now().isoformat()
+            
+            print(f"✅ 会话已启动: {session_id}")
+            
+        except Exception as e:
+            session.status = "stopped"
+            session.stopped_at = datetime.now().isoformat()
+            print(f"❌ 会话启动失败: {e}")
+            raise
+    
+    async def stop_session(self, session_id: str) -> None:
+        """
+        停止会话
+        
+        Args:
+            session_id: 会话 ID
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status != "running":
+            raise ValueError(f"会话状态不正确: {session.status}")
+        
+        print(f"⏹️  停止会话: {session_id}")
+        
+        try:
+            # 停止包装器
+            if session.wrapper:
+                await wrapper.stop_session()
+            
+            # 更新状态
+            session.status = "stopped"
+            session.stopped_at = datetime.now().isoformat()
+            
+            print(f"✅ 会话已停止: {session_id}")
+            
+        except Exception as e:
+            print(f"❌ 会话停止失败: {e}")
+            raise
+    
+    def pause_session(self, session_id: str) -> None:
+        """
+        暂停会话
+        
+        Args:
+            session_id: 会话 ID
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status != "running":
+            raise ValueError(f"会话状态不正确: {session.status}")
+        
+        print(f"⏸️  暂停会话: {session_id}")
+        
+        # 更新状态
+        session.status = "paused"
+        
+        print(f"✅ 会话已暂停: {session_id}")
+    
+    def resume_session(self, session_id: str) -> None:
+        """
+        恢复会话
+        
+        Args:
+            session_id: 会话 ID
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status != "paused":
+            raise ValueError(f"会话状态不正确: {session.status}")
+        
+        print(f"▶️  恢复会话: {session_id}")
+        
+        # 更新状态
+        session.status = "running"
+        
+        print(f"✅ 会话已恢复: {session_id}")
+    
+    def delete_session(self, session_id: str) -> None:
+        """
+        删除会话
+        
+        Args:
+            session_id: 会话 ID
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status == "running":
+            raise ValueError(f"无法删除运行中的会话: {session_id}")
+        
+        print(f"🗑️  删除会话: {session_id}")
+        
+        # 删除会话
+        del self.sessions[session_id]
+        
+        # 删除工作目录
+        session_work_dir = Path(session.work_dir)
+        if session_work_dir.exists():
+            import shutil
+            shutil.rmtree(session_work_dir)
+        
+        print(f"✅ 会话已删除: {session_id}")
+    
     def list_sessions(self) -> List[Dict[str, Any]]:
         """
         列出所有会话
@@ -245,6 +396,119 @@ class SessionManager:
         if self.active_session_id:
             return self.get_session(self.active_session_id)
         return None
+    
+    def set_active_session(self, session_id: str) -> None:
+        """
+        设置活动会话
+        
+        Args:
+            session_id: 会话 ID
+        """
+        if session_id not in self.sessions:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        self.active_session_id = session_id
+        print(f"✅ 活动会话已设置: {session_id}")
+    
+    async def send_command(
+        self,
+        session_id: str,
+        command: str
+    ) -> None:
+        """
+        发送命令到会话
+        
+        Args:
+            session_id: 会话 ID
+            command: 命令
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status != "running":
+            raise ValueError(f"会话未运行: {session.status}")
+        
+        print(f"📤 发送命令: {command}")
+        
+        try:
+            # 发送命令
+            if session.wrapper:
+                await wrapper.write_input(command + "\n")
+            
+            # 记录命令
+            session.commands.append({
+                'command': command,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+            print(f"✅ 命令已发送")
+            
+        except Exception as e:
+            print(f"❌ 命令发送失败: {e}")
+            raise
+    
+    async def read_output(
+        self,
+        session_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        读取会话输出
+        
+        Args:
+            session_id: 会话 ID
+            
+        Returns:
+            输出事件
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 检查状态
+        if session.status != "running":
+            return None
+        
+        try:
+            # 读取输出
+            if session.wrapper:
+                event = await wrapper.read_output()
+                if event:
+                    # 记录输出
+                    session.output_events.append(event.to_dict())
+                    return event.to_dict()
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ 读取输出失败: {e}")
+            raise
+    
+    def get_output_history(
+        self,
+        session_id: str,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        获取输出历史
+        
+        Args:
+            session_id: 会话 ID
+            limit: 限制数量
+            
+        Returns:
+            输出历史
+        """
+        # 获取会话
+        session = self.sessions.get(session_id)
+        if not session:
+            raise ValueError(f"会话不存在: {session_id}")
+        
+        # 返回最近的输出
+        return session.output_events[-limit:]
 
 
 # 便捷函数

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crush Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .status div {
+            margin-bottom: 10px;
+        }
+        
+        .status div:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status strong {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .output {
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 20px;
+            color: #eee;
+            font-family: 'Courier New', monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .output::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .output::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+        
+        .output::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            border-color: #667eea;
+        }
+        
+        .input-group button {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .input-group button:hover {
+            background: #764ba2;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .controls button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .controls button.start {
+            background: #28a745;
+            color: white;
+        }
+        
+        .controls button.start:hover {
+            background: #218838;
+        }
+        
+        .controls button.stop {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .controls button.stop:hover {
+            background: #c82333;
+        }
+        
+        .controls button.clear {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .controls button.clear:hover {
+            background: #5a6268;
+        }
+        
+        .tools {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tool-card {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tool-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tool-card.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        
+        .tool-card .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .tool-card .name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .tool-card .description {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💎 Crush Web Interface</h1>
+            <p>智桥 - 跨平台实时同步和通信SDK</p>
+        </div>
+        
+        <div class="main">
+            <div class="panel">
+                <h2>📋 会话控制</h2>
+                
+                <div class="status">
+                    <div><strong>状态:</strong> <span id="status">未连接</span></div>
+                    <div><strong>会话 ID:</strong> <span id="sessionId">-</span></div>
+                    <div><strong>工具:</strong> <span id="tool">-</span></div>
+                </div>
+                
+                <div class="controls">
+                    <button class="start" onclick="startSession()">▶️ 启动会话</button>
+                    <button class="stop" onclick="stopSession()">⏹️ 停止会话</button>
+                    <button class="clear" onclick="clearOutput()">🗑️ 清空输出</button>
+                </div>
+                
+                <div class="output" id="output">
+                    等待会话启动...
+                </div>
+                
+                <div class="input-group">
+                    <input type="text" id="commandInput" placeholder="输入命令..." onkeypress="handleKeyPress(event)">
+                    <button onclick="sendCommand()">📤 发送</button>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🔧 工具选择</h2>
+                
+                <div class="tools">
+                    <div class="tool-card" onclick="selectTool('crush')">
+                        <div class="icon">💎</div>
+                        <div class="name">Crush</div>
+                        <div class="description">Charmbracelet Crush</div>
+                    </div>
+                    
+                    <div class="tool-card" onclick="selectTool('claude')">
+                        <div class="icon">🤖</div>
+                        <div class="name">Claude Code</div>
+                        <div class="description">Anthropic Claude</div>
+                    </div>
+                    
+                    <div class="tool-card" onclick="selectTool('iflow')">
+                        <div class="icon">🌊</div>
+                        <div class="name">iFlow CLI</div>
+                        <div class="description">阿里巴巴心流</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let selectedTool = 'crush';
+        let sessionId = null;
+        let isConnected = false;
+        
+        function selectTool(tool) {
+            selectedTool = tool;
+            
+            // 更新选中状态
+            document.querySelectorAll('.tool-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // 更新工具显示
+            document.getElementById('tool').textContent = tool.toUpperCase();
+        }
+        
+        function startSession() {
+            // TODO: 实现启动会话
+            isConnected = true;
+            sessionId = 'test-session-' + Date.now();
+            
+            // 更新状态
+            document.getElementById('status').textContent = '已连接';
+            document.getElementById('sessionId').textContent = sessionId;
+            
+            // 清空输出
+            document.getElementById('output').textContent = '会话已启动...\n';
+        }
+        
+        function stopSession() {
+            // TODO: 实现停止会话
+            isConnected = false;
+            
+            // 更新状态
+            document.getElementById('status').textContent = '未连接';
+            document.getElementById('sessionId').textContent = '-';
+        }
+        
+        function sendCommand() {
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            
+            if (command && isConnected) {
+                // TODO: 实现发送命令
+                const output = document.getElementById('output');
+                output.textContent += `> ${command}\n`;
+                input.value = '';
+                output.scrollTop = output.scrollHeight;
+            }
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendCommand();
+            }
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 默认选中 Crush
+            document.querySelector('.tool-card').classList.add('selected');
+            document.getElementById('tool').textContent = 'CRUSH';
+        });
+    </script>
+</body>
+</html>
