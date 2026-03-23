@@ -1,0 +1,66 @@
+/* 移动端样式 */
+
+@media (max-width: 768px) {
+    /* 底部导航 */
+    .footer-nav {
+        display: flex;
+        width: 100%;
+        justify-content: space-around;
+    }
+    
+    .footer-nav-item {
+        flex: 1;
+        text-align: center;
+        padding: 0.75rem 0;
+        color: var(--text-secondary);
+        text-decoration: none;
+        border-radius: var(--radius-md);
+        transition: all 0.3s;
+    }
+    
+    .footer-nav-item:hover,
+    .footer-nav-item.active {
+        color: var(--primary-color);
+        background: rgba(102, 126, 234, 0.1);
+    }
+    
+    /* 状态指示器 */
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--danger-color);
+    }
+    
+    .status-dot.connected {
+        background: var(--success-color);
+    }
+    
+    /* 终端 */
+    .terminal {
+        min-height: 300px;
+        max-height: 400px;
+    }
+    
+    /* 命令输入 */
+    .command-input {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .command-input input {
+        width: 100%;
+    }
+    
+    .command-input button {
+        width: 100%;
+    }
+}
