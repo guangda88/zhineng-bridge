@@ -122,7 +122,7 @@ class SessionManager:
         
         # 创建工作目录
         self.work_dir = self.base_dir / ".zhineng-bridge-sessions"
-        self.work_dir.mkdir(exist_ok=True)
+        self.work_dir.mkdir(parents=True, exist_ok=True)
         
         print(f"✅ SessionManager 已初始化")
         print(f"   基础目录: {self.base_dir}")
