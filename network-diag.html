@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络诊断工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .log {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 网络诊断工具</h1>
+
+    <div id="status" class="status info">
+        点击下方按钮开始诊断
+    </div>
+
+    <button onclick="testConnection()">测试HTTP连接</button>
+    <button onclick="testWebSocket()">测试WebSocket连接</button>
+    <button onclick="testAll()">运行所有测试</button>
+
+    <div id="log" class="log"></div>
+
+    <script src="utils.js"></script>
+    <script>
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+
+        /**
+         * 记录日志消息到界面
+         * @param {string} message - 日志消息
+         * @param {string} [type='info'] - 消息类型
+         * @returns {void}
+         */
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.innerHTML = `[${time}] ${escapeHtml(message)}`;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        /**
+         * 转义HTML特殊字符以防止XSS攻击
+         * @param {string} text - 需要转义的文本
+         * @returns {string} 转义后的HTML安全字符串
+         */
+
+        /**
+         * 测试HTTP连接
+         * @param {string} url - 要测试的URL
+         * @returns {Promise<boolean>} 连接是否成功
+         */
+        async function testHTTP(url) {
+            log(`测试HTTP: ${url}`);
+            try {
+                const start = performance.now();
+                const response = await fetch(url);
+                const end = performance.now();
+                log(`✅ HTTP成功 (${(end-start).toFixed(0)}ms): ${response.status} ${response.statusText}`);
+                return true;
+            } catch (error) {
+                log(`❌ HTTP失败: ${error.message}`);
+                return false;
+            }
+        }
+
+        /**
+         * 测试WebSocket连接
+         * @param {string} url - 要测试的WebSocket URL
+         * @returns {Promise<boolean>} 连接是否成功
+         */
+        async function testWS(url) {
+            log(`测试WebSocket: ${url}`);
+            return new Promise((resolve) => {
+                const ws = new WebSocket(url);
+                const timeout = setTimeout(() => {
+                    ws.close();
+                    log('❌ WebSocket超时');
+                    resolve(false);
+                }, 5000);
+
+                ws.onopen = () => {
+                    clearTimeout(timeout);
+                    log('✅ WebSocket连接成功');
+                    ws.close();
+                    resolve(true);
+                };
+
+                ws.onerror = (error) => {
+                    clearTimeout(timeout);
+                    log('❌ WebSocket连接错误');
+                    resolve(false);
+                };
+
+                ws.onclose = () => {
+                    clearTimeout(timeout);
+                };
+            });
+        }
+
+        /**
+         * 测试所有HTTP连接
+         * @returns {Promise<void>}
+         */
+        async function testConnection() {
+            log('\n=== 开始HTTP连接测试 ===\n');
+
+            // 测试不同的IP地址
+            const host = window.location.hostname;
+            const port = '8001';
+
+            const tests = [
+                `http://${host}:${port}/health`,
+                `http://127.0.0.1:${port}/health`,
+                `http://localhost:${port}/health`
+            ];
+
+            for (const test of tests) {
+                await testHTTP(test);
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            log('\n=== HTTP测试完成 ===\n');
+        }
+
+        /**
+         * 测试所有WebSocket连接
+         * @returns {Promise<void>}
+         */
+        async function testWebSocket() {
+            log('\n=== 开始WebSocket测试 ===\n');
+
+            const host = window.location.hostname;
+            const port = '8001';
+
+            const tests = [
+                `ws://${host}:${port}`,
+                `ws://127.0.0.1:${port}`,
+                `ws://localhost:${port}`
+            ];
+
+            for (const test of tests) {
+                await testWS(test);
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            log('\n=== WebSocket测试完成 ===\n');
+        }
+
+        /**
+         * 运行所有网络诊断测试
+         * @returns {Promise<void>}
+         */
+        async function testAll() {
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '⏳ 诊断中...';
+            logDiv.innerHTML = '';
+
+            log('📋 设备信息:');
+            log(`  - 浏览器: ${navigator.userAgent}`);
+            log(`  - 主机: ${window.location.hostname}`);
+            log(`  - 协议: ${window.location.protocol}`);
+
+            await testConnection();
+            await testWebSocket();
+
+            log('\n=== 网络诊断完成 ===\n');
+            log('💡 如果所有测试都失败，可能是:');
+            log('  1. 防火墙阻止了连接');
+            log('  2. 服务器未启动');
+            log('  3. IP地址不正确');
+            log('  4. 网络不通');
+
+            statusDiv.className = 'status success';
+            statusDiv.textContent = '✅ 诊断完成';
+        }
+    </script>
+</body>
+</html>

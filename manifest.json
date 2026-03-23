@@ -1,0 +1,22 @@
+{
+  "name": "智桥 AI编程助手",
+  "short_name": "智桥",
+  "description": "移动端AI编程助手，回答AI工具问询",
+  "start_url": "./mobile-client.html",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/667eea/ffffff?text=🤖",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/667eea/ffffff?text=🤖",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

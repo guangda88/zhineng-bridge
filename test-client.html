@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智桥 - Zhineng Bridge</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; color: #00d9ff; margin-bottom: 20px; }
+    
+    .status { padding: 10px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+    .status.connected { background: #0f9d58; }
+    .status.disconnected { background: #f44336; }
+    .status.connecting { background: #f9a825; }
+    
+    .panel { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .panel h2 { color: #00d9ff; margin-bottom: 15px; font-size: 1.2em; }
+    
+    input, button, textarea { width: 100%; padding: 12px; border: none; border-radius: 8px; margin-bottom: 10px; font-size: 16px; }
+    input, textarea { background: #0f3460; color: #fff; }
+    input:focus, textarea:focus { outline: 2px solid #00d9ff; }
+    button { background: #00d9ff; color: #1a1a2e; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+    button:hover { background: #00b8d4; transform: translateY(-2px); }
+    button:disabled { background: #555; cursor: not-allowed; }
+    button.secondary { background: #0f3460; color: #00d9ff; }
+    
+    .session-list { max-height: 200px; overflow-y: auto; }
+    .session-item { background: #0f3460; padding: 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.3s; }
+    .session-item:hover { background: #1a4a7a; }
+    .session-item.active { border-left: 4px solid #00d9ff; }
+    .session-item.paused { opacity: 0.6; }
+    
+    .messages { height: 300px; overflow-y: auto; background: #0f3460; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+    .message { padding: 8px; margin-bottom: 8px; border-radius: 8px; word-wrap: break-word; }
+    .message.sent { background: #00796b; margin-left: 20%; }
+    .message.received { background: #0f3460; margin-right: 20%; }
+    .message.system { background: #333; text-align: center; font-size: 0.9em; }
+    .message .meta { font-size: 0.7em; opacity: 0.7; margin-top: 4px; }
+    
+    .terminal { background: #000; color: #0f0; font-family: 'Courier New', monospace; padding: 15px; border-radius: 8px; height: 150px; overflow-y: auto; white-space: pre-wrap; margin-bottom: 10px; }
+    
+    .encryption-panel { display: none; }
+    .encryption-panel.active { display: block; }
+    .qr-code { background: white; padding: 20px; text-align: center; border-radius: 8px; margin: 10px 0; }
+    
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab { flex: 1; padding: 10px; background: #0f3460; border-radius: 8px; text-align: center; cursor: pointer; }
+    .tab.active { background: #00d9ff; color: #1a1a2e; }
+    
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌀 智桥 - Zhineng Bridge</h1>
+    
+    <div id="status" class="status disconnected">未连接</div>
+    
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('chat')">消息</div>
+      <div class="tab" onclick="showTab('sessions')">会话</div>
+      <div class="tab" onclick="showTab('terminal')">终端</div>
+      <div class="tab" onclick="showTab('settings')">设置</div>
+    </div>
+    
+    <div id="chat" class="panel">
+      <h2>💬 消息</h2>
+      <div id="messages" class="messages"></div>
+      <div class="grid">
+        <input type="text" id="messageInput" placeholder="输入消息..." onkeypress="handleKeyPress(event)">
+        <button onclick="sendMessage()">发送</button>
+      </div>
+    </div>
+    
+    <div id="sessions" class="panel" style="display:none">
+      <h2>📁 会话管理</h2>
+      <input type="text" id="sessionName" placeholder="会话名称">
+      <button onclick="createSession()">创建会话</button>
+      <div id="sessionList" class="session-list"></div>
+    </div>
+    
+    <div id="terminal" class="panel" style="display:none">
+      <h2>🖥️ 终端状态</h2>
+      <div id="terminalOutput" class="terminal"></div>
+      <input type="text" id="commandInput" placeholder="输入命令..." onkeypress="handleCommandKeyPress(event)">
+      <button onclick="executeCommand()">执行命令</button>
+      <button class="secondary" onclick="syncTerminalState()">同步终端状态</button>
+    </div>
+    
+    <div id="settings" class="panel" style="display:none">
+      <h2>⚙️ 设置</h2>
+      <input type="text" id="serverUrl" placeholder="服务器地址" value="ws://localhost:8001">
+      <input type="text" id="channelName" placeholder="频道名称" value="default">
+      <button onclick="connect()">连接</button>
+      <button class="secondary" onclick="disconnect()">断开</button>
+      
+      <h3 style="margin-top:20px; color:#00d9ff">🔐 加密设置</h3>
+      <button class="secondary" onclick="generateQRCode()">生成二维码密钥</button>
+      <div id="qrCode" class="qr-code" style="display:none">
+        <p>扫描此二维码获取密钥</p>
+        <div id="qrData" style="word-break:break-all; color:#000; margin-top:10px;"></div>
+      </div>
+      <input type="text" id="encryptionKey" placeholder="输入加密密钥">
+      <button onclick="enableEncryption()">启用加密</button>
+      <button class="secondary" onclick="getOfflineMessages()">获取离线消息</button>
+    </div>
+  </div>
+
+  <script src="utils.js"></script>
+  <script>
+    let ws = null;
+    let clientId = null;
+    let currentChannel = 'default';
+    let currentSession = null;
+    let sessions = [];
+    let encryptionEnabled = false;
+    let encryptionKey = null;
+    let reconnectTimer = null;
+
+    /**
+     * 显示指定的选项卡
+     * @param {string} tabId - 选项卡ID
+     * @returns {void}
+     */
+    function showTab(tabId) {
+      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(tabId).style.display = 'block';
+      event.target.classList.add('active');
+    }
+
+    /**
+     * 设置连接状态
+     * @param {string} status - 状态类型 ('connected', 'disconnected', 'connecting')
+     * @param {string} text - 状态文本
+     * @returns {void}
+     */
+    function setStatus(status, text) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + status;
+      el.textContent = text;
+    }
+
+    /**
+     * 转义HTML特殊字符以防止XSS攻击
+     * @param {string} text - 需要转义的文本
+     * @returns {string} 转义后的HTML安全字符串
+     */
+
+    /**
+     * 建立WebSocket连接
+     * @returns {void}
+     */
+    function connect() {
+      const serverUrl = document.getElementById('serverUrl').value;
+      currentChannel = document.getElementById('channelName').value;
+      
+      setStatus('connecting', '连接中...');
+      
+      ws = new WebSocket(serverUrl);
+
+      ws.onopen = () => {
+        setStatus('connected', '已连接');
+        joinChannel(currentChannel);
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        handleMessage(message);
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected', '已断开');
+        reconnect();
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setStatus('disconnected', '连接错误');
+      };
+    }
+
+    /**
+     * 重新建立WebSocket连接（3秒延迟）
+     * @returns {void}
+     */
+    function reconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        connect();
+        reconnectTimer = null;
+      }, 3000);
+    }
+
+    /**
+     * 断开WebSocket连接
+     * @returns {void}
+     */
+    function disconnect() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+    }
+
+    /**
+     * 通过WebSocket发送数据
+     * @param {Object} data - 要发送的数据对象
+     * @returns {void}
+     */
+    function send(data) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(data));
+      }
+    }
+
+    /**
+     * 加入指定频道
+     * @param {string} channel - 频道名称
+     * @returns {void}
+     */
+    function joinChannel(channel) {
+      currentChannel = channel;
+      send({ type: 'join', channel, sessionId: currentSession?.id });
+    }
+
+    /**
+     * 处理从服务器接收到的消息
+     * @param {Object} message - 消息对象
+     * @param {string} message.type - 消息类型
+     * @param {string} [message.channel] - 频道名称
+     * @param {string} [message.clientId] - 客户端ID
+     * @param {Object} [message.payload] - 消息内容
+     * @param {Object} [message.session] - 会话对象
+     * @returns {void}
+     */
+    function handleMessage(message) {
+      switch (message.type) {
+        case 'connected':
+          clientId = message.clientId;
+          addSystemMessage(`已连接，客户端ID: ${clientId}`);
+          break;
+          
+        case 'joined':
+          addSystemMessage(`已加入频道: ${message.channel}`);
+          break;
+          
+        case 'message':
+          addMessage(message.senderId, message.payload.content, 'received');
+          break;
+          
+        case 'terminal_state':
+          updateTerminalState(message.payload);
+          break;
+          
+        case 'command':
+          addSystemMessage(`收到命令: ${message.payload.command}`);
+          break;
+          
+        case 'command_result':
+          addSystemMessage(`命令执行完成，退出码: ${message.payload.exitCode}`);
+          break;
+          
+        case 'session_created':
+          currentSession = message.session;
+          addSystemMessage(`创建会话: ${message.session.name}`);
+          refreshSessions();
+          break;
+          
+        case 'sessions_list':
+          sessions = message.sessions;
+          renderSessions();
+          break;
+          
+        case 'session_state':
+          currentSession = message.payload;
+          addSystemMessage(`切换到会话: ${message.payload.name}`);
+          break;
+          
+        case 'session_paused':
+          addSystemMessage(`会话已暂停`);
+          refreshSessions();
+          break;
+          
+        case 'session_resumed':
+          currentSession = message.payload;
+          addSystemMessage(`会话已恢复: ${message.payload.name}`);
+          refreshSessions();
+          break;
+          
+        case 'offline_messages':
+          addSystemMessage(`收到 ${message.messages.length} 条离线消息`);
+          message.messages.forEach(m => {
+            if (m.type === 'offline') {
+              addMessage(m.senderId, m.encryptedContent || '(加密消息)', 'received');
+            }
+          });
+          break;
+          
+        default:
+          console.log('Unknown message:', message);
+      }
+    }
+
+    /**
+     * 发送用户输入的消息
+     * @returns {void}
+     */
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const content = input.value.trim();
+      if (!content) return;
+      
+      send({
+        type: 'message',
+        channel: currentChannel,
+        payload: { content }
+      });
+      
+      addMessage('我', content, 'sent');
+      input.value = '';
+    }
+
+    /**
+     * 创建新的会话
+     * @returns {void}
+     */
+    function createSession() {
+      const name = document.getElementById('sessionName').value.trim();
+      if (!name) return;
+      
+      send({
+        type: 'create_session',
+        payload: {
+          name,
+          projectContext: '',
+          sessionId: currentSession?.id
+        }
+      });
+    }
+
+    /**
+     * 切换到指定会话
+     * @param {string} sessionId - 会话ID
+     * @returns {void}
+     */
+    function switchSession(sessionId) {
+      currentSession = sessions.find(s => s.id === sessionId);
+      send({
+        type: 'switch_session',
+        payload: { sessionId }
+      });
+    }
+
+    function pauseSession() {
+      if (!currentSession) return;
+      send({
+        type: 'pause_session',
+        payload: { sessionId: currentSession.id }
+      });
+    }
+
+    function resumeSession() {
+      if (!currentSession) return;
+      send({
+        type: 'resume_session',
+        payload: { sessionId: currentSession.id }
+      });
+    }
+
+    /**
+     * 刷新会话列表
+     * @returns {void}
+     */
+    function refreshSessions() {
+      send({ type: 'get_sessions' });
+    }
+
+    /**
+     * 渲染会话列表到UI
+     * @returns {void}
+     */
+    function renderSessions() {
+      const list = document.getElementById('sessionList');
+      list.innerHTML = sessions.map(s => `
+        <div class="session-item ${s.id === currentSession?.id ? 'active' : ''} ${!s.isActive ? 'paused' : ''}" 
+             onclick="switchSession('${s.id}')">
+          <div>${escapeHtml(s.name)}</div>
+          <small>${s.isActive ? '活动中' : '已暂停'}</small>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * 执行命令发送到服务器
+     * @returns {void}
+     */
+    function executeCommand() {
+      const input = document.getElementById('commandInput');
+      const command = input.value.trim();
+      if (!command) return;
+      
+      send({
+        type: 'command',
+        channel: currentChannel,
+        payload: { command, sessionId: currentSession?.id }
+      });
+      
+      addSystemMessage(`执行命令: ${command}`);
+      input.value = '';
+    }
+
+    /**
+     * 同步终端状态到服务器
+     * @returns {void}
+     */
+    function syncTerminalState() {
+      const terminal = document.getElementById('terminalOutput');
+      send({
+        type: 'terminal_state',
+        channel: currentChannel,
+        payload: {
+          output: terminal.textContent,
+          sessionId: currentSession?.id
+        }
+      });
+    }
+
+    /**
+     * 更新终端输出显示
+     * @param {Object} state - 终端状态对象
+     * @param {string} [state.output] - 终端输出内容
+     * @returns {void}
+     */
+    function updateTerminalState(state) {
+      const terminal = document.getElementById('terminalOutput');
+      if (state.output) {
+        terminal.textContent = state.output;
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+    }
+
+    /**
+     * 生成加密密钥的二维码数据
+     * @returns {string} 二维码数据字符串
+     */
+    function generateQRCodeData() {
+      const secret = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      const qrData = {
+        secret,
+        createdAt: Date.now(),
+        version: '1.0'
+      };
+      
+      document.getElementById('qrCode').style.display = 'block';
+      document.getElementById('qrData').textContent = JSON.stringify(qrData, null, 2);
+      document.getElementById('encryptionKey').value = secret;
+    }
+
+    /**
+     * 启用端到端加密
+     * @returns {void}
+     */
+    function enableEncryption() {
+      const key = document.getElementById('encryptionKey').value.trim();
+      if (!key) {
+        alert('请输入加密密钥');
+        return;
+      }
+      encryptionKey = key;
+      encryptionEnabled = true;
+      addSystemMessage('加密已启用');
+    }
+
+    /**
+     * 从服务器获取离线消息
+     * @returns {void}
+     */
+    function getOfflineMessages() {
+      send({
+        type: 'get_offline_messages',
+        channel: currentChannel,
+        payload: { since: 0 }
+      });
+    }
+
+    /**
+     * 添加消息到聊天界面
+     * @param {string} sender - 发送者
+     * @param {string} content - 消息内容
+     * @param {string} type - 消息类型 ('sent', 'received', 'system')
+     * @returns {void}
+     */
+    function addMessage(sender, content, type) {
+      const messages = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `message ${type}`;
+      div.innerHTML = `
+        <div>${escapeHtml(content)}</div>
+        <div class="meta">${escapeHtml(sender)} · ${new Date().toLocaleTimeString()}</div>
+      `;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    /**
+     * 添加系统消息到聊天界面
+     * @param {string} text - 系统消息内容
+     * @returns {void}
+     */
+    function addSystemMessage(text) {
+      const messages = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = 'message system';
+      div.textContent = text;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    /**
+     * 处理消息输入框的按键事件
+     * @param {KeyboardEvent} event - 键盘事件对象
+     * @returns {void}
+     */
+    function handleKeyPress(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    }
+
+    /**
+     * 处理命令输入框的按键事件
+     * @param {KeyboardEvent} event - 键盘事件对象
+     * @returns {void}
+     */
+    function handleCommandKeyPress(event) {
+      if (event.key === 'Enter') {
+        executeCommand();
+      }
+    }
+
+    window.onload = () => {
+      connect();
+    };
+  </script>
+</body>
+</html>

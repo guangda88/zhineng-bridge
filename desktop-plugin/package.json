@@ -1,0 +1,94 @@
+{
+  "name": "trae-bridge-desktop",
+  "displayName": "Trae Bridge",
+  "description": "Mobile client for Trae AI IDE",
+  "version": "0.1.0",
+  "publisher": "trae-bridge",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning",
+    "Debuggers"
+  ],
+  "keywords": [
+    "trae",
+    "ai",
+    "mobile",
+    "sync",
+    "remote"
+  ],
+  "activationEvents": [
+    "onCommand:traeBridge.showPanel"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "traeBridge.startSync",
+        "title": "Start Sync",
+        "category": "Trae Bridge"
+      },
+      {
+        "command": "traeBridge.stopSync",
+        "title": "Stop Sync",
+        "category": "Trae Bridge"
+      },
+      {
+        "command": "traeBridge.showPanel",
+        "title": "Show Panel",
+        "category": "Trae Bridge"
+      },
+      {
+        "command": "traeBridge.generateQR",
+        "title": "Generate QR Code",
+        "category": "Trae Bridge"
+      }
+    ],
+    "configuration": {
+      "title": "Trae Bridge",
+      "properties": {
+        "traeBridge.relayServerUrl": {
+          "type": "string",
+          "default": "wss://relay.trae-bridge.com",
+          "description": "Relay server WebSocket URL"
+        },
+        "traeBridge.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-start sync when VS Code launches"
+        },
+        "traeBridge.encryptionEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable end-to-end encryption"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.10",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3",
+    "ws": "^8.16.0"
+  }
+}
