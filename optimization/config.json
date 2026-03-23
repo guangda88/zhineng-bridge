@@ -1,0 +1,9 @@
+{
+  "optimization_type": "session_management",
+  "search_strategy": "bayesian",
+  "max_experiments": 50,
+  "improvement_threshold": 0.01,
+  "time_budget": 300,
+  "output_format": "json",
+  "log_level": "info"
+}
