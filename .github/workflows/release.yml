@@ -1,0 +1,201 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  verify-release:
+    name: Verify Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install websockets pytest pytest-cov pytest-asyncio build
+
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --cov=. --cov-report=xml
+
+    - name: Check coverage
+      run: |
+        python -c "
+        import xml.etree.ElementTree as ET
+        tree = ET.parse('coverage.xml')
+        coverage = float(tree.find('.coverage').attrib['line-rate'])
+        if coverage < 0.70:
+            print(f'Coverage {coverage*100:.2f}% is below 70%')
+            exit(1)
+        print(f'Coverage {coverage*100:.2f}% meets requirement')
+        "
+
+    - name: Run release verification
+      run: |
+        python3 scripts/verify-publish.py
+
+    - name: Check VERSION file
+      run: |
+        if [ -f "VERSION" ]; then
+          cat VERSION
+        else
+          echo "Error: VERSION file not found"
+          exit 1
+        fi
+
+    - name: Check CHANGELOG
+      run: |
+        if [ -f "CHANGELOG.md" ]; then
+          head -50 CHANGELOG.md
+        else
+          echo "Error: CHANGELOG.md not found"
+          exit 1
+        fi
+
+  build-package:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: verify-release
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build setuptools wheel
+
+    - name: Build package
+      run: |
+        python -m build
+
+    - name: Store distribution packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build-package
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/zhineng-bridge
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download distribution packages
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        skip-existing: true
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-package
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download distribution packages
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        # Get version from tag
+        VERSION=${GITHUB_REF#refs/tags/v}
+
+        # Extract changelog for this version
+        if grep -q "## \[$VERSION\]" CHANGELOG.md; then
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+        else
+          echo "Release v$VERSION" > release_notes.md
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: release_notes.md
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+        draft: false
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-to-gitea:
+    name: Sync to Gitea
+    runs-on: ubuntu-latest
+    needs: create-github-release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Push to Gitea
+      run: |
+        # Configure git for Gitea
+        git remote add gitea ${{ secrets.GITEA_REPO_URL }}
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+        # Push tag to Gitea
+        git push gitea ${{ github.ref }} || echo "Gitea push failed or not configured"
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [publish-to-pypi, create-github-release]
+    if: always()
+
+    steps:
+    - name: Send notification
+      run: |
+        if [ "${{ needs.publish-to-pypi.result }}" == "success" ] && [ "${{ needs.create-github-release.result }}" == "success" ]; then
+          echo "✅ Release completed successfully!"
+        else
+          echo "⚠️ Release completed with warnings"
+        fi
