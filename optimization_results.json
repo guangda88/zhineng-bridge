@@ -1,0 +1,31 @@
+{
+  "websocket": {
+    "type": "websocket",
+    "best_params": {
+      "max_connections": 200,
+      "ping_interval": 10,
+      "message_queue_size": 5000
+    },
+    "best_score": 0.8500000000000001,
+    "iterations": 5,
+    "evaluation_count": 5,
+    "elapsed_time": 2.86102294921875e-05,
+    "improvement": 0.010000000000000009
+  },
+  "performance": {
+    "type": "performance",
+    "best_params": {
+      "output_update_interval": 328.6173215646618,
+      "compression_enabled": true,
+      "batch_size": 1000
+    },
+    "best_score": 0.7912915967337313,
+    "iterations": 5,
+    "evaluation_count": 5,
+    "elapsed_time": 1.9073486328125e-05,
+    "improvement": 0.05994612018286949
+  },
+  "total_score": 0.8206457983668657,
+  "total_time": 4.76837158203125e-05,
+  "total_evaluations": 10
+}
