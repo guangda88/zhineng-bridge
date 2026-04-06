@@ -145,7 +145,9 @@ function navigateToPage(page) {
 
 // WebSocket 连接
 function connectWebSocket() {
-    const ws = new WebSocket('ws://localhost:8765');
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${location.host}:8765`;
+    const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
         console.log('✅ WebSocket 已连接');

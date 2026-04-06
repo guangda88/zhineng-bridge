@@ -7,12 +7,13 @@ let ws = null;
 // 连接 WebSocket
 function connectWebSocket() {
     const settings = SETTINGS || [];
-    const wsHost = settings.find(s => s.id === 'ws_host')?.value || 'localhost';
+    const wsHost = settings.find(s => s.id === 'ws_host')?.value || location.hostname;
     const wsPort = settings.find(s => s.id === 'ws_port')?.value || 8765;
     const autoReconnect = settings.find(s => s.id === 'auto_reconnect')?.value !== false;
     const reconnectInterval = settings.find(s => s.id === 'reconnect_interval')?.value || 5;
-    
-    const url = `ws://${wsHost}:${wsPort}`;
+
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${wsHost}:${wsPort}`;
     
     console.log(`🔌 连接 WebSocket: ${url}`);
     

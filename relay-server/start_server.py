@@ -11,7 +11,7 @@ from pathlib import Path
 # 添加路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from server import CrushRelayServer
+from server import AIRelayServer
 
 
 async def main():
@@ -20,7 +20,7 @@ async def main():
     print()
     
     # 创建服务器
-    server = CrushRelayServer(host="0.0.0.0", port=8765)
+    server = AIRelayServer(host="0.0.0.0", port=8765)
     
     # 启动服务器
     await server.start()
