@@ -60,7 +60,7 @@ class SQLiteConnectionPool:
         for _ in range(min(2, self.max_connections)):
             try:
                 self._pool.put(self._create_connection(), block=False)
-            except:
+            except Exception:
                 pass
 
     def _create_connection(self) -> sqlite3.Connection:
@@ -115,11 +115,11 @@ class SQLiteConnectionPool:
             if conn is not None and not hasattr(self._local, 'connection'):
                 try:
                     self._pool.put_nowait(conn)
-                except:
+                except Exception:
                     # 池已满，直接关闭连接
                     try:
                         conn.close()
-                    except:
+                    except Exception:
                         pass
 
     @contextmanager
@@ -152,10 +152,10 @@ class SQLiteConnectionPool:
             if conn:
                 try:
                     self._pool.put_nowait(conn)
-                except:
+                except Exception:
                     try:
                         conn.close()
-                    except:
+                    except Exception:
                         pass
 
     def close_all(self):

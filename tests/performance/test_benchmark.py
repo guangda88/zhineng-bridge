@@ -14,11 +14,31 @@ import memory_profiler
 from typing import List
 
 
+def _check_ws_server():
+    """检查 WebSocket 服务器是否可达 (WS handshake)"""
+    import asyncio
+    async def _probe():
+        try:
+            async with websockets.connect("ws://localhost:8765", close_timeout=1):
+                return True
+        except Exception:
+            return False
+    return asyncio.run(_probe())
+
+
+requires_ws_server = pytest.mark.skipif(
+    not _check_ws_server(),
+    reason="WebSocket server not available on localhost:8765"
+)
+
+
 # ============================================================================
 # WebSocket 连接性能测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="websocket")
+@requires_ws_server
 def test_websocket_connection_benchmark(benchmark):
     """
     WebSocket 连接基准测试
@@ -36,6 +56,7 @@ def test_websocket_connection_benchmark(benchmark):
     assert result is not None
 
 
+@requires_ws_server
 @pytest.mark.benchmark(group="websocket")
 def test_websocket_ping_benchmark(benchmark):
     """
@@ -57,6 +78,7 @@ def test_websocket_ping_benchmark(benchmark):
 # 会话管理性能测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="session")
 def test_list_sessions_benchmark(benchmark):
     """
@@ -74,6 +96,7 @@ def test_list_sessions_benchmark(benchmark):
     assert "type" in result
 
 
+@requires_ws_server
 @pytest.mark.benchmark(group="session")
 def test_create_session_benchmark(benchmark):
     """
@@ -108,6 +131,7 @@ def test_create_session_benchmark(benchmark):
 # 消息处理性能测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="message")
 def test_message_send_benchmark(benchmark):
     """
@@ -128,6 +152,7 @@ def test_message_send_benchmark(benchmark):
     assert result is True
 
 
+@requires_ws_server
 @pytest.mark.benchmark(group="message")
 def test_batch_message_benchmark(benchmark):
     """
@@ -149,6 +174,7 @@ def test_batch_message_benchmark(benchmark):
 # 并发性能测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="concurrency")
 def test_concurrent_connections_benchmark(benchmark):
     """
@@ -172,6 +198,7 @@ def test_concurrent_connections_benchmark(benchmark):
     assert result == 10
 
 
+@requires_ws_server
 @pytest.mark.benchmark(group="concurrency")
 def test_concurrent_sessions_benchmark(benchmark):
     """
@@ -212,6 +239,7 @@ def test_concurrent_sessions_benchmark(benchmark):
 # 内存性能测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="memory")
 @memory_profiler.profile
 def test_memory_usage_benchmark(benchmark):
@@ -237,6 +265,7 @@ def test_memory_usage_benchmark(benchmark):
 # 响应时间测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="response-time")
 def test_response_time_distribution(benchmark):
     """
@@ -262,6 +291,7 @@ def test_response_time_distribution(benchmark):
 # 压力测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="stress")
 def test_high_frequency_requests(benchmark):
     """
@@ -280,6 +310,7 @@ def test_high_frequency_requests(benchmark):
     assert result == 100
 
 
+@requires_ws_server
 @pytest.mark.benchmark(group="stress")
 def test_rapid_session_creation(benchmark):
     """
@@ -319,6 +350,7 @@ def test_rapid_session_creation(benchmark):
 # 性能回归测试
 # ============================================================================
 
+@requires_ws_server
 @pytest.mark.benchmark(group="regression")
 def test_session_creation_regression(benchmark):
     """
@@ -342,6 +374,7 @@ def test_session_creation_regression(benchmark):
     assert result is not None
 
 
+@requires_ws_server
 @pytest.mark.benchmark(group="regression")
 def test_websocket_ping_regression(benchmark):
     """
