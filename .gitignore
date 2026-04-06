@@ -1,0 +1,140 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment Variables (IMPORTANT - Never commit secrets!)
+.env
+.env.local
+.env.prod
+.env.*.local
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+zhineng-bridge.db
+
+# Docker
+.dockerignore
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.json
+.coverage.*
+
+# Testing
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
+
+# SSL Certificates
+certs/
+*.pem
+*.crt
+*.key
+*.csr
+
+# Backup files
+*.bak
+*.backup
+backup/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Build artifacts
+dist/
+build/
+*.tgz
+
+# Prometheus and Grafana data
+prometheus-data/
+grafana-data/
+
+# Docker volumes (data directories)
+data/
+volumes/
+postgres-data/
+redis-data/
+
+# Nginx logs
+nginx-logs/
+
+# Application logs
+*.log
+log/
+logs/
+
+# Security files with secrets
+secrets/
+*.secret
+credentials.json
+
+# Web UI configuration (users create their own)
+web/ui/config/config.js
+
+# Process IDs
+*.pid
+
+# Temporary root-level test/debug scripts
+/test_*.py
+/chat_*.py
+/reverse_string.py
+/simple_chat.py
+/wait_and_test.sh
+
+# Temp files
+=5.3.0,
