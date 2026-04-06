@@ -158,14 +158,18 @@ class AuthenticationManager:
         Raises:
             AuthenticationError: 如果认证失败
         """
-        # 查找现有用户
-        with sqlite3.connect(self.db.db_path) as conn:
+        # 查找现有用户 (F-025: 使用数据库连接而非直接 sqlite3.connect)
+        conn = self.db.get_connection() if hasattr(self.db, 'get_connection') else sqlite3.connect(self.db.db_path)
+        try:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT * FROM users WHERE oauth_provider = ? AND oauth_id = ?",
                 (provider, oauth_id)
             )
             row = cursor.fetchone()
+        finally:
+            if conn:
+                conn.close()
 
         if row:
             # 用户已存在

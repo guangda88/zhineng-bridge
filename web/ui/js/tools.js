@@ -33,12 +33,12 @@ function createToolCard(tool) {
     const statusText = tool.status === 'available' ? '可用' : '不可用';
     
     card.innerHTML = `
-        <div class="tool-icon" style="color: ${tool.color}">${tool.icon}</div>
-        <div class="tool-name">${tool.name}</div>
-        <div class="tool-description">${tool.description}</div>
+        <div class="tool-icon" style="color: ${escapeHtml(tool.color)}">${escapeHtml(tool.icon)}</div>
+        <div class="tool-name">${escapeHtml(tool.name)}</div>
+        <div class="tool-description">${escapeHtml(tool.description)}</div>
         <div class="tool-status ${statusClass}">
             <span class="status-dot"></span>
-            <span class="status-text">${statusText}</span>
+            <span class="status-text">${escapeHtml(statusText)}</span>
         </div>
     `;
     

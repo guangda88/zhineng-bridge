@@ -49,26 +49,27 @@ function createSessionCard(session) {
     
     const createdAt = new Date(session.created_at).toLocaleString('zh-CN');
     
+    const sid = escapeHtml(session.session_id);
     card.innerHTML = `
         <div class="session-info-header">
-            <div class="session-tool" style="color: ${toolColor}">${toolIcon}</div>
+            <div class="session-tool" style="color: ${escapeHtml(toolColor)}">${escapeHtml(toolIcon)}</div>
             <div class="session-details">
-                <div class="session-id">ID: ${session.session_id.substring(0, 8)}...</div>
+                <div class="session-id">ID: ${escapeHtml(session.session_id.substring(0, 8))}...</div>
                 <div class="session-status ${statusClass}">
-                    <span class="status-icon">${statusIcon}</span>
-                    <span class="status-text">${statusText}</span>
+                    <span class="status-icon">${escapeHtml(statusIcon)}</span>
+                    <span class="status-text">${escapeHtml(statusText)}</span>
                 </div>
-                <div class="session-tool-name">${tool ? tool.name : session.tool_name}</div>
-                <div class="session-created-at">创建于: ${createdAt}</div>
+                <div class="session-tool-name">${escapeHtml(tool ? tool.name : session.tool_name)}</div>
+                <div class="session-created-at">创建于: ${escapeHtml(createdAt)}</div>
             </div>
         </div>
         <div class="session-actions">
-            <button class="btn btn-primary" onclick="openSession('${session.session_id}')">打开</button>
+            <button class="btn btn-primary" onclick="openSession('${sid}')">打开</button>
             ${session.status === 'running' ? 
-                `<button class="btn btn-secondary" onclick="stopSession('${session.session_id}')">停止</button>` :
-                `<button class="btn btn-secondary" onclick="startSession('${session.session_id}')">运行</button>`
+                `<button class="btn btn-secondary" onclick="stopSession('${sid}')">停止</button>` :
+                `<button class="btn btn-secondary" onclick="startSession('${sid}')">运行</button>`
             }
-            <button class="btn btn-danger" onclick="deleteSession('${session.session_id}')">删除</button>
+            <button class="btn btn-danger" onclick="deleteSession('${sid}')">删除</button>
         </div>
     `;
     
@@ -171,25 +172,26 @@ function renderSessionDetail(sessionId) {
     const sessionInfo = document.getElementById('sessionInfo');
     const tool = TOOLS.find(t => t.id === session.tool_name);
     
+    const sid = escapeHtml(session.session_id);
     sessionInfo.innerHTML = `
         <div class="session-detail-card">
             <div class="session-detail-header">
-                <div class="session-detail-icon" style="color: ${tool ? tool.color : '#666'}">
-                    ${tool ? tool.icon : '❓'}
+                <div class="session-detail-icon" style="color: ${escapeHtml(tool ? tool.color : '#666')}">
+                    ${escapeHtml(tool ? tool.icon : '❓')}
                 </div>
                 <div class="session-detail-info">
-                    <h3 class="session-detail-title">${tool ? tool.name : session.tool_name}</h3>
-                    <div class="session-detail-id">ID: ${session.session_id}</div>
+                    <h3 class="session-detail-title">${escapeHtml(tool ? tool.name : session.tool_name)}</h3>
+                    <div class="session-detail-id">ID: ${sid}</div>
                     <div class="session-detail-status">
                         <span class="status-dot ${session.status === 'running' ? 'connected' : ''}"></span>
-                        <span class="status-text">${session.status === 'running' ? '运行中' : '已停止'}</span>
+                        <span class="status-text">${escapeHtml(session.status === 'running' ? '运行中' : '已停止')}</span>
                     </div>
                 </div>
             </div>
             <div class="session-detail-actions">
                 ${session.status === 'running' ? 
-                    `<button class="btn btn-secondary" onclick="stopSession('${session.session_id}')">停止</button>` :
-                    `<button class="btn btn-primary" onclick="startSession('${session.session_id}')">运行</button>`
+                    `<button class="btn btn-secondary" onclick="stopSession('${sid}')">停止</button>` :
+                    `<button class="btn btn-primary" onclick="startSession('${sid}')">运行</button>`
                 }
                 <button class="btn btn-secondary" onclick="navigateToPage('sessions')">返回</button>
             </div>

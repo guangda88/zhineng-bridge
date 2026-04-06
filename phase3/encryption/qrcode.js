@@ -35,6 +35,8 @@ class QRCodeManager {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';
+            script.integrity = 'sha384-HGmnkDZJy7mRkoARekrrj0VjEFSh9a0Z8qxGri/kTTAJkgR8hqD1lHsYSh3JdzRi';
+            script.crossOrigin = 'anonymous';
             script.onload = resolve;
             script.onerror = reject;
             document.head.appendChild(script);
@@ -139,11 +141,13 @@ class QRCodeManager {
     generateDeviceId() {
         let deviceId = localStorage.getItem('zhineng-bridge-device-id');
         if (!deviceId) {
-            deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                const v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
+            // F-034: 使用 crypto.getRandomValues 替代 Math.random
+            const bytes = new Uint8Array(16);
+            crypto.getRandomValues(bytes);
+            bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+            bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+            deviceId = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+            deviceId = deviceId.slice(0,8) + '-' + deviceId.slice(8,12) + '-4' + deviceId.slice(13,16) + '-' + ((bytes[8] & 0x3f | 0x80) >> 4).toString(16) + deviceId.slice(17,20) + '-' + deviceId.slice(20,32);
             localStorage.setItem('zhineng-bridge-device-id', deviceId);
         }
         return deviceId;

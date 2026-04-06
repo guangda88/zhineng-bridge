@@ -169,6 +169,19 @@ class JWTAuth:
             self.logger.warning("JWT validation failed: invalid format")
             return None
 
+        # 检查缓存
+        with self._token_cache_lock:
+            cached = self._token_cache.get(token)
+            if cached is not None:
+                # 缓存命中后仍需检查撤销
+                jti = cached.get("jti")
+                if jti:
+                    with self._revoked_tokens_lock:
+                        if jti in self._revoked_tokens:
+                            del self._token_cache[token]
+                            return None
+                return cached
+
         header_b64, payload_b64, signature = parts
 
         # 1. 验证签名
@@ -252,6 +265,11 @@ class JWTAuth:
             user_id=payload.get("sub"),
             jti=jti
         )
+
+        # 写入缓存
+        with self._token_cache_lock:
+            self._token_cache[token] = payload
+
         return payload
 
     def _cleanup_expired_jti(self, now: float) -> None:

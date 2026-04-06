@@ -122,9 +122,9 @@ function createSettingItem(setting) {
             inputHtml = `
                 <input 
                     type="text" 
-                    id="setting-${setting.id}" 
-                    value="${setting.value}" 
-                    onchange="updateSetting('${setting.id}', this.value)"
+                    id="setting-${escapeHtml(setting.id)}" 
+                    value="${escapeHtml(setting.value)}" 
+                    onchange="updateSetting('${escapeHtml(setting.id)}', this.value)"
                 />
             `;
             break;
@@ -132,9 +132,9 @@ function createSettingItem(setting) {
             inputHtml = `
                 <input 
                     type="number" 
-                    id="setting-${setting.id}" 
-                    value="${setting.value}" 
-                    onchange="updateSetting('${setting.id}', this.value)"
+                    id="setting-${escapeHtml(setting.id)}" 
+                    value="${escapeHtml(setting.value)}" 
+                    onchange="updateSetting('${escapeHtml(setting.id)}', this.value)"
                 />
             `;
             break;
@@ -143,9 +143,9 @@ function createSettingItem(setting) {
                 <label class="switch">
                     <input 
                         type="checkbox" 
-                        id="setting-${setting.id}" 
+                        id="setting-${escapeHtml(setting.id)}" 
                         ${setting.value ? 'checked' : ''} 
-                        onchange="updateSetting('${setting.id}', this.checked)"
+                        onchange="updateSetting('${escapeHtml(setting.id)}', this.checked)"
                     />
                     <span class="switch-slider"></span>
                 </label>
@@ -153,25 +153,25 @@ function createSettingItem(setting) {
             break;
         case 'select':
             const options = setting.options.map(opt => 
-                `<option value="${opt}" ${setting.value === opt ? 'selected' : ''}>${opt}</option>`
+                `<option value="${escapeHtml(opt)}" ${setting.value === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`
             ).join('');
             inputHtml = `
                 <select 
-                    id="setting-${setting.id}" 
-                    onchange="updateSetting('${setting.id}', this.value)"
+                    id="setting-${escapeHtml(setting.id)}" 
+                    onchange="updateSetting('${escapeHtml(setting.id)}', this.value)"
                 >
                     ${options}
                 </select>
             `;
             break;
         default:
-            inputHtml = `<span class="setting-type">未知类型: ${setting.type}</span>`;
+            inputHtml = `<span class="setting-type">未知类型: ${escapeHtml(setting.type)}</span>`;
     }
     
     item.innerHTML = `
         <div class="setting-info">
-            <h3 class="setting-name">${setting.name}</h3>
-            <p class="setting-description">${setting.description}</p>
+            <h3 class="setting-name">${escapeHtml(setting.name)}</h3>
+            <p class="setting-description">${escapeHtml(setting.description)}</p>
         </div>
         <div class="setting-control">
             ${inputHtml}

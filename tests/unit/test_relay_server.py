@@ -108,7 +108,7 @@ class TestAIRelayServer:
     async def test_reply_forwards_to_user(self, server):
         user_ws = AsyncMock()
         server.users["user-1"] = user_ws
-        server.pending["req-1"] = "user-1"
+        server.pending["req-1"] = ("user-1", 0)
 
         msg = {"type": "reply", "request_id": "req-1", "text": "world", "audio": None}
         await server._dispatch("b1", AsyncMock(), msg)
@@ -179,7 +179,7 @@ class TestAIRelayServer:
         server.users["u1"] = user_ws
         server.backends["b1"] = backend_ws
         server.routing["u1"] = "b1"
-        server.pending["req-1"] = "u1"
+        server.pending["req-1"] = ("u1", 0)
         server.server = AsyncMock()
         server.server.wait_closed = AsyncMock()
 

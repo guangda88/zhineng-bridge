@@ -2,6 +2,13 @@
  * 智桥 - 主应用逻辑
  */
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+window.escapeHtml = escapeHtml;
+
 // 工具列表
 const TOOLS = [
     {
@@ -143,74 +150,8 @@ function navigateToPage(page) {
     console.log(`📄 导航到页面: ${page}`);
 }
 
-// WebSocket 连接
-function connectWebSocket() {
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${location.host}:8765`;
-    const ws = new WebSocket(wsUrl);
-    
-    ws.onopen = () => {
-        console.log('✅ WebSocket 已连接');
-        APP_STATE.isConnected = true;
-        updateConnectionStatus(true);
-    };
-    
-    ws.onclose = () => {
-        console.log('❌ WebSocket 已断开');
-        APP_STATE.isConnected = false;
-        updateConnectionStatus(false);
-        
-        // 5 秒后重连
-        setTimeout(connectWebSocket, 5000);
-    };
-    
-    ws.onerror = (error) => {
-        console.error('❌ WebSocket 错误:', error);
-    };
-    
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        handleMessage(data);
-    };
-    
-    return ws;
-}
-
-// 更新连接状态
-function updateConnectionStatus(connected) {
-    const statusDot = document.querySelector('.status-dot');
-    const statusText = document.querySelector('.status-text');
-    
-    if (connected) {
-        statusDot.classList.add('connected');
-        statusText.textContent = '已连接';
-    } else {
-        statusDot.classList.remove('connected');
-        statusText.textContent = '未连接';
-    }
-}
-
-// 消息处理
-function handleMessage(data) {
-    console.log('📨 收到消息:', data);
-    
-    switch (data.type) {
-        case 'session_started':
-            handleSessionStarted(data);
-            break;
-        case 'session_stopped':
-            handleSessionStopped(data);
-            break;
-        case 'command_sent':
-            handleCommandSent(data);
-            break;
-        case 'output':
-            handleOutput(data);
-            break;
-        default:
-            console.warn('⚠️  未知消息类型:', data.type);
-    }
-}
+// WebSocket 连接 — 使用 client.js 提供的完整实现（设置驱动、心跳、自动重连）
+// updateConnectionStatus 和 handleMessage 也由 client.js 提供
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', initApp);

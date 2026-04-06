@@ -6,7 +6,7 @@ class SecurityManager {
     constructor() {
         this.initialized = false;
         this.securityHeaders = {
-            'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;",
+            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;",
             'X-Content-Type-Options': 'nosniff',
             'X-Frame-Options': 'DENY',
             'X-XSS-Protection': '1; mode=block',
@@ -140,14 +140,16 @@ class SecurityManager {
         // 过滤 HTML
         this.filterHTML();
 
-        // 过滤 URL
-        this.filterURL();
+        // F-029: 过滤页面中所有链接的 URL
+        document.querySelectorAll('a[href]').forEach(a => {
+            a.href = this.filterURL(a.href);
+        });
 
         // 使用 DOMPurify（如果可用）
         if (typeof DOMPurify !== 'undefined') {
             window.sanitizeHTML = (html) => DOMPurify.sanitize(html);
         } else {
-            window.sanitizeHTML = (html) => html;
+            window.sanitizeHTML = (html) => String(html).replace(/<[^>]*>/g, '');
         }
 
         console.log('✅ XSS 保护已设置');
@@ -206,13 +208,8 @@ class SecurityManager {
             input.addEventListener('input', (e) => {
                 const value = e.target.value;
                 
-                // 过滤危险字符
-                const dangerousChars = ['<', '>', '"', "'", '&'];
-                let filteredValue = value;
-                
-                dangerousChars.forEach(char => {
-                    filteredValue = filteredValue.replace(char, '');
-                });
+                // F-032: 过滤危险字符（使用正则一次性替换）
+                const filteredValue = value.replace(/[<>"'&]/g, '');
                 
                 if (value !== filteredValue) {
                     e.target.value = filteredValue;
@@ -235,7 +232,7 @@ class SecurityManager {
         this.requestLimit = 10;
         this.requestWindow = 60000; // 1 分钟
 
-        // 拦截 fetch 请求
+        // F-005: 拦截 fetch 请求（此时 window.fetch 已包含 CSRF 拦截器，形成链式调用）
         const originalFetch = window.fetch;
         window.fetch = async (url, options = {}) => {
             const now = Date.now();

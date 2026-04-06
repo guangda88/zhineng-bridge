@@ -3,7 +3,6 @@
 
 架构:
   用户(浏览器) ←ws→ 智桥(:8765) ←ws→ AI后端(灵依/灵克/灵知...)
-  用户(浏览器) ←ws→ 智桥(:8765) ←ws→ AI后端(灵依/灵克/灵知...)
 
 协议:
   用户 → 智桥: {"type":"chat","target":"lingyi","text":"..."}
@@ -19,21 +18,29 @@ import asyncio
 import json
 import logging
 import ssl
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 import websockets
 
+try:
+    from auth import ws_auth as _ws_auth
+except Exception:
+    _ws_auth = None
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("zhineng-bridge")
 
 
 class AIRelayServer:
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8765, backend_secret: str = None):
         self.host = host
         self.port = port
         self.server = None
+        self._ws_auth = _ws_auth
+        self._backend_secret = backend_secret
 
         # 用户连接: client_id → websocket
         self.users: dict[str, websockets.WebSocketServerProtocol] = {}
@@ -43,8 +50,11 @@ class AIRelayServer:
         self.routing: dict[str, str] = {}
         # AI后端元数据: backend_id → {name, description, ...}
         self.backend_meta: dict[str, dict] = {}
-        # 待回复的请求: request_id → client_id
-        self.pending: dict[str, str] = {}
+        # 待回复的请求: request_id → (client_id, timestamp)
+        self.pending: dict[str, tuple[str, float]] = {}
+        # pending 条目 TTL（秒）
+        self._pending_ttl = 300  # 5 分钟
+        self._cleanup_task: asyncio.Task | None = None
 
     async def start(self):
         ssl_kwargs = {}
@@ -60,6 +70,7 @@ class AIRelayServer:
             proto = "ws"
 
         logger.info(f"智桥 AI Relay 启动: {proto}://{self.host}:{self.port}")
+        self._cleanup_task = asyncio.create_task(self._pending_cleanup_loop())
         self.server = await websockets.serve(
             self._handle_connection,
             self.host,
@@ -76,12 +87,22 @@ class AIRelayServer:
         logger.info(f"[连接] 新连接 {conn_id}")
 
         try:
+            authenticated = False
             async for raw in websocket:
                 try:
                     msg = json.loads(raw)
                 except json.JSONDecodeError:
                     await websocket.send(json.dumps({"type": "error", "message": "Invalid JSON"}))
                     continue
+
+                if not authenticated and self._ws_auth:
+                    token = msg.get("token", "")
+                    ok, err = self._ws_auth.authenticate_connection(conn_id, token)
+                    if not ok:
+                        await websocket.send(json.dumps({"type": "error", "message": f"认证失败: {err}"}))
+                        await websocket.close(4001, "Authentication required")
+                        return
+                    authenticated = True
 
                 await self._dispatch(conn_id, websocket, msg)
 
@@ -90,6 +111,8 @@ class AIRelayServer:
         except Exception as e:
             logger.error(f"[连接] {conn_id} 异常: {e}")
         finally:
+            if self._ws_auth:
+                self._ws_auth.disconnect(conn_id)
             if conn_id in self.users:
                 del self.users[conn_id]
                 if conn_id in self.routing:
@@ -100,7 +123,7 @@ class AIRelayServer:
                     del self.backends[bid]
                     self.backend_meta.pop(bid, None)
                     logger.info(f"[断开] 后端 {bid}")
-            self.pending = {k: v for k, v in self.pending.items() if v != conn_id}
+            self.pending = {k: (cid, ts) for k, (cid, ts) in self.pending.items() if cid != conn_id}
 
     async def _dispatch(self, conn_id: str, websocket, msg: dict):
         mtype = msg.get("type", "")
@@ -111,6 +134,11 @@ class AIRelayServer:
             if not backend_id:
                 await websocket.send(json.dumps({"type": "error", "message": "backend_id required"}))
                 return
+            if self._backend_secret:
+                secret = msg.get("secret", "")
+                if secret != self._backend_secret:
+                    await websocket.send(json.dumps({"type": "error", "message": "后端注册需要有效密钥"}))
+                    return
             self.backends[backend_id] = websocket
             self.backend_meta[backend_id] = {
                 "name": msg.get("name", backend_id),
@@ -133,7 +161,8 @@ class AIRelayServer:
         # AI后端回复（转发给用户）
         if mtype == "reply":
             request_id = msg.get("request_id", "")
-            client_id = self.pending.pop(request_id, None)
+            entry = self.pending.pop(request_id, None)
+            client_id = entry[0] if entry else None
             if client_id and client_id in self.users:
                 await self.users[client_id].send(json.dumps({
                     "type": "reply",
@@ -149,6 +178,9 @@ class AIRelayServer:
 
         # AI后端主动推送
         if mtype == "push":
+            if websocket not in self.backends.values():
+                await websocket.send(json.dumps({"type": "error", "message": "未授权: 只有已注册的AI后端可以推送消息"}))
+                return
             target_client = msg.get("target_client")
             payload = {
                 "type": "push",
@@ -173,6 +205,7 @@ class AIRelayServer:
             target = msg.get("target", "lingyi")
             text = msg.get("text", "").strip()
             if not text:
+                await websocket.send(json.dumps({"type": "error", "message": "消息不能为空"}))
                 return
 
             # 自动注册用户
@@ -186,12 +219,12 @@ class AIRelayServer:
             backend_ws = self.backends.get(backend_id)
 
             if not backend_ws:
-                # 尝试任意可用后端
                 if self.backends:
+                    original_target = backend_id
                     backend_id = next(iter(self.backends))
                     backend_ws = self.backends[backend_id]
                     self.routing[conn_id] = backend_id
-                    logger.info(f"[路由] {backend_id} 不可用，回退到 {backend_id}")
+                    logger.info(f"[路由] {original_target} 不可用，回退到 {backend_id}")
                 else:
                     await websocket.send(json.dumps({
                         "type": "error",
@@ -200,7 +233,7 @@ class AIRelayServer:
                     return
 
             request_id = str(uuid.uuid4())
-            self.pending[request_id] = conn_id
+            self.pending[request_id] = (conn_id, time.monotonic())
 
             await backend_ws.send(json.dumps({
                 "type": "chat",
@@ -255,8 +288,21 @@ class AIRelayServer:
             "message": f"Unknown message type: {mtype}",
         }))
 
+    async def _pending_cleanup_loop(self):
+        """定期清理过期的 pending 条目，防止内存泄漏。"""
+        while True:
+            await asyncio.sleep(60)
+            now = time.monotonic()
+            expired = [k for k, (_, ts) in self.pending.items() if now - ts > self._pending_ttl]
+            for k in expired:
+                del self.pending[k]
+            if expired:
+                logger.info(f"[清理] 清理 {len(expired)} 个过期 pending 条目")
+
     async def stop(self):
         logger.info("智桥停止中...")
+        if self._cleanup_task:
+            self._cleanup_task.cancel()
         for ws in list(self.users.values()) + list(self.backends.values()):
             try:
                 await ws.close()
@@ -273,7 +319,14 @@ class AIRelayServer:
 
 
 async def main():
-    server = AIRelayServer(host="0.0.0.0", port=8765)
+    backend_secret = None
+    try:
+        from config import settings
+        if settings.security.enable_auth:
+            backend_secret = settings.security.secret_key
+    except Exception:
+        pass
+    server = AIRelayServer(host="0.0.0.0", port=8765, backend_secret=backend_secret)
     await server.start()
 
 

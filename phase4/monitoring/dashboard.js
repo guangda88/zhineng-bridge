@@ -2,6 +2,12 @@
  * 性能监控仪表板
  */
 
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 class PerformanceDashboard {
     constructor() {
         this.metrics = {};
@@ -241,9 +247,9 @@ class PerformanceDashboard {
         }
 
         return this.alerts.map(alert => `
-            <div class="alert ${alert.type}">
-                <span>${alert.message}</span>
-                <span class="alert-time">${alert.time}</span>
+            <div class="alert ${escapeHtml(alert.type)}">
+                <span>${escapeHtml(alert.message)}</span>
+                <span class="alert-time">${escapeHtml(alert.time)}</span>
             </div>
         `).join('');
     }
