@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhineng-bridge-ws
+  namespace: zhineng-bridge
+  labels:
+    app.kubernetes.io/name: zhineng-bridge
+    app.kubernetes.io/component: websocket
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: zhineng-bridge
+  ports:
+    - name: websocket
+      port: 8765
+      targetPort: websocket
+      protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zhineng-bridge-http
+  namespace: zhineng-bridge
+  labels:
+    app.kubernetes.io/name: zhineng-bridge
+    app.kubernetes.io/component: http-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: zhineng-bridge
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP

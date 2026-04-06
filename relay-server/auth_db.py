@@ -9,8 +9,9 @@ import sqlite3
 import uuid
 import threading
 import json
+import secrets
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from contextlib import contextmanager
 from queue import Queue, Empty
 
@@ -261,9 +262,34 @@ class UserDatabase:
                 )
             """)
 
+            # 密码重置令牌表
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                    token TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    used BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+                )
+            """)
+
+            # TOTP 2FA 列（安全迁移，仅当列不存在时添加）
+            cursor.execute("PRAGMA table_info(users)")
+            existing_columns = {row[1] for row in cursor.fetchall()}
+            for col, coldef in [
+                ("totp_secret", "TEXT"),
+                ("totp_enabled", "BOOLEAN DEFAULT FALSE"),
+                ("totp_backup_codes", "TEXT"),
+            ]:
+                if col not in existing_columns:
+                    cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {coldef}")
+
             # 创建索引
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user ON oauth_tokens(user_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at)")
 
             conn.commit()
             self.logger.info("User database initialized", db_path=self.db_path)
@@ -431,7 +457,7 @@ class UserDatabase:
         Returns:
             是否成功
         """
-        allowed_fields = {"username", "email", "role", "permissions", "is_active", "oauth_provider", "oauth_id"}
+        allowed_fields = {"username", "email", "role", "permissions", "is_active", "oauth_provider", "oauth_id", "password_hash", "totp_secret", "totp_enabled", "totp_backup_codes"}
         update_fields = {k: v for k, v in kwargs.items() if k in allowed_fields}
 
         if not update_fields:
@@ -448,13 +474,22 @@ class UserDatabase:
             if "role" in update_fields and isinstance(update_fields["role"], UserRole):
                 update_fields["role"] = update_fields["role"].value
 
+            # 处理 totp_backup_codes 字段（需要 JSON 序列化）
+            if "totp_backup_codes" in update_fields:
+                val = update_fields["totp_backup_codes"]
+                update_fields["totp_backup_codes"] = json.dumps(val) if val else None
+
+            # 处理 totp_secret 字段（None 表示清除）
+            if "totp_secret" in update_fields and update_fields["totp_secret"] is None:
+                update_fields["totp_secret"] = None
+
             # 构建 SQL
             set_clause = ", ".join([f"{k} = ?" for k in update_fields.keys()])
-            values = list(update_fields.values()) + [user_id]
+            values = list(update_fields.values()) + [datetime.now().isoformat(), user_id]
 
             cursor.execute(
                 f"UPDATE users SET {set_clause}, updated_at = ? WHERE user_id = ?",
-                values + [datetime.now().isoformat()]
+                values,
             )
             conn.commit()
 
@@ -656,6 +691,10 @@ class UserDatabase:
 
     def _row_to_user(self, row) -> User:
         """将数据库行转换为 User 对象"""
+        backup_codes = None
+        if len(row) > 13 and row[13]:
+            backup_codes = json.loads(row[13])
+
         return User(
             user_id=row[0],
             username=row[1],
@@ -668,7 +707,124 @@ class UserDatabase:
             oauth_id=row[8],
             created_at=datetime.fromisoformat(row[9]),
             updated_at=datetime.fromisoformat(row[10]),
+            totp_secret=row[11] if len(row) > 11 else None,
+            totp_enabled=bool(row[12]) if len(row) > 12 else False,
+            totp_backup_codes=backup_codes,
         )
+
+    def create_password_reset_token(self, user_id: str, expires_in_hours: int = 1) -> str:
+        """创建密码重置令牌"""
+        token = secrets.token_urlsafe(32)
+        expires_at = (datetime.now() + timedelta(hours=expires_in_hours)).isoformat()
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)",
+                (token, user_id, expires_at),
+            )
+            conn.commit()
+        return token
+
+    def verify_password_reset_token(self, token: str) -> Optional[str]:
+        """验证密码重置令牌，返回 user_id 或 None"""
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT user_id, expires_at, used FROM password_reset_tokens WHERE token = ?",
+                (token,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            user_id, expires_at_str, used = row[0], row[1], row[2]
+            if used:
+                return None
+            if datetime.fromisoformat(expires_at_str) < datetime.now():
+                return None
+            return user_id
+
+    def consume_password_reset_token(self, token: str) -> bool:
+        """标记密码重置令牌为已使用"""
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE password_reset_tokens SET used = TRUE WHERE token = ? AND used = FALSE",
+                (token,),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def reset_password(self, token: str, new_password: str) -> bool:
+        """通过重置令牌设置新密码"""
+        user_id = self.verify_password_reset_token(token)
+        if not user_id:
+            return False
+        password_hash = PasswordHasher.hash_password(new_password)
+        self.update_user(user_id, password_hash=password_hash)
+        self.consume_password_reset_token(token)
+        self.invalidate_user_cache(user_id=user_id)
+        self.logger.info("Password reset", user_id=user_id)
+        return True
+
+    def change_password(self, user_id: str, current_password: str, new_password: str) -> bool:
+        """修改密码（需验证当前密码）"""
+        user = self.verify_user_by_id(user_id, current_password)
+        if not user:
+            return False
+        password_hash = PasswordHasher.hash_password(new_password)
+        self.update_user(user_id, password_hash=password_hash)
+        self.invalidate_user_cache(user_id=user_id)
+        self.logger.info("Password changed", user_id=user_id)
+        return True
+
+    def verify_user_by_id(self, user_id: str, password: str) -> Optional[User]:
+        """通过 user_id 验证用户密码"""
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM users WHERE user_id = ? AND is_active = TRUE",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            user = self._row_to_user(row)
+            if user.password_hash and PasswordHasher.verify_password(password, user.password_hash):
+                return user
+            return None
+
+    def cleanup_expired_reset_tokens(self) -> int:
+        """清理过期的密码重置令牌"""
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM password_reset_tokens WHERE expires_at < ? OR used = TRUE",
+                (datetime.now().isoformat(),),
+            )
+            conn.commit()
+            return cursor.rowcount
+
+    def _consume_backup_code(self, user_id: str, code: str) -> bool:
+        """消费一个 2FA 恢复码"""
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT totp_backup_codes FROM users WHERE user_id = ?",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            if not row or not row[0]:
+                return False
+            codes = json.loads(row[0])
+            if code not in codes:
+                return False
+            codes.remove(code)
+            cursor.execute(
+                "UPDATE users SET totp_backup_codes = ? WHERE user_id = ?",
+                (json.dumps(codes), user_id),
+            )
+            conn.commit()
+            return True
 
     def get_user_by_oauth(self, provider: str, oauth_id: str) -> Optional[User]:
         """

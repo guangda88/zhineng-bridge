@@ -1,5 +1,60 @@
 # 更新日志
 
+## [1.2.0] - 2026-04-05
+
+### 新增功能
+
+**密码重置**
+- 🔐 完整密码重置流程：请求令牌 → 邮件发送 → 确认重置
+- 🔐 带当前密码验证的密码修改接口
+- 🔐 重置令牌过期（1小时）和一次性使用
+- 🔐 防枚举保护：无论邮箱是否存在均返回成功
+- 🔐 过期令牌自动清理
+
+**双因素认证 (TOTP / RFC 6238)**
+- 🔐 纯 Python TOTP 实现，零外部依赖
+- 🔐 备用恢复码（10个，8位十六进制，一次性使用）
+- 🔐 QR 码配置 URI 生成（可选 qrcode 库）
+- 🔐 防重放保护：已使用的 TOTP 码缓存 120 秒
+- 🔐 完整生命周期：setup → enable → verify → disable
+- 🔐 HTTP API 路由：/api/users/2fa/setup、enable、verify、disable、backup-codes
+
+**Kubernetes 部署**
+- ☸️ 完整 K8s 配置清单（namespace、configmap、deployment、service、ingress、hpa、secrets）
+- ☸️ 2 副本滚动更新部署，liveness/readiness 探针
+- ☸️ nginx Ingress + WebSocket 支持 + TLS (cert-manager)
+- ☸️ HPA (2-10 副本，CPU/内存触发) + PDB (minAvailable: 1)
+- ☸️ 非 root 安全上下文 + 资源限制
+
+**部署回滚机制**
+- 🔄 Docker Compose 部署自动保存前次镜像/配置快照
+- 🔄 `deploy.sh -r` 一键回滚到上一版本
+- 🔄 支持 compose 文件快照和镜像 ID 回退两种策略
+
+### 错误修复
+
+- 🐛 修复 `update_user()` SQL 参数顺序错误（user_id 和 timestamp 互换），该 bug 导致所有用户更新操作静默失败
+
+### 架构变更
+
+- `auth_totp.py`: 新增 TOTP 双因素认证模块
+- `auth_password_reset.py`: 新增密码重置管理模块
+- `auth_db.py`: 新增 `password_reset_tokens` 表、`totp_secret`/`totp_enabled`/`totp_backup_codes` 列（安全迁移）
+- `auth_models.py`: User 数据类新增 TOTP 字段
+- `auth_manager.py`: 集成 PasswordResetManager 和 TOTPManager
+- `http_server.py`: 新增 8 个密码重置和 2FA 相关路由
+- `user_auth.py`: 统一导出新增模块
+- `scripts/deploy.sh`: 新增回滚支持
+- `k8s/`: 新增完整 K8s 部署配置
+
+### 测试
+
+- ✅ 97 单元/集成/E2E 测试通过（+24 新增）
+- ✅ 12 跳过（需外部服务）
+- ✅ 0 失败
+
+---
+
 ## [1.1.0] - 2026-04-05
 
 ### 安全审计修复 (48 项发现全部实施)

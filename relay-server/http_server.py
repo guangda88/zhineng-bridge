@@ -19,6 +19,7 @@ from logger import get_logger
 from config import settings
 from user_auth import auth_manager, AuthenticationManager, UserRole
 from oauth2 import oauth2_manager
+from auth_totp import TOTPAuth
 from exceptions import (
     AuthenticationError,
     ValidationError,
@@ -65,6 +66,18 @@ class HTTPServer:
         self.app.router.add_put("/api/users/{user_id}", self.update_user)
         self.app.router.add_delete("/api/users/{user_id}", self.delete_user)
         self.app.router.add_get("/api/users", self.list_users)
+
+        # 密码重置 API
+        self.app.router.add_post("/api/users/password-reset/request", self.request_password_reset)
+        self.app.router.add_post("/api/users/password-reset/confirm", self.confirm_password_reset)
+        self.app.router.add_post("/api/users/password/change", self.change_password)
+
+        # 双因素认证 API
+        self.app.router.add_post("/api/users/2fa/setup", self.setup_2fa)
+        self.app.router.add_post("/api/users/2fa/enable", self.enable_2fa)
+        self.app.router.add_post("/api/users/2fa/verify", self.verify_2fa)
+        self.app.router.add_post("/api/users/2fa/disable", self.disable_2fa)
+        self.app.router.add_post("/api/users/2fa/backup-codes", self.regenerate_backup_codes)
 
         # 文件 API
         setup_file_routes(self.app, self.file_api)
@@ -644,6 +657,204 @@ class HTTPServer:
                 exception_to_dict(e),
                 status=500,
             )
+
+    # ========================================================================
+    # 密码重置
+    # ========================================================================
+
+    async def request_password_reset(self, request: web.Request) -> web.Response:
+        """POST /api/users/password-reset/request  {"email": "..."}"""
+        try:
+            data = await request.json()
+            email = data.get("email")
+            if not email:
+                raise ValidationError("Email is required")
+            token = self.auth_manager.request_password_reset(email)
+            # 无论邮箱是否存在都返回成功（防止枚举攻击）
+            return web.json_response(
+                {"type": "password_reset_requested", "message": "If the email exists, a reset link has been sent"},
+                status=200,
+            )
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except Exception as e:
+            self.logger.error("Password reset request failed", error=str(e), exc_info=True)
+            # 仍然返回成功（防止枚举）
+            return web.json_response(
+                {"type": "password_reset_requested", "message": "If the email exists, a reset link has been sent"},
+                status=200,
+            )
+
+    async def confirm_password_reset(self, request: web.Request) -> web.Response:
+        """POST /api/users/password-reset/confirm  {"token": "...", "new_password": "..."}"""
+        try:
+            data = await request.json()
+            token = data.get("token")
+            new_password = data.get("new_password")
+            if not token or not new_password:
+                raise ValidationError("Token and new_password are required")
+            if len(new_password) < 8:
+                raise ValidationError("Password must be at least 8 characters")
+            success = self.auth_manager.confirm_password_reset(token, new_password)
+            if success:
+                return web.json_response({"type": "password_reset_confirmed", "message": "Password has been reset"}, status=200)
+            return web.json_response({"type": "error", "message": "Invalid or expired reset token", "code": 400}, status=400)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except Exception as e:
+            self.logger.error("Password reset confirm failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def change_password(self, request: web.Request) -> web.Response:
+        """POST /api/users/password/change  {"current_password": "...", "new_password": "..."}"""
+        try:
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                raise ValidationError("Authorization header required")
+            user = self.auth_manager.get_user_from_token(token)
+            if not user:
+                raise AuthenticationError("Invalid or expired token")
+            data = await request.json()
+            current_password = data.get("current_password")
+            new_password = data.get("new_password")
+            if not current_password or not new_password:
+                raise ValidationError("current_password and new_password are required")
+            if len(new_password) < 8:
+                raise ValidationError("Password must be at least 8 characters")
+            success = self.auth_manager.change_password(user.user_id, current_password, new_password)
+            if success:
+                return web.json_response({"type": "password_changed", "message": "Password changed successfully"}, status=200)
+            return web.json_response({"type": "error", "message": "Current password is incorrect", "code": 401}, status=401)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except AuthenticationError as e:
+            return web.json_response(e.to_dict(), status=401)
+        except Exception as e:
+            self.logger.error("Password change failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    # ========================================================================
+    # 双因素认证 (2FA)
+    # ========================================================================
+
+    async def setup_2fa(self, request: web.Request) -> web.Response:
+        """POST /api/users/2fa/setup — 初始化 2FA"""
+        try:
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                raise ValidationError("Authorization header required")
+            user = self.auth_manager.get_user_from_token(token)
+            if not user:
+                raise AuthenticationError("Invalid or expired token")
+            result = self.auth_manager.setup_2fa(user.user_id)
+            return web.json_response({"type": "2fa_setup", **result}, status=200)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except AuthenticationError as e:
+            return web.json_response(e.to_dict(), status=401)
+        except Exception as e:
+            self.logger.error("2FA setup failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def enable_2fa(self, request: web.Request) -> web.Response:
+        """POST /api/users/2fa/enable  {"code": "123456"}"""
+        try:
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                raise ValidationError("Authorization header required")
+            user = self.auth_manager.get_user_from_token(token)
+            if not user:
+                raise AuthenticationError("Invalid or expired token")
+            data = await request.json()
+            code = data.get("code")
+            if not code:
+                raise ValidationError("TOTP code is required")
+            success = self.auth_manager.enable_2fa(user.user_id, code)
+            if success:
+                return web.json_response({"type": "2fa_enabled", "message": "2FA has been enabled"}, status=200)
+            return web.json_response({"type": "error", "message": "Invalid TOTP code", "code": 400}, status=400)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except AuthenticationError as e:
+            return web.json_response(e.to_dict(), status=401)
+        except Exception as e:
+            self.logger.error("2FA enable failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def verify_2fa(self, request: web.Request) -> web.Response:
+        """POST /api/users/2fa/verify  {"code": "123456"}"""
+        try:
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                raise ValidationError("Authorization header required")
+            user = self.auth_manager.get_user_from_token(token)
+            if not user:
+                raise AuthenticationError("Invalid or expired token")
+            data = await request.json()
+            code = data.get("code")
+            if not code:
+                raise ValidationError("TOTP code is required")
+            success = self.auth_manager.verify_2fa(user.user_id, code)
+            if success:
+                return web.json_response({"type": "2fa_verified", "message": "2FA verification successful"}, status=200)
+            return web.json_response({"type": "error", "message": "Invalid TOTP code", "code": 401}, status=401)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except AuthenticationError as e:
+            return web.json_response(e.to_dict(), status=401)
+        except Exception as e:
+            self.logger.error("2FA verify failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def disable_2fa(self, request: web.Request) -> web.Response:
+        """POST /api/users/2fa/disable  {"code": "123456"}"""
+        try:
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                raise ValidationError("Authorization header required")
+            user = self.auth_manager.get_user_from_token(token)
+            if not user:
+                raise AuthenticationError("Invalid or expired token")
+            data = await request.json()
+            code = data.get("code")
+            if not code:
+                raise ValidationError("TOTP code or backup code is required")
+            success = self.auth_manager.disable_2fa(user.user_id, code)
+            if success:
+                return web.json_response({"type": "2fa_disabled", "message": "2FA has been disabled"}, status=200)
+            return web.json_response({"type": "error", "message": "Invalid code", "code": 401}, status=401)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except AuthenticationError as e:
+            return web.json_response(e.to_dict(), status=401)
+        except Exception as e:
+            self.logger.error("2FA disable failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def regenerate_backup_codes(self, request: web.Request) -> web.Response:
+        """POST /api/users/2fa/backup-codes  {"code": "123456"}"""
+        try:
+            token = request.headers.get("Authorization", "").replace("Bearer ", "")
+            if not token:
+                raise ValidationError("Authorization header required")
+            user = self.auth_manager.get_user_from_token(token)
+            if not user:
+                raise AuthenticationError("Invalid or expired token")
+            data = await request.json()
+            code = data.get("code")
+            if not code:
+                raise ValidationError("TOTP code is required")
+            new_codes = self.auth_manager.regenerate_backup_codes(user.user_id, code)
+            if new_codes is not None:
+                return web.json_response({"type": "backup_codes_regenerated", "backup_codes": new_codes}, status=200)
+            return web.json_response({"type": "error", "message": "Invalid code", "code": 401}, status=401)
+        except ValidationError as e:
+            return web.json_response(e.to_dict(), status=400)
+        except AuthenticationError as e:
+            return web.json_response(e.to_dict(), status=401)
+        except Exception as e:
+            self.logger.error("Backup code regeneration failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
 
     # ========================================================================
     # 健康检查

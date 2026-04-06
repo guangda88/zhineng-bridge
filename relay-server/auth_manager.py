@@ -17,6 +17,7 @@ from logger import get_logger
 from auth_models import User, TokenInfo, UserRole
 from auth_jwt import JWTAuth
 from auth_db import UserDatabase
+from auth_totp import TOTPManager
 
 # ============================================================================
 # 缓存配置
@@ -58,6 +59,7 @@ class AuthenticationManager:
         self.logger = get_logger(__name__)
         self.db = UserDatabase(db_path)
         self.jwt_auth = JWTAuth()
+        self.totp_manager = TOTPManager(self.db)
         self._sessions: Dict[str, TokenInfo] = {}
         self._sessions_lock = threading.Lock()
 
@@ -367,3 +369,60 @@ class AuthenticationManager:
             self.logger.info("Expired sessions cleaned up", count=cleaned_count)
 
         return cleaned_count
+
+    # ========================================================================
+    # 密码重置
+    # ========================================================================
+
+    def request_password_reset(self, email: str) -> Optional[str]:
+        """请求密码重置，返回重置令牌（由调用方发送邮件）"""
+        user = self.db.get_user(username=None)
+        # 通过 email 查找用户
+        users = self.db.list_users(limit=1000)
+        target = None
+        for u in users:
+            if u.email == email:
+                target = u
+                break
+        if not target:
+            self.logger.warning("Password reset requested for unknown email")
+            return None
+        token = self.db.create_password_reset_token(target.user_id, expires_in_hours=1)
+        self.logger.info("Password reset token created", user_id=target.user_id)
+        return token
+
+    def confirm_password_reset(self, token: str, new_password: str) -> bool:
+        """确认密码重置"""
+        if len(new_password) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return self.db.reset_password(token, new_password)
+
+    def change_password(self, user_id: str, current_password: str, new_password: str) -> bool:
+        """修改密码"""
+        if len(new_password) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return self.db.change_password(user_id, current_password, new_password)
+
+    # ========================================================================
+    # 双因素认证 (TOTP)
+    # ========================================================================
+
+    def setup_2fa(self, user_id: str) -> dict:
+        """初始化 2FA，返回 secret 和 QR 码信息"""
+        return self.totp_manager.setup_2fa(user_id)
+
+    def enable_2fa(self, user_id: str, code: str) -> bool:
+        """验证并启用 2FA"""
+        return self.totp_manager.verify_and_enable_2fa(user_id, code)
+
+    def verify_2fa(self, user_id: str, code: str) -> bool:
+        """验证 2FA 码"""
+        return self.totp_manager.verify_2fa(user_id, code)
+
+    def disable_2fa(self, user_id: str, code: str) -> bool:
+        """禁用 2FA"""
+        return self.totp_manager.disable_2fa(user_id, code)
+
+    def regenerate_backup_codes(self, user_id: str, code: str) -> Optional[list]:
+        """重新生成恢复码"""
+        return self.totp_manager.regenerate_backup_codes(user_id, code)
