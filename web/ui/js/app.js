@@ -74,6 +74,62 @@ const TOOLS = [
         description: 'GitHub Copilot - AI 助手',
         status: 'available',
         color: '#F0F0F0'
+    },
+    {
+        id: 'aider',
+        name: 'Aider',
+        icon: '🦸',
+        description: 'Aider - AI 结对编程 (GPT-4/Claude)',
+        status: 'available',
+        color: '#7C3AED'
+    },
+    {
+        id: 'continue',
+        name: 'Continue',
+        icon: '▶️',
+        description: 'Continue.dev - 开源 AI 代码助手',
+        status: 'available',
+        color: '#06B6D4'
+    },
+    {
+        id: 'tabnine',
+        name: 'Tabnine',
+        icon: '⌨️',
+        description: 'Tabnine - AI 代码补全',
+        status: 'available',
+        color: '#6366F1'
+    },
+    {
+        id: 'codium',
+        name: 'CodiumAI',
+        icon: '🧪',
+        description: 'CodiumAI - AI 测试与代码完整性',
+        status: 'available',
+        color: '#F59E0B'
+    },
+    {
+        id: 'windsurf',
+        name: 'Windsurf',
+        icon: '🏄',
+        description: 'Codeium Windsurf - AI IDE',
+        status: 'available',
+        color: '#10B981'
+    },
+    {
+        id: 'cody',
+        name: 'Sourcegraph Cody',
+        icon: '🔍',
+        description: 'Sourcegraph Cody - AI 代码助手',
+        status: 'available',
+        color: '#8B5CF6'
+    },
+    {
+        id: 'augment',
+        name: 'Augment',
+        icon: '⚡',
+        description: 'Augment Code - AI 编程助手',
+        status: 'available',
+        color: '#EF4444'
     }
 ];
 

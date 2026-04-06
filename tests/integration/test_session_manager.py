@@ -26,13 +26,13 @@ class TestSessionManager:
         assert manager.base_dir == "/tmp/zhineng-bridge-test"
         assert len(manager.sessions) == 0
         assert manager.active_session_id is None
-        assert len(manager.tools) == 8
+        assert len(manager.tools) == 15
 
     def test_list_tools(self, manager):
         """测试列出工具"""
         tools = manager.list_tools()
 
-        assert len(tools) == 8
+        assert len(tools) == 15
         assert 'crush' in tools
         assert 'claude' in tools
         assert 'cursor' in tools

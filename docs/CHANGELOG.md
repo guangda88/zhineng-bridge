@@ -1,5 +1,48 @@
 # 更新日志
 
+## [1.3.0] - 2026-04-05
+
+### 新增功能
+
+**工具扩展 (8→15)**
+- 🛠️ Aider — AI 结对编程 (GPT-4/Claude)
+- 🛠️ Continue.dev — 开源 AI 代码助手
+- 🛠️ Tabnine — AI 代码补全
+- 🛠️ CodiumAI — AI 测试与代码完整性
+- 🛠️ Windsurf — Codeium AI IDE
+- 🛠️ Sourcegraph Cody — AI 代码助手
+- 🛠️ Augment Code — AI 编程助手
+
+**团队协作**
+- 👥 团队 CRUD：创建、查看、更新、删除团队
+- 👥 成员管理：邀请、角色分配(Owner/Admin/Member/Viewer)、移除、退出
+- 👥 邮件邀请系统：Token 邀请码、72小时过期、接受/拒绝
+- 👥 共享会话：在团队内共享 AI 会话，查看/取消共享
+- 👥 权限层级：Owner > Admin > Member > Viewer，操作级别权限检查
+- 👥 REST API：16 个团队管理端点 (/api/teams/*)
+
+### 新增文件
+
+- `relay-server/team_models.py` — 团队数据模型 (Team, TeamMember, TeamInvite, SharedSession)
+- `relay-server/team_db.py` — 团队数据库操作 (CRUD + 邀请 + 共享会话)
+- `relay-server/team_manager.py` — 团队管理器 (权限检查 + 业务逻辑)
+- `tests/unit/test_team_and_tools.py` — 37 个测试 (29 团队 + 8 工具注册)
+
+### 修改文件
+
+- `phase1/session_manager/session_manager.py` — 新增 7 个工具注册
+- `web/ui/js/app.js` — 前端工具列表新增 7 个工具
+- `relay-server/http_server.py` — 新增 16 个团队管理 API 路由
+- `tests/integration/test_session_manager.py` — 工具计数 8→15
+
+### 测试
+
+- ✅ 134 单元/集成/E2E 测试通过（+37 新增）
+- ✅ 12 跳过（需外部服务）
+- ✅ 0 失败
+
+---
+
 ## [1.2.0] - 2026-04-05
 
 ### 新增功能

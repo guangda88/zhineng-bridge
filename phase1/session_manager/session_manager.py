@@ -79,6 +79,55 @@ class SessionManager:
                 "icon": "🤖",
                 "color": "#F0F0F0",
             },
+            "aider": {
+                "name": "Aider",
+                "description": "Aider - AI 结对编程 (GPT-4/Claude)",
+                "executable": "aider",
+                "icon": "🦸",
+                "color": "#7C3AED",
+            },
+            "continue": {
+                "name": "Continue",
+                "description": "Continue.dev - 开源 AI 代码助手",
+                "executable": "continue",
+                "icon": "▶️",
+                "color": "#06B6D4",
+            },
+            "tabnine": {
+                "name": "Tabnine",
+                "description": "Tabnine - AI 代码补全",
+                "executable": "tabnine",
+                "icon": "⌨️",
+                "color": "#6366F1",
+            },
+            "codium": {
+                "name": "CodiumAI",
+                "description": "CodiumAI - AI 测试与代码完整性",
+                "executable": "codium",
+                "icon": "🧪",
+                "color": "#F59E0B",
+            },
+            "windsurf": {
+                "name": "Windsurf",
+                "description": "Codeium Windsurf - AI IDE",
+                "executable": "windsurf",
+                "icon": "🏄",
+                "color": "#10B981",
+            },
+            "cody": {
+                "name": "Sourcegraph Cody",
+                "description": "Sourcegraph Cody - AI 代码助手",
+                "executable": "cody",
+                "icon": "🔍",
+                "color": "#8B5CF6",
+            },
+            "augment": {
+                "name": "Augment",
+                "description": "Augment Code - AI 编程助手",
+                "executable": "augment",
+                "icon": "⚡",
+                "color": "#EF4444",
+            },
         }
 
     def list_tools(self) -> Dict[str, Dict[str, Any]]:

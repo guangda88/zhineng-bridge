@@ -27,6 +27,8 @@ from exceptions import (
 )
 from file_api import FileAPI, setup_file_routes
 from push_service import PushService, setup_push_routes
+from team_manager import TeamManager
+from team_models import TeamRole
 
 
 class HTTPServer:
@@ -49,6 +51,9 @@ class HTTPServer:
 
         # 初始化推送服务
         self.push_service = PushService()
+
+        # 初始化团队管理器
+        self.team_manager = TeamManager(auth_manager.db)
 
         self._setup_routes()
 
@@ -84,6 +89,23 @@ class HTTPServer:
 
         # 推送服务 API
         setup_push_routes(self.app, self.push_service)
+
+        # 团队协作 API
+        self.app.router.add_post("/api/teams", self.create_team)
+        self.app.router.add_get("/api/teams", self.list_teams)
+        self.app.router.add_get("/api/teams/{team_id}", self.get_team)
+        self.app.router.add_put("/api/teams/{team_id}", self.update_team)
+        self.app.router.add_delete("/api/teams/{team_id}", self.delete_team)
+        self.app.router.add_get("/api/teams/{team_id}/members", self.get_team_members)
+        self.app.router.add_put("/api/teams/{team_id}/members/{target_id}", self.update_member_role)
+        self.app.router.add_delete("/api/teams/{team_id}/members/{target_id}", self.remove_member)
+        self.app.router.add_post("/api/teams/{team_id}/leave", self.leave_team)
+        self.app.router.add_post("/api/teams/{team_id}/invites", self.create_invite)
+        self.app.router.add_get("/api/teams/{team_id}/invites", self.list_invites)
+        self.app.router.add_post("/api/teams/invites/{token}/accept", self.accept_invite)
+        self.app.router.add_post("/api/teams/{team_id}/sessions/share", self.share_session)
+        self.app.router.add_delete("/api/teams/sessions/{share_id}", self.unshare_session)
+        self.app.router.add_get("/api/teams/{team_id}/sessions", self.get_team_sessions)
 
         # 健康检查
         self.app.router.add_get("/health", self.health_check)
@@ -854,6 +876,284 @@ class HTTPServer:
             return web.json_response(e.to_dict(), status=401)
         except Exception as e:
             self.logger.error("Backup code regeneration failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    # ========================================================================
+    # 团队协作端点
+    # ========================================================================
+
+    async def _get_auth_user_id(self, request: web.Request) -> str:
+        """从请求中提取并验证用户ID"""
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        if not token:
+            raise ValidationError("Authorization header required")
+        user = self.auth_manager.get_user_from_token(token)
+        if not user:
+            raise AuthenticationError("Invalid or expired token")
+        return user.user_id
+
+    async def create_team(self, request: web.Request) -> web.Response:
+        """POST /api/teams"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            data = await request.json()
+            name = data.get("name", "").strip()
+            description = data.get("description")
+            if not name:
+                raise ValidationError("团队名称不能为空")
+            team = self.team_manager.create_team(name, user_id, description)
+            return web.json_response({"type": "team_created", "team": team.to_dict()}, status=201)
+        except (ValidationError, ValueError) as e:
+            return web.json_response(exception_to_dict(e), status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Create team failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def list_teams(self, request: web.Request) -> web.Response:
+        """GET /api/teams"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            teams = self.team_manager.list_user_teams(user_id)
+            return web.json_response({"type": "teams_list", "teams": [t.to_dict() for t in teams], "count": len(teams)})
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("List teams failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def get_team(self, request: web.Request) -> web.Response:
+        """GET /api/teams/{team_id}"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            team = self.team_manager.get_team(team_id, user_id)
+            if not team:
+                return web.json_response({"type": "error", "message": "团队不存在或无权访问"}, status=404)
+            members = self.team_manager.get_team_members(team_id, user_id)
+            return web.json_response({"type": "team_info", "team": team.to_dict(), "members": [m.to_dict() for m in members]})
+        except (AuthenticationError,) as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except Exception as e:
+            self.logger.error("Get team failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def update_team(self, request: web.Request) -> web.Response:
+        """PUT /api/teams/{team_id}"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            data = await request.json()
+            team = self.team_manager.update_team(team_id, user_id, **data)
+            return web.json_response({"type": "team_updated", "team": team.to_dict()})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except (ValidationError, ValueError) as e:
+            return web.json_response(exception_to_dict(e), status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Update team failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def delete_team(self, request: web.Request) -> web.Response:
+        """DELETE /api/teams/{team_id}"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            self.team_manager.delete_team(team_id, user_id)
+            return web.json_response({"type": "team_deleted", "team_id": team_id})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Delete team failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def get_team_members(self, request: web.Request) -> web.Response:
+        """GET /api/teams/{team_id}/members"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            members = self.team_manager.get_team_members(team_id, user_id)
+            return web.json_response({"type": "team_members", "members": [m.to_dict() for m in members], "count": len(members)})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Get team members failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def update_member_role(self, request: web.Request) -> web.Response:
+        """PUT /api/teams/{team_id}/members/{target_id}"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            target_id = request.match_info["target_id"]
+            data = await request.json()
+            role_str = data.get("role", "")
+            try:
+                new_role = TeamRole(role_str)
+            except ValueError:
+                raise ValidationError(f"无效的角色: {role_str}")
+            self.team_manager.update_member_role(team_id, user_id, target_id, new_role)
+            return web.json_response({"type": "member_role_updated", "team_id": team_id, "user_id": target_id, "role": role_str})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except (ValidationError, ValueError) as e:
+            return web.json_response(exception_to_dict(e), status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Update member role failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def remove_member(self, request: web.Request) -> web.Response:
+        """DELETE /api/teams/{team_id}/members/{target_id}"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            target_id = request.match_info["target_id"]
+            self.team_manager.remove_member(team_id, user_id, target_id)
+            return web.json_response({"type": "member_removed", "team_id": team_id, "user_id": target_id})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except (ValidationError, ValueError) as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Remove member failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def leave_team(self, request: web.Request) -> web.Response:
+        """POST /api/teams/{team_id}/leave"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            self.team_manager.leave_team(team_id, user_id)
+            return web.json_response({"type": "left_team", "team_id": team_id})
+        except (ValidationError, ValueError) as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Leave team failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def create_invite(self, request: web.Request) -> web.Response:
+        """POST /api/teams/{team_id}/invites"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            data = await request.json()
+            email = data.get("email", "").strip()
+            if not email:
+                raise ValidationError("邮箱不能为空")
+            hours = data.get("expires_hours", 72)
+            invite = self.team_manager.create_invite(team_id, user_id, email, hours)
+            return web.json_response({"type": "invite_created", "invite": invite.to_dict()}, status=201)
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except (ValidationError, ValueError) as e:
+            return web.json_response(exception_to_dict(e), status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Create invite failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def list_invites(self, request: web.Request) -> web.Response:
+        """GET /api/teams/{team_id}/invites"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            invites = self.team_manager.list_team_invites(team_id, user_id)
+            return web.json_response({"type": "invites_list", "invites": [i.to_dict() for i in invites], "count": len(invites)})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("List invites failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def accept_invite(self, request: web.Request) -> web.Response:
+        """POST /api/teams/invites/{token}/accept"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            token = request.match_info["token"]
+            invite = self.team_manager.accept_invite(token, user_id)
+            return web.json_response({"type": "invite_accepted", "team_id": invite.team_id})
+        except (ValidationError, ValueError) as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Accept invite failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def share_session(self, request: web.Request) -> web.Response:
+        """POST /api/teams/{team_id}/sessions/share"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            data = await request.json()
+            session_id = data.get("session_id", "").strip()
+            if not session_id:
+                raise ValidationError("session_id 不能为空")
+            title = data.get("title")
+            shared = self.team_manager.share_session(session_id, team_id, user_id, title)
+            return web.json_response({"type": "session_shared", "share": shared.to_dict()}, status=201)
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except (ValidationError, ValueError) as e:
+            return web.json_response(exception_to_dict(e), status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Share session failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def unshare_session(self, request: web.Request) -> web.Response:
+        """DELETE /api/teams/sessions/{share_id}"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            share_id = request.match_info["share_id"]
+            data = await request.json()
+            team_id = data.get("team_id", "")
+            if not team_id:
+                raise ValidationError("team_id required")
+            self.team_manager.unshare_session(share_id, team_id, user_id)
+            return web.json_response({"type": "session_unshared", "share_id": share_id})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except (ValidationError, ValueError) as e:
+            return web.json_response(exception_to_dict(e), status=400)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Unshare session failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def get_team_sessions(self, request: web.Request) -> web.Response:
+        """GET /api/teams/{team_id}/sessions"""
+        try:
+            user_id = await self._get_auth_user_id(request)
+            team_id = request.match_info["team_id"]
+            sessions = self.team_manager.get_team_sessions(team_id, user_id)
+            return web.json_response({"type": "team_sessions", "sessions": [s.to_dict() for s in sessions], "count": len(sessions)})
+        except PermissionError as e:
+            return web.json_response({"type": "error", "message": str(e)}, status=403)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Get team sessions failed", error=str(e), exc_info=True)
             return web.json_response(exception_to_dict(e), status=500)
 
     # ========================================================================
