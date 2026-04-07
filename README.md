@@ -4,8 +4,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-82%25-brightgreen.svg)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-82%25-brightgreen.svg)](htmlcov/)
+[![Tests](https://img.shields.io/badge/tests-167%20passed-brightgreen.svg)](tests/)
 
 ---
 
@@ -15,13 +14,14 @@
 
 ### 核心特性
 
-- **多工具支持**: 支持 8 个主流 AI 编码工具
+- **多工具支持**: 支持 15+ AI 编码工具与团队协作
 - **WebSocket 通信**: 实时双向通信
 - **会话管理**: 统一的会话生命周期管理
-- **安全认证**: JWT + OAuth2 + CSRF + 速率限制 (v1.1 已集成)
+- **安全认证**: JWT + OAuth2 + TOTP 2FA + CSRF + 速率限制
+- **插件系统**: 动态加载与生命周期管理
 - **高性能**: 优化的性能和响应速度
 - **易于集成**: 简洁的 API 和友好的 UI
-- **安全加固**: 48 项安全审计发现已全部修复 (v1.1)
+- **安全加固**: 48 + 17 = 65 项安全审计发现已修复
 
 ---
 
@@ -86,20 +86,15 @@ http://localhost:8000/web/ui/index.html
 
 ```
 zhineng-bridge/
-├── relay-server/          # WebSocket 中继服务器
-│   ├── server.py          # 主服务器 (含认证集成)
-│   ├── auth.py            # 认证模块
-│   ├── auth_jwt.py        # JWT 令牌管理 (含缓存)
-│   ├── auth_hash.py       # 密码哈希 (PBKDF2 可配置)
-│   ├── auth_manager.py    # 用户管理
-│   ├── http_server.py     # HTTP 服务 (OAuth2 回调)
-│   ├── push_service.py    # 推送通知服务
-│   ├── sharded_lock.py    # 分片锁 + 分片数据存储
+├── relay-server/          # WebSocket + HTTP 中继服务器
+│   ├── server.py          # 主服务器
+│   ├── auth*.py           # 认证模块 (JWT/OAuth2/TOTP/CSRF)
+│   ├── plugin_system.py   # 插件系统
 │   ├── models.py          # 数据模型 (Pydantic)
-│   ├── config.py          # 配置管理
-│   └── start_server.py    # 启动脚本 (WS + HTTP)
+│   ├── rate_limit.py      # 速率限制
+│   └── start_server.py    # 启动脚本
 ├── phase1/                # 第一阶段功能
-│   └── session_manager/   # 会话管理器
+│   └── session_manager/   # 会话管理器 (15 AI 工具)
 ├── phase3/                # 第三阶段功能
 │   ├── encryption/        # 加密模块
 │   └── storage/           # 存储模块
@@ -115,12 +110,13 @@ zhineng-bridge/
 │   ├── unit/              # 单元测试
 │   ├── integration/       # 集成测试
 │   ├── e2e/               # 端到端测试
-│   └── performance/       # 性能测试
+│   ├── performance/       # 性能测试
+│   └── frontend/          # 前端测试
+├── scripts/               # 运维脚本 (部署/备份/诊断)
 ├── docs/                  # 文档
-│   ├── DEEP_AUDIT_REPORT.md  # 安全审计报告
-│   ├── API.md             # API 文档
-│   └── CHANGELOG.md       # 更新日志
-└── config/                # 配置文件
+├── Dockerfile             # Docker 镜像
+├── docker-compose.yml     # 开发环境编排
+└── docker-compose.prod.yml # 生产环境编排
 ```
 
 ---
@@ -133,8 +129,8 @@ zhineng-bridge/
 | WebSocket 连接时间 | < 50ms |
 | 页面加载时间 | < 2s |
 | 内存使用 | < 100MB |
-| 测试通过率 | 73/73 (100%) |
-| 安全审计修复 | 48/48 (100%) |
+| 测试 | 167 passed, 12 skipped |
+| 安全审计修复 | 65/65 (48 + 17) |
 
 ---
 
@@ -211,7 +207,7 @@ docker-compose -f docker-compose.prod.yml down
 
 ### 开发文档
 
-- [安全审计报告](docs/DEEP_AUDIT_REPORT.md) - 48 项安全发现及修复记录
+- [安全审计报告](docs/DEEP_AUDIT_REPORT.md) - 65 项安全发现及修复记录 (v1.2 + v1.4.0)
 - [测试审计报告](docs/TEST_AUDIT_REPORT.md) - 测试质量审计
 - [贡献指南](CONTRIBUTING.md) - 贡献流程和规范
 - [开发指南](AGENTS.md) - Agent 配置说明
@@ -220,15 +216,19 @@ docker-compose -f docker-compose.prod.yml down
 
 ## 安全
 
-v1.1 完成了全面安全审计，修复 48 项发现（4 P0 + 20 P1 + 16 P2 + 8 P3）：
+v1.2 完成全面安全审计（48 项），v1.4.0 完成审计 Phase 1（17 项），共修复 65 项安全发现：
 
 - **WebSocket 认证**: 首消息 token 验证 + 后端注册密钥
 - **XSS 防护**: 全前端 DOM-based escapeHtml + CSP
 - **OAuth2 安全**: HTTP-only cookie + state 验证
 - **CSRF 防护**: 令牌 + fetch 拦截链
 - **密码安全**: PBKDF2-HMAC-SHA256 可配置迭代次数
-- **信息泄露**: 移除 HTML 注释中的配置信息
+- **信息泄露**: 移除 HTML 注释中的配置信息 + 敏感字段脱敏
 - **内存安全**: pending 字典 TTL 自动清理
+- **时序攻击**: hmac.compare_digest 替换
+- **Host header 注入**: 白名单验证
+- **RCE 防护**: 插件白名单 + 文件系统检查
+- **TOTP 2FA**: 双因素认证
 
 详见 [安全审计报告](docs/DEEP_AUDIT_REPORT.md)。
 

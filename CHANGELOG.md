@@ -3,6 +3,72 @@
 本文件记录智桥所有值得注意的更改。格式基于 [Keep a Changelog](https://keepachangelog.com/)，
 版本号遵循 [语义化版本](https://semver.org/)。
 
+## [1.4.0] - 2026-04-07
+
+### Added
+- 插件系统 (plugin_system.py)：动态加载、发现、生命周期管理
+- 环境诊断脚本 (scripts/diagnose_page.sh) + 增强版健康检查
+- MCP 封装计划 (MCP_ENCAPSULATION_PLAN.md)
+- 智桥灵信身份注册 (LingIdentity.ZHIBRIDGE)
+
+### Changed
+- AI 工具支持从 8 个扩展到 15 个
+- 安全审计 Phase 1：修复 17 个 Critical/High 漏洞
+  - 时序攻击 → hmac.compare_digest
+  - Host header 注入 → 白名单验证
+  - 3处 XSS → html.escape / textContent / data-attrs
+  - RCE via importlib → 插件白名单 + 文件系统检查
+  - 配置日志泄露 → 敏感字段脱敏
+  - 伪造 Bearer token → 最小长度验证
+  - 私钥 extractable → re-import false
+  - Math.random() → crypto.randomUUID()
+  - sqlite3 绕过 → 连接池统一
+  - N+1 查询 → 单次 DB 查询
+  - 批量赋值 → 字段白名单
+  - Docker → 非 root 用户
+  - K8s secrets → base64 编码
+- 测试：167 passed, 12 skipped
+
+## [1.3.0] - 2026-04-05
+
+### Added
+- AI 工具扩展（8→15）：团队协作系统、工具共享
+- 密码重置功能
+- TOTP 双因素认证 (2FA)
+- K8s 部署清单和配置
+- 数据库回滚机制
+
+### Changed
+- 测试从 73 增加到 134 passed
+
+## [1.2.0] - 2026-04-03
+
+### Fixed
+- P0-P3 安全审计修复：48 项发现全部实施
+  - WebSocket 认证增强
+  - XSS 防护 (DOM-based escapeHtml + CSP)
+  - OAuth2 安全 (HTTP-only cookie + state 验证)
+  - CSRF 防护 (令牌 + fetch 拦截链)
+  - 密码安全 (PBKDF2-HMAC-SHA256 可配置迭代)
+  - 内存安全 (pending 字典 TTL 自动清理)
+
+### Changed
+- 系统审计修复：测试稳定性 + 代码质量
+- 近期+中期工程优化 (7项)
+
+## [1.1.0] - 2026-03-28
+
+### Added
+- JWT 认证模块 (auth_jwt.py)
+- 密码哈希模块 (auth_hash.py, PBKDF2 可配置)
+- 用户管理器 (auth_manager.py)
+- HTTP 服务 (http_server.py, OAuth2 回调)
+- 推送通知服务 (push_service.py)
+- 分片锁 + 分片数据存储 (sharded_lock.py)
+- Pydantic 数据模型 (models.py)
+- 生产环境部署方案 (Docker + PostgreSQL + Redis + Nginx)
+- CI/CD (.github/workflows/ci.yml)
+
 ## [Unreleased]
 
 ### Added
