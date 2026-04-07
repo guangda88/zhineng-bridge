@@ -847,3 +847,14 @@ class UserDatabase:
             if not row:
                 return None
             return self._row_to_user(row)
+
+    def health_check(self) -> dict:
+        """数据库健康检查"""
+        try:
+            with self._pool.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM users")
+                user_count = cursor.fetchone()[0]
+            return {"ok": True, "user_count": user_count}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}

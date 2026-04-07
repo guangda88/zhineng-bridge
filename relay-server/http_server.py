@@ -1312,23 +1312,115 @@ class HTTPServer:
 
     async def health_check(self, request: web.Request) -> web.Response:
         """
-        健康检查端点
+        增强版健康检查端点
 
         GET /health
+        GET /health?verbose=1  (含提示信息)
         """
-        return web.json_response(
-            {
-                "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
-                "service": "zhineng-bridge",
-                "version": "1.0.0",
-                "features": {
-                    "oauth2": len(oauth2_manager.list_providers()) > 0,
-                    "oauth2_providers": oauth2_manager.list_providers(),
-                },
-            },
-            status=200,
-        )
+        import os as _os
+        import shutil as _shutil
+
+        checks = {}
+        hints = {}
+
+        # 数据库
+        try:
+            db_result = self.auth_manager.db.health_check()
+            checks["database"] = db_result
+            if not db_result.get("ok"):
+                hints["database"] = "数据库连接失败，请检查文件权限和磁盘空间"
+        except Exception as e:
+            checks["database"] = {"ok": False, "error": str(e)}
+            hints["database"] = "数据库异常，请查看日志"
+
+        # 插件
+        try:
+            plugins = self.plugin_manager.list_plugins()
+            enabled = [p for p in plugins if p.state.value == "enabled"]
+            errored = [p for p in plugins if p.state.value == "error"]
+            checks["plugins"] = {
+                "ok": len(errored) == 0,
+                "total": len(plugins),
+                "enabled": len(enabled),
+                "errors": len(errored),
+                "error_ids": [p.plugin_id for p in errored],
+            }
+            if errored:
+                hints["plugins"] = (
+                    f"插件加载失败: {', '.join(p.plugin_id for p in errored)}。"
+                    "查看日志了解详情，或调用 POST /api/plugins/{id}/reload 重试"
+                )
+        except Exception as e:
+            checks["plugins"] = {"ok": False, "error": str(e)}
+
+        # 磁盘空间
+        try:
+            disk_usage = _shutil.disk_usage("/")
+            free_pct = disk_usage.free / disk_usage.total * 100
+            checks["disk"] = {
+                "ok": free_pct > 10,
+                "free_gb": round(disk_usage.free / (1024**3), 1),
+                "total_gb": round(disk_usage.total / (1024**3), 1),
+                "free_percent": round(free_pct, 1),
+            }
+            if free_pct <= 10:
+                hints["disk"] = (
+                    f"磁盘空间不足 ({free_pct:.0f}% 可用)，"
+                    "可能导致数据库写入失败"
+                )
+        except Exception:
+            pass
+
+        # 认证系统
+        try:
+            checks["auth"] = {
+                "ok": True,
+                "enabled": self.auth_manager is not None,
+            }
+        except Exception as e:
+            checks["auth"] = {"ok": False, "error": str(e)}
+
+        # OAuth2
+        try:
+            providers = oauth2_manager.list_providers()
+            checks["oauth2"] = {
+                "ok": True,
+                "providers": providers,
+                "configured": len(providers) > 0,
+            }
+        except Exception:
+            checks["oauth2"] = {"ok": True, "configured": False}
+
+        # 判断整体状态
+        all_ok = all(v.get("ok", True) for v in checks.values())
+        overall = "healthy" if all_ok else "degraded"
+
+        # 读取版本
+        version = "unknown"
+        try:
+            version_path = _os.path.join(
+                _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                "VERSION",
+            )
+            with open(version_path) as f:
+                version = f.read().strip()
+        except Exception:
+            pass
+
+        body = {
+            "status": overall,
+            "timestamp": datetime.now().isoformat(),
+            "service": "zhineng-bridge",
+            "version": version,
+            "checks": checks,
+        }
+
+        verbose = request.query.get("verbose", "")
+        if verbose or not all_ok:
+            body["hints"] = hints
+
+        status = 200 if all_ok else 503
+        return web.json_response(body, status=status)
 
 
 # ============================================================================
