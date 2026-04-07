@@ -37,6 +37,13 @@
 | Droid | Factory Droid | ✅ |
 | OpenClaw | OpenClaw | ✅ |
 | GitHub Copilot | GitHub Copilot | ✅ |
+| Aider | AI 结对编程 (GPT-4/Claude) | ✅ |
+| Continue | Continue.dev 开源 AI 代码助手 | ✅ |
+| Tabnine | AI 代码补全 | ✅ |
+| CodiumAI | AI 测试与代码完整性 | ✅ |
+| Windsurf | Codeium Windsurf AI IDE | ✅ |
+| Cody | Sourcegraph Cody AI 代码助手 | ✅ |
+| Augment | Augment Code AI 编程助手 | ✅ |
 
 ---
 
