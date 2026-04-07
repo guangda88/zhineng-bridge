@@ -29,6 +29,7 @@ from file_api import FileAPI, setup_file_routes
 from push_service import PushService, setup_push_routes
 from team_manager import TeamManager
 from team_models import TeamRole
+from plugin_system import PluginManager
 
 
 class HTTPServer:
@@ -54,6 +55,10 @@ class HTTPServer:
 
         # 初始化团队管理器
         self.team_manager = TeamManager(auth_manager.db)
+
+        # 初始化插件管理器
+        self.plugin_manager = PluginManager()
+        self.plugin_manager.load_all()
 
         self._setup_routes()
 
@@ -106,6 +111,16 @@ class HTTPServer:
         self.app.router.add_post("/api/teams/{team_id}/sessions/share", self.share_session)
         self.app.router.add_delete("/api/teams/sessions/{share_id}", self.unshare_session)
         self.app.router.add_get("/api/teams/{team_id}/sessions", self.get_team_sessions)
+
+        # 插件管理 API
+        self.app.router.add_get("/api/plugins", self.list_plugins)
+        self.app.router.add_get("/api/plugins/{plugin_id}", self.get_plugin)
+        self.app.router.add_post("/api/plugins/{plugin_id}/enable", self.enable_plugin)
+        self.app.router.add_post("/api/plugins/{plugin_id}/disable", self.disable_plugin)
+        self.app.router.add_post("/api/plugins/{plugin_id}/reload", self.reload_plugin)
+        self.app.router.add_post("/api/plugins/{plugin_id}/config", self.configure_plugin)
+        self.app.router.add_get("/api/plugins/{plugin_id}/commands", self.get_plugin_commands)
+        self.app.router.add_post("/api/plugins/discover", self.discover_plugins)
 
         # 健康检查
         self.app.router.add_get("/health", self.health_check)
@@ -1154,6 +1169,141 @@ class HTTPServer:
             return web.json_response(exception_to_dict(e), status=401)
         except Exception as e:
             self.logger.error("Get team sessions failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    # ========================================================================
+    # 插件管理端点
+    # ========================================================================
+
+    async def list_plugins(self, request: web.Request) -> web.Response:
+        """GET /api/plugins"""
+        try:
+            await self._get_auth_user_id(request)
+            plugins = self.plugin_manager.list_plugins()
+            return web.json_response({
+                "type": "plugins_list",
+                "plugins": [p.to_dict() for p in plugins],
+                "count": len(plugins),
+            })
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("List plugins failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def get_plugin(self, request: web.Request) -> web.Response:
+        """GET /api/plugins/{plugin_id}"""
+        try:
+            await self._get_auth_user_id(request)
+            plugin_id = request.match_info["plugin_id"]
+            info = self.plugin_manager.get_plugin_info(plugin_id)
+            if not info:
+                return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+            return web.json_response({"type": "plugin_info", "plugin": info.to_dict()})
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Get plugin failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def enable_plugin(self, request: web.Request) -> web.Response:
+        """POST /api/plugins/{plugin_id}/enable"""
+        try:
+            await self._get_auth_user_id(request)
+            plugin_id = request.match_info["plugin_id"]
+            success = self.plugin_manager.enable_plugin(plugin_id)
+            if success:
+                return web.json_response({"type": "plugin_enabled", "plugin_id": plugin_id})
+            return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Enable plugin failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def disable_plugin(self, request: web.Request) -> web.Response:
+        """POST /api/plugins/{plugin_id}/disable"""
+        try:
+            await self._get_auth_user_id(request)
+            plugin_id = request.match_info["plugin_id"]
+            success = self.plugin_manager.disable_plugin(plugin_id)
+            if success:
+                return web.json_response({"type": "plugin_disabled", "plugin_id": plugin_id})
+            return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Disable plugin failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def reload_plugin(self, request: web.Request) -> web.Response:
+        """POST /api/plugins/{plugin_id}/reload"""
+        try:
+            await self._get_auth_user_id(request)
+            plugin_id = request.match_info["plugin_id"]
+            self.plugin_manager.unload_plugin(plugin_id)
+            info = self.plugin_manager.load_plugin(plugin_id)
+            if info:
+                return web.json_response({"type": "plugin_reloaded", "plugin": info.to_dict()})
+            return web.json_response({"type": "error", "message": "Failed to reload plugin"}, status=500)
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Reload plugin failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def configure_plugin(self, request: web.Request) -> web.Response:
+        """POST /api/plugins/{plugin_id}/config"""
+        try:
+            await self._get_auth_user_id(request)
+            plugin_id = request.match_info["plugin_id"]
+            data = await request.json()
+            plugin = self.plugin_manager.get_plugin(plugin_id)
+            if not plugin:
+                return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+            plugin.set_config(data)
+            return web.json_response({"type": "plugin_configured", "plugin_id": plugin_id})
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Configure plugin failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def get_plugin_commands(self, request: web.Request) -> web.Response:
+        """GET /api/plugins/{plugin_id}/commands"""
+        try:
+            await self._get_auth_user_id(request)
+            plugin_id = request.match_info["plugin_id"]
+            plugin = self.plugin_manager.get_plugin(plugin_id)
+            if not plugin:
+                return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+            commands = plugin.get_commands()
+            return web.json_response({
+                "type": "plugin_commands",
+                "plugin_id": plugin_id,
+                "commands": list(commands.keys()),
+                "count": len(commands),
+            })
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Get plugin commands failed", error=str(e), exc_info=True)
+            return web.json_response(exception_to_dict(e), status=500)
+
+    async def discover_plugins(self, request: web.Request) -> web.Response:
+        """POST /api/plugins/discover"""
+        try:
+            await self._get_auth_user_id(request)
+            discovered = self.plugin_manager.discover_plugins()
+            return web.json_response({
+                "type": "plugins_discovered",
+                "plugin_ids": discovered,
+                "count": len(discovered),
+            })
+        except AuthenticationError as e:
+            return web.json_response(exception_to_dict(e), status=401)
+        except Exception as e:
+            self.logger.error("Discover plugins failed", error=str(e), exc_info=True)
             return web.json_response(exception_to_dict(e), status=500)
 
     # ========================================================================

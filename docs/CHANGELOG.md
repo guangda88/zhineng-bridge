@@ -1,5 +1,50 @@
 # 更新日志
 
+## [1.4.0] - 2026-04-07
+
+### 新增功能
+
+**插件系统**
+- 🔌 PluginInterface 基类 — 生命周期管理 (load/enable/disable/unload)
+- 🔌 PluginManager — 自动发现、加载、卸载插件
+- 🔌 钩子系统 — 6 种事件钩子 (on_message_received/sent, on_session_created/destroyed, on_user_connected/disconnected)
+- 🔌 命令系统 — 插件注册自定义命令，通过 API 可查
+- 🔌 REST API — 8 个插件管理端点 (/api/plugins/*)
+- 🔌 3 个示例插件：消息统计、自动回复、消息转换
+
+**代码示例 (docs/examples/)**
+- 📖 基础用法 — WebSocket 连接与消息 (JavaScript + Python)
+- 📖 用户认证 — 注册/登录/密码重置/2FA
+- 📖 团队协作 — 创建团队/邀请/角色/共享会话
+- 📖 插件开发 — 最简插件/钩子/命令/API
+
+**开发者指南 (docs/guides/)**
+- 📋 架构概览 — 系统架构、模块职责、数据流
+- 📋 插件开发指南 — 生命周期、钩子、命令、最佳实践
+- 📋 API 参考 — 全部 HTTP 端点完整文档
+- 📋 部署指南 — 本地/Docker/K8s 部署、配置、监控
+
+### 新增文件
+
+- `relay-server/plugin_system.py` — 插件框架核心 (PluginInterface + PluginManager)
+- `plugins/message_stats.py` — 消息统计示例插件
+- `plugins/auto_reply.py` — 自动回复示例插件
+- `plugins/msg_transform.py` — 消息转换示例插件
+- `tests/unit/test_plugin_system.py` — 33 个插件系统测试
+- `docs/examples/01-basic-usage.md` — 基础用法示例
+- `docs/examples/02-auth.md` — 认证示例
+- `docs/examples/03-team.md` — 团队协作示例
+- `docs/examples/04-plugin.md` — 插件开发示例
+- `docs/guides/architecture.md` — 架构概览
+- `docs/guides/plugin-development.md` — 插件开发指南
+- `docs/guides/api-reference.md` — API 完整参考
+- `docs/guides/deployment.md` — 部署指南
+
+### 测试
+
+- 167 个测试通过 (新增 33 个插件系统测试)
+- 覆盖：插件生命周期、钩子触发、命令执行、错误处理、API 端点
+
 ## [1.3.0] - 2026-04-05
 
 ### 新增功能
