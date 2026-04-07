@@ -9,6 +9,7 @@ HTTP 服务器
 """
 
 import asyncio
+import html
 import json
 from typing import Dict, Any
 from aiohttp import web
@@ -173,8 +174,20 @@ class HTTPServer:
                 status=400,
             )
 
+        # Validate Host header to prevent injection
+        host = request.host
+        allowed_hosts = ["localhost", "127.0.0.1"]
+        server_ws_host = settings.server.ws_host
+        if server_ws_host:
+            allowed_hosts.append(server_ws_host)
+        host_without_port = host.split(":")[0]
+        if host_without_port not in allowed_hosts:
+            return web.json_response(
+                {"type": "error", "message": "Invalid host header"}, status=400,
+            )
+
         # 构建回调 URL
-        redirect_uri = f"http://{request.host}/auth/{provider_name}/callback"
+        redirect_uri = f"http://{host}/auth/{provider_name}/callback"
 
         # 获取授权 URL
         auth_url = provider.get_authorization_url(redirect_uri, state)
@@ -292,7 +305,7 @@ class HTTPServer:
             <body>
                 <div class="container">
                     <div class="success">✅ Authentication Successful!</div>
-                    <p>Welcome, {user.username}!</p>
+                    <p>Welcome, {html.escape(user.username)}!</p>
                     <p>Your authentication token has been saved.</p>
                     <button onclick="window.close()">Close</button>
                 </div>
@@ -962,7 +975,10 @@ class HTTPServer:
             user_id = await self._get_auth_user_id(request)
             team_id = request.match_info["team_id"]
             data = await request.json()
-            team = self.team_manager.update_team(team_id, user_id, **data)
+            # Whitelist allowed fields to prevent mass assignment
+            allowed_fields = {"name", "description"}
+            safe_data = {k: v for k, v in data.items() if k in allowed_fields}
+            team = self.team_manager.update_team(team_id, user_id, **safe_data)
             return web.json_response({"type": "team_updated", "team": team.to_dict()})
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)

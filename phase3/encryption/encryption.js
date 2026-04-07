@@ -33,6 +33,7 @@ class EncryptionManager {
      */
     async generateKeyPair() {
         try {
+            // First generate with extractable=true so we can export the public key
             const keyPair = await window.crypto.subtle.generateKey(
                 {
                     name: "RSA-OAEP",
@@ -44,8 +45,38 @@ class EncryptionManager {
                 ["encrypt", "decrypt"]
             );
 
-            console.log('✅ RSA 密钥对已生成');
-            return keyPair;
+            // Export public key immediately, then regenerate with extractable=false
+            // so the private key can never be extracted from browser crypto storage
+            const publicKeyData = await window.crypto.subtle.exportKey(
+                "spki", keyPair.publicKey
+            );
+
+            const publicKey = await window.crypto.subtle.importKey(
+                "spki", publicKeyData,
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                true,
+                ["encrypt"]
+            );
+
+            // Re-import private key as non-extractable
+            const privateKeyData = await window.crypto.subtle.exportKey(
+                "pkcs8", keyPair.privateKey
+            );
+            const privateKey = await window.crypto.subtle.importKey(
+                "pkcs8", privateKeyData,
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                false,
+                ["decrypt"]
+            );
+
+            // Zero out raw key material from memory
+            privateKeyData.fill(0);
+
+            const safeKeyPair = { publicKey, privateKey };
+            this._exportedPublicKey = this.arrayBufferToBase64(publicKeyData);
+
+            console.log('✅ RSA 密钥对已生成（私钥不可导出）');
+            return safeKeyPair;
         } catch (error) {
             console.error('❌ 生成密钥对失败:', error);
             throw error;
@@ -277,11 +308,15 @@ class EncryptionManager {
      * 生成 UUID
      */
     generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
     }
 }
 

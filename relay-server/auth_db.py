@@ -416,6 +416,16 @@ class UserDatabase:
 
             return user
 
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """通过 email 查找用户"""
+        with self._pool.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_user(row)
+
     def verify_user(self, username: str, password: str) -> Optional[User]:
         """
         验证用户凭据

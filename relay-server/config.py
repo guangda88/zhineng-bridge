@@ -229,21 +229,34 @@ class Settings:
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
 
-    def to_dict(self) -> dict:
+    SENSITIVE_FIELDS = {
+        "secret_key", "encryption_key",
+        "github_oauth_client_secret", "google_oauth_client_secret",
+        "pg_password",
+    }
+
+    def to_dict(self, redact_secrets: bool = True) -> dict:
         """转换为字典"""
-        return {
+        result = {
             "server": self.server.model_dump(),
             "database": self.database.model_dump(),
             "security": self.security.model_dump(),
             "monitoring": self.monitoring.model_dump(),
         }
+        if redact_secrets:
+            for section_name, section_data in result.items():
+                if isinstance(section_data, dict):
+                    for key in section_data:
+                        if key in self.SENSITIVE_FIELDS and section_data[key]:
+                            section_data[key] = "***REDACTED***"
+        return result
 
     def log_config(self):
-        """记录配置信息"""
+        """记录配置信息（自动脱敏）"""
         import structlog
 
         logger = structlog.get_logger()
-        logger.info("Configuration loaded", **self.to_dict())
+        logger.info("Configuration loaded", **self.to_dict(redact_secrets=True))
 
 
 # ============================================================================

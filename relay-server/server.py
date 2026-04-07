@@ -15,6 +15,7 @@
 """
 
 import asyncio
+import hmac
 import json
 import logging
 import ssl
@@ -136,7 +137,7 @@ class AIRelayServer:
                 return
             if self._backend_secret:
                 secret = msg.get("secret", "")
-                if secret != self._backend_secret:
+                if not hmac.compare_digest(secret, self._backend_secret):
                     await websocket.send(json.dumps({"type": "error", "message": "后端注册需要有效密钥"}))
                     return
             self.backends[backend_id] = websocket

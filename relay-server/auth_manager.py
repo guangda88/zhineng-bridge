@@ -160,8 +160,8 @@ class AuthenticationManager:
         Raises:
             AuthenticationError: 如果认证失败
         """
-        # 查找现有用户 (F-025: 使用数据库连接而非直接 sqlite3.connect)
-        conn = self.db.get_connection() if hasattr(self.db, 'get_connection') else sqlite3.connect(self.db.db_path)
+        # 查找现有用户
+        conn = self.db.get_connection()
         try:
             cursor = conn.cursor()
             cursor.execute(
@@ -376,14 +376,7 @@ class AuthenticationManager:
 
     def request_password_reset(self, email: str) -> Optional[str]:
         """请求密码重置，返回重置令牌（由调用方发送邮件）"""
-        user = self.db.get_user(username=None)
-        # 通过 email 查找用户
-        users = self.db.list_users(limit=1000)
-        target = None
-        for u in users:
-            if u.email == email:
-                target = u
-                break
+        target = self.db.get_user_by_email(email)
         if not target:
             self.logger.warning("Password reset requested for unknown email")
             return None

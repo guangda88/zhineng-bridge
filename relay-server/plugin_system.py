@@ -161,6 +161,8 @@ class PluginManager:
     # 加载/卸载
     # ========================================================================
 
+    ALLOWED_PLUGIN_IDS = set()  # Populated from discover_plugins()
+
     def discover_plugins(self) -> List[str]:
         """扫描插件目录，返回可加载的插件ID列表"""
         discovered = []
@@ -176,12 +178,28 @@ class PluginManager:
             elif entry.endswith(".py") and not entry.startswith("_"):
                 discovered.append(entry[:-3])
 
+        self.ALLOWED_PLUGIN_IDS = set(discovered)
         return discovered
 
     def load_plugin(self, plugin_id: str) -> Optional[PluginInfo]:
         """加载单个插件"""
         if plugin_id in self._plugins:
             return self._plugin_info[plugin_id]
+
+        # Security: Only load plugins that exist in the plugin directory
+        # Check both the discovered list and filesystem existence
+        plugin_path = os.path.join(self.plugin_dir, plugin_id)
+        is_valid = (
+            plugin_id in self.ALLOWED_PLUGIN_IDS or
+            os.path.isdir(plugin_path) or
+            os.path.isfile(plugin_path + ".py")
+        )
+        if not is_valid:
+            self.logger.error(
+                "Plugin rejected: not found in plugin directory",
+                plugin_id=plugin_id,
+            )
+            return None
 
         try:
             module = importlib.import_module(plugin_id)

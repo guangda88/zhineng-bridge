@@ -290,6 +290,13 @@ class PushService:
                 {"type": "error", "message": "Authentication required", "code": 401},
                 status=401,
             )
+        # Validate the actual token value (not just prefix)
+        token_value = auth_header[7:]
+        if not token_value or len(token_value) < 16:
+            return web.json_response(
+                {"type": "error", "message": "Invalid authentication token", "code": 401},
+                status=401,
+            )
 
         try:
             data = await request.json()

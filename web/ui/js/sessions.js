@@ -64,14 +64,26 @@ function createSessionCard(session) {
             </div>
         </div>
         <div class="session-actions">
-            <button class="btn btn-primary" onclick="openSession('${sid}')">打开</button>
+            <button class="btn btn-primary" data-action="open">打开</button>
             ${session.status === 'running' ? 
-                `<button class="btn btn-secondary" onclick="stopSession('${sid}')">停止</button>` :
-                `<button class="btn btn-secondary" onclick="startSession('${sid}')">运行</button>`
+                `<button class="btn btn-secondary" data-action="stop">停止</button>` :
+                `<button class="btn btn-secondary" data-action="start">运行</button>`
             }
-            <button class="btn btn-danger" onclick="deleteSession('${sid}')">删除</button>
+            <button class="btn btn-danger" data-action="delete">删除</button>
         </div>
     `;
+    
+    // Use addEventListener to prevent XSS via session ID injection
+    card.querySelectorAll('.session-actions button').forEach(btn => {
+        const action = btn.dataset.action;
+        const sessionId = session.session_id;
+        btn.addEventListener('click', () => {
+            if (action === 'open') openSession(sessionId);
+            else if (action === 'stop') stopSession(sessionId);
+            else if (action === 'start') startSession(sessionId);
+            else if (action === 'delete') deleteSession(sessionId);
+        });
+    });
     
     return card;
 }

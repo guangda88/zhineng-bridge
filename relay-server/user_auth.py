@@ -68,9 +68,8 @@ from auth_manager import (
 # 从密码重置模块导入
 # ============================================================================
 
-from auth_password_reset import (
-    PasswordResetManager,
-)
+# Password reset is handled by AuthenticationManager in auth_manager
+PasswordResetManager = AuthenticationManager
 
 # ============================================================================
 # 从 TOTP 双因素认证模块导入
