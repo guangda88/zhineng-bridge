@@ -1,395 +1,444 @@
 #!/usr/bin/env python3
 """
-WebSocket 通信 E2E 测试
+WebSocket 通信 E2E 测试 — 基于 AIRelayServer 真实协议
 
-注意：这些测试需要 relay-server 运行在 ws://localhost:8765
+自托管服务器，不依赖外部服务。
+协议: ping/pong, register_backend, chat/reply, push, switch_backend, list_backends
 """
 
-import pytest
 import asyncio
-import websockets
 import json
+import os
+import sys
+
+import pytest
 import pytest_asyncio
-from typing import Dict, Any
+import websockets
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../relay-server"))
+from server import AIRelayServer
 
 
-class TestWebSocketE2E:
-    """WebSocket 端到端测试"""
+def _find_free_port():
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
-    @pytest_asyncio.fixture
-    async def websocket_client(self):
-        """创建 WebSocket 客户端连接"""
-        uri = "ws://localhost:8765"
 
+@pytest_asyncio.fixture
+async def relay_server():
+    port = _find_free_port()
+    server = AIRelayServer(host="127.0.0.1", port=port)
+    server.port = port
+
+    async def _serve():
         try:
-            async with websockets.connect(uri) as websocket:
-                yield websocket
-        except (ConnectionRefusedError, OSError, Exception) as e:
-            pytest.skip(f"relay-server 未运行或不可用: {e}")
+            async with await websockets.serve(
+                server._handle_connection,
+                server.host,
+                server.port,
+                ping_interval=30,
+                ping_timeout=60,
+            ) as ws_server:
+                server.server = ws_server
+                await asyncio.Future()
+        except Exception:
+            pass
+
+    task = asyncio.create_task(_serve())
+    await asyncio.sleep(0.3)
+    yield server, port
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+class TestWebSocketProtocol:
+    """WebSocket 协议测试 — 验证 AIRelayServer 真实消息类型"""
 
     @pytest.mark.asyncio
-    async def test_basic_connection(self, websocket_client):
-        """测试基本连接"""
-        # 如果能到达这里，说明连接成功
-        assert websocket_client is not None
+    async def test_ping_pong(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "ping"}))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "pong"
+            assert "timestamp" in resp
 
     @pytest.mark.asyncio
-    async def test_ping_pong(self, websocket_client):
-        """测试心跳消息"""
-        # 发送 ping
-        ping_message = {"type": "ping"}
-        await websocket_client.send(json.dumps(ping_message))
+    async def test_invalid_json(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 接收响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证响应
-        assert response_data["type"] == "pong"
-        assert "timestamp" in response_data
+        async with websockets.connect(uri) as ws:
+            await ws.send("not valid json {{{")
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "error"
+            assert "Invalid JSON" in resp["message"]
 
     @pytest.mark.asyncio
-    async def test_list_sessions(self, websocket_client):
-        """测试列出会话"""
-        # 发送 list_sessions 请求
-        list_message = {"type": "list_sessions"}
-        await websocket_client.send(json.dumps(list_message))
+    async def test_unknown_message_type(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 接收响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证响应
-        assert response_data["type"] == "sessions_list"
-        assert "sessions" in response_data
-        assert "count" in response_data
-        assert isinstance(response_data["sessions"], list)
-        assert isinstance(response_data["count"], int)
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "nonexistent_xyz"}))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "error"
+            assert "Unknown message type" in resp["message"]
 
     @pytest.mark.asyncio
-    async def test_create_session(self, websocket_client):
-        """测试创建会话"""
-        # 发送 start_session 请求
-        create_message = {
-            "type": "start_session",
-            "tool_name": "crush",
-            "args": ["--help"]
-        }
-        await websocket_client.send(json.dumps(create_message))
+    async def test_register_backend(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 接收响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证响应
-        assert response_data["type"] == "session_started"
-        assert "session_id" in response_data
-        assert response_data["tool_name"] == "crush"
-        assert response_data["status"] == "running"
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "test-ai",
+                "name": "Test AI",
+                "description": "A test backend",
+            }))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "backend_registered"
+            assert resp["backend_id"] == "test-ai"
+            assert "test-ai" in server.backends
 
     @pytest.mark.asyncio
-    async def test_create_session_default_args(self, websocket_client):
-        """测试创建会话（默认参数）"""
-        # 发送 start_session 请求（不提供 args）
-        create_message = {
-            "type": "start_session",
-            "tool_name": "cursor"
-        }
-        await websocket_client.send(json.dumps(create_message))
+    async def test_register_backend_missing_id(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 接收响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证响应
-        assert response_data["type"] == "session_started"
-        assert response_data["tool_name"] == "cursor"
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "register_backend"}))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "error"
+            assert "backend_id" in resp["message"]
 
     @pytest.mark.asyncio
-    async def test_stop_session(self, websocket_client):
-        """测试停止会话"""
-        # 先创建一个会话
-        create_message = {
-            "type": "start_session",
-            "tool_name": "claude",
-            "args": ["--version"]
-        }
-        await websocket_client.send(json.dumps(create_message))
-        create_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-        session_id = create_response["session_id"]
+    async def test_list_backends(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 停止会话
-        stop_message = {
-            "type": "stop_session",
-            "session_id": session_id
-        }
-        await websocket_client.send(json.dumps(stop_message))
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "lingyi",
+                "name": "灵依",
+            }))
+            await backend_ws.recv()
 
-        # 接收响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证响应
-        assert response_data["type"] == "session_stopped"
-        assert response_data["session_id"] == session_id
-        assert response_data["status"] == "stopped"
+            async with websockets.connect(uri) as user_ws:
+                await user_ws.send(json.dumps({"type": "list_backends"}))
+                resp = json.loads(await user_ws.recv())
+                assert resp["type"] == "backends_list"
+                assert len(resp["backends"]) == 1
+                assert resp["backends"][0]["id"] == "lingyi"
+                assert resp["backends"][0]["name"] == "灵依"
+                assert resp["backends"][0]["online"] is True
 
     @pytest.mark.asyncio
-    async def test_delete_session(self, websocket_client):
-        """测试删除会话"""
-        # 先创建一个会话
-        create_message = {
-            "type": "start_session",
-            "tool_name": "copilot",
-            "args": ["--help"]
-        }
-        await websocket_client.send(json.dumps(create_message))
-        create_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-        session_id = create_response["session_id"]
+    async def test_list_backends_empty(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 删除会话
-        delete_message = {
-            "type": "delete_session",
-            "session_id": session_id
-        }
-        await websocket_client.send(json.dumps(delete_message))
-
-        # 接收响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证响应
-        assert response_data["type"] == "session_deleted"
-        assert response_data["session_id"] == session_id
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "list_backends"}))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "backends_list"
+            assert resp["backends"] == []
 
     @pytest.mark.asyncio
-    async def test_invalid_message_type(self, websocket_client):
-        """测试无效消息类型"""
-        # 发送未知消息类型
-        invalid_message = {
-            "type": "unknown_type",
-            "data": {}
-        }
-        await websocket_client.send(json.dumps(invalid_message))
+    async def test_chat_routes_to_backend(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 接收错误响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "chat-ai",
+            }))
+            await backend_ws.recv()
 
-        # 验证错误响应
-        assert response_data["type"] == "error"
-        assert "Unknown message type" in response_data["message"]
+            async with websockets.connect(uri) as user_ws:
+                await user_ws.send(json.dumps({
+                    "type": "chat",
+                    "target": "chat-ai",
+                    "text": "Hello!",
+                }))
 
-    @pytest.mark.asyncio
-    async def test_invalid_json(self, websocket_client):
-        """测试无效 JSON"""
-        # 发送无效 JSON
-        await websocket_client.send("invalid json{")
-
-        # 接收错误响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-
-        # 验证错误响应
-        assert response_data["type"] == "error"
+                backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
+                assert backend_msg["type"] == "chat"
+                assert backend_msg["text"] == "Hello!"
+                assert "request_id" in backend_msg
+                assert "from" in backend_msg
 
     @pytest.mark.asyncio
-    async def test_multiple_messages(self, websocket_client):
-        """测试连续发送多个消息"""
-        messages = [
-            {"type": "ping"},
-            {"type": "list_sessions"},
-            {"type": "start_session", "tool_name": "crush", "args": ["--help"]},
-            {"type": "ping"},
-            {"type": "list_sessions"}
-        ]
+    async def test_chat_reply_round_trip(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        responses = []
-        for message in messages:
-            await websocket_client.send(json.dumps(message))
-            response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-            responses.append(json.loads(response))
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "reply-ai",
+            }))
+            await backend_ws.recv()
 
-        # 验证收到所有响应
-        assert len(responses) == len(messages)
+            async with websockets.connect(uri) as user_ws:
+                await user_ws.send(json.dumps({
+                    "type": "chat",
+                    "target": "reply-ai",
+                    "text": "Ping",
+                }))
 
-        # 验证特定消息
-        assert responses[0]["type"] == "pong"
-        assert responses[1]["type"] == "sessions_list"
-        assert responses[2]["type"] == "session_started"
-        assert responses[3]["type"] == "pong"
-        assert responses[4]["type"] == "sessions_list"
+                backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
+                request_id = backend_msg["request_id"]
 
-    @pytest.mark.asyncio
-    async def test_session_lifecycle(self, websocket_client):
-        """测试完整会话生命周期"""
-        # 1. 创建会话
-        create_message = {
-            "type": "start_session",
-            "tool_name": "cursor",
-            "args": ["--version"]
-        }
-        await websocket_client.send(json.dumps(create_message))
-        create_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-        session_id = create_response["session_id"]
-        assert create_response["status"] == "running"
+                await backend_ws.send(json.dumps({
+                    "type": "reply",
+                    "request_id": request_id,
+                    "text": "Pong",
+                }))
 
-        # 2. 列出会话（应该包含新创建的会话）
-        list_message = {"type": "list_sessions"}
-        await websocket_client.send(json.dumps(list_message))
-        list_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-        # 注意：由于 server.py 中的 handle_list_sessions 返回空列表，
-        # 这里只验证响应格式正确
-        assert list_response["type"] == "sessions_list"
-
-        # 3. 停止会话
-        stop_message = {
-            "type": "stop_session",
-            "session_id": session_id
-        }
-        await websocket_client.send(json.dumps(stop_message))
-        stop_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-        assert stop_response["status"] == "stopped"
-
-        # 4. 删除会话
-        delete_message = {
-            "type": "delete_session",
-            "session_id": session_id
-        }
-        await websocket_client.send(json.dumps(delete_message))
-        delete_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-        assert delete_response["type"] == "session_deleted"
+                user_reply = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
+                assert user_reply["type"] == "reply"
+                assert user_reply["text"] == "Pong"
 
     @pytest.mark.asyncio
-    async def test_concurrent_sessions(self, websocket_client):
-        """测试创建多个并发会话"""
-        session_ids = []
+    async def test_chat_no_backend_error(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 创建 3 个会话
-        for i in range(3):
-            create_message = {
-                "type": "start_session",
-                "tool_name": "crush",
-                "args": ["--help"]
-            }
-            await websocket_client.send(json.dumps(create_message))
-            response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-            session_ids.append(response["session_id"])
-
-        # 验证创建了 3 个不同的会话
-        assert len(session_ids) == 3
-        assert len(set(session_ids)) == 3  # 所有 session_id 应该唯一
-
-        # 清理：删除所有会话
-        for session_id in session_ids:
-            delete_message = {
-                "type": "delete_session",
-                "session_id": session_id
-            }
-            await websocket_client.send(json.dumps(delete_message))
-            await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "chat", "text": "hello"}))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "error"
+            assert "没有可用的AI后端" in resp["message"]
 
     @pytest.mark.asyncio
-    async def test_different_tools(self, websocket_client):
-        """测试创建不同工具的会话"""
-        tools = ['crush', 'claude', 'cursor', 'copilot']
+    async def test_chat_empty_text_ignored(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        for tool in tools:
-            create_message = {
-                "type": "start_session",
-                "tool_name": tool,
-                "args": ["--help"]
-            }
-            await websocket_client.send(json.dumps(create_message))
-            response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "empty-ai",
+            }))
+            await backend_ws.recv()
 
-            assert response["type"] == "session_started"
-            assert response["tool_name"] == tool
+            async with websockets.connect(uri) as user_ws:
+                await user_ws.send(json.dumps({"type": "chat", "text": "   "}))
 
-            # 清理会话
-            session_id = response["session_id"]
-            delete_message = {
-                "type": "delete_session",
-                "session_id": session_id
-            }
-            await websocket_client.send(json.dumps(delete_message))
-            await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
+                with pytest.raises(asyncio.TimeoutError):
+                    await asyncio.wait_for(backend_ws.recv(), timeout=0.5)
 
     @pytest.mark.asyncio
-    async def test_connection_timeout(self, websocket_client):
-        """测试连接超时"""
-        # 发送一个消息
-        ping_message = {"type": "ping"}
-        await websocket_client.send(json.dumps(ping_message))
+    async def test_switch_backend(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        # 验证在合理时间内收到响应
-        response = await asyncio.wait_for(websocket_client.recv(), timeout=5.0)
-        response_data = json.loads(response)
-        assert response_data["type"] == "pong"
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "switch_backend", "target": "other-ai"}))
+            resp = json.loads(await ws.recv())
+            assert resp["type"] == "backend_switched"
+            assert resp["backend_id"] == "other-ai"
+
+    @pytest.mark.asyncio
+    async def test_push_broadcast(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "push-ai",
+            }))
+            await backend_ws.recv()
+
+            async with websockets.connect(uri) as user1:
+                async with websockets.connect(uri) as user2:
+                    await user1.send(json.dumps({"type": "chat", "text": "hi"}))
+                    await user2.send(json.dumps({"type": "chat", "text": "hi"}))
+                    await asyncio.sleep(0.1)
+                    for _ in range(2):
+                        await asyncio.wait_for(backend_ws.recv(), timeout=2)
+
+                    await backend_ws.send(json.dumps({
+                        "type": "push",
+                        "category": "alert",
+                        "text": "broadcast msg",
+                        "backend": "push-ai",
+                    }))
+
+                    msg1 = json.loads(await asyncio.wait_for(user1.recv(), timeout=2))
+                    assert msg1["type"] == "push"
+                    assert msg1["text"] == "broadcast msg"
+
+                    msg2 = json.loads(await asyncio.wait_for(user2.recv(), timeout=2))
+                    assert msg2["type"] == "push"
+                    assert msg2["text"] == "broadcast msg"
+
+    @pytest.mark.asyncio
+    async def test_push_targeted(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "target-ai",
+            }))
+            await backend_ws.recv()
+
+            async with websockets.connect(uri) as user_ws:
+                await user_ws.send(json.dumps({"type": "chat", "text": "register me"}))
+                await asyncio.wait_for(backend_ws.recv(), timeout=2)
+
+                conn_ids = list(server.users.keys())
+                assert len(conn_ids) >= 1
+                target_id = conn_ids[0]
+
+                await backend_ws.send(json.dumps({
+                    "type": "push",
+                    "target_client": target_id,
+                    "category": "info",
+                    "text": "targeted msg",
+                }))
+
+                msg = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
+                assert msg["type"] == "push"
+                assert msg["text"] == "targeted msg"
+
+    @pytest.mark.asyncio
+    async def test_backend_disconnect_cleanup(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "temp-ai",
+            }))
+            await backend_ws.recv()
+            assert "temp-ai" in server.backends
+
+        await asyncio.sleep(0.2)
+        assert "temp-ai" not in server.backends
+
+    @pytest.mark.asyncio
+    async def test_multiple_messages_sequence(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async with websockets.connect(uri) as ws:
+            await ws.send(json.dumps({"type": "ping"}))
+            r1 = json.loads(await ws.recv())
+            assert r1["type"] == "pong"
+
+            await ws.send(json.dumps({"type": "list_backends"}))
+            r2 = json.loads(await ws.recv())
+            assert r2["type"] == "backends_list"
+
+            await ws.send(json.dumps({"type": "switch_backend", "target": "x"}))
+            r3 = json.loads(await ws.recv())
+            assert r3["type"] == "backend_switched"
+
+            await ws.send(json.dumps({"type": "unknown_xyz"}))
+            r4 = json.loads(await ws.recv())
+            assert r4["type"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_concurrent_connections(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async def ping_pong(client_id):
+            async with websockets.connect(uri) as ws:
+                await ws.send(json.dumps({"type": "ping"}))
+                resp = json.loads(await ws.recv())
+                assert resp["type"] == "pong"
+                return client_id
+
+        tasks = [asyncio.create_task(ping_pong(i)) for i in range(10)]
+        results = await asyncio.gather(*tasks)
+        assert len(results) == 10
 
 
 class TestWebSocketStress:
     """WebSocket 压力测试"""
 
-    @pytest_asyncio.fixture
-    async def websocket_client(self):
-        """创建 WebSocket 客户端连接"""
-        uri = "ws://localhost:8765"
-
-        try:
-            async with websockets.connect(uri) as websocket:
-                yield websocket
-        except (ConnectionRefusedError, OSError, Exception) as e:
-            pytest.skip(f"relay-server 未运行或不可用: {e}")
-
     @pytest.mark.asyncio
-    async def test_many_concurrent_messages(self, websocket_client):
-        """测试大量并发消息"""
+    async def test_many_concurrent_messages(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
         num_messages = 50
 
-        # 发送多个 ping 消息
-        tasks = []
-        for _ in range(num_messages):
-            message = {"type": "ping"}
-            tasks.append(websocket_client.send(json.dumps(message)))
+        async with websockets.connect(uri) as ws:
+            for _ in range(num_messages):
+                await ws.send(json.dumps({"type": "ping"}))
 
-        # 并发发送所有消息
-        await asyncio.gather(*tasks)
+            responses = []
+            for _ in range(num_messages):
+                resp = json.loads(await asyncio.wait_for(ws.recv(), timeout=10))
+                responses.append(resp)
 
-        # 接收所有响应
-        responses = []
-        for _ in range(num_messages):
-            response = await asyncio.wait_for(websocket_client.recv(), timeout=10.0)
-            responses.append(json.loads(response))
-
-        # 验证所有响应
-        assert len(responses) == num_messages
-        for response in responses:
-            assert response["type"] == "pong"
+            assert len(responses) == num_messages
+            for r in responses:
+                assert r["type"] == "pong"
 
     @pytest.mark.asyncio
-    async def test_rapid_session_creation_deletion(self, websocket_client):
-        """测试快速创建和删除会话"""
-        num_iterations = 10
+    async def test_rapid_register_disconnect(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-        for _ in range(num_iterations):
-            # 创建会话
-            create_message = {
-                "type": "start_session",
-                "tool_name": "crush",
-                "args": ["--help"]
-            }
-            await websocket_client.send(json.dumps(create_message))
-            create_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
-            session_id = create_response["session_id"]
+        for i in range(10):
+            async with websockets.connect(uri) as ws:
+                await ws.send(json.dumps({
+                    "type": "register_backend",
+                    "backend_id": f"rapid-{i}",
+                }))
+                resp = json.loads(await ws.recv())
+                assert resp["type"] == "backend_registered"
 
-            # 立即删除会话
-            delete_message = {
-                "type": "delete_session",
-                "session_id": session_id
-            }
-            await websocket_client.send(json.dumps(delete_message))
-            delete_response = json.loads(await asyncio.wait_for(websocket_client.recv(), timeout=5.0))
+            await asyncio.sleep(0.05)
 
-            assert create_response["type"] == "session_started"
-            assert delete_response["type"] == "session_deleted"
+        assert len(server.backends) == 0
+
+    @pytest.mark.asyncio
+    async def test_concurrent_chat_flood(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "flood-ai",
+            }))
+            await backend_ws.recv()
+
+            async def send_chat(msg_id):
+                async with websockets.connect(uri) as user_ws:
+                    await user_ws.send(json.dumps({
+                        "type": "chat",
+                        "target": "flood-ai",
+                        "text": f"msg-{msg_id}",
+                    }))
+                    return msg_id
+
+            tasks = [asyncio.create_task(send_chat(i)) for i in range(20)]
+            await asyncio.gather(*tasks)
+
+            received = []
+            for _ in range(20):
+                msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=5))
+                received.append(msg["text"])
+
+            assert len(received) == 20
+            assert set(received) == {f"msg-{i}" for i in range(20)}

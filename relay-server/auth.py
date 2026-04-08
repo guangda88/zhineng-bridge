@@ -13,8 +13,6 @@ import threading
 from typing import Optional, Dict, List, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
-from enum import Enum
-import sqlite3
 
 from logger import get_logger
 from config import settings
@@ -23,7 +21,6 @@ from config import settings
 from user_auth import UserDatabase
 
 # Import AuthType from auth_models to avoid duplication
-from auth_models import AuthType
 
 
 @dataclass

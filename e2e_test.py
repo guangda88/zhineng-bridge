@@ -6,7 +6,6 @@ zhineng-bridge 端到端测试
 import asyncio
 import websockets
 import json
-import time
 
 
 async def test_websocket_connection():

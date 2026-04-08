@@ -36,10 +36,8 @@ Chrome DevTools MCP E2E 测试
 """
 
 import pytest
-import asyncio
-import json
 import subprocess
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pathlib import Path
 
 

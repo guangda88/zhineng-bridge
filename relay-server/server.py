@@ -80,7 +80,7 @@ class AIRelayServer:
             ping_timeout=60,
             **ssl_kwargs,
         )
-        logger.info(f"智桥就绪 — 等待用户和AI后端连接")
+        logger.info("智桥就绪 — 等待用户和AI后端连接")
         await self.server.wait_closed()
 
     async def _handle_connection(self, websocket: websockets.WebSocketServerProtocol):

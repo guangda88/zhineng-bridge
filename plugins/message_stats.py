@@ -7,7 +7,7 @@
 
 import time
 from collections import defaultdict
-from plugin_system import PluginInterface, PluginState
+from plugin_system import PluginInterface
 
 
 class MessageStatsPlugin(PluginInterface):

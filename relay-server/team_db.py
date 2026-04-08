@@ -9,7 +9,6 @@ import uuid
 import json
 from typing import Optional, List
 from datetime import datetime, timedelta
-from dataclasses import dataclass
 
 from logger import get_logger
 from auth_db import UserDatabase

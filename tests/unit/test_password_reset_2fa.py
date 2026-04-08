@@ -7,13 +7,11 @@ import pytest
 import sys
 import os
 import tempfile
-import json
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../relay-server'))
 
 from auth_db import UserDatabase
-from auth_hash import PasswordHasher
-from auth_totp import TOTPAuth, TOTPManager
+from auth_totp import TOTPAuth
 from auth_manager import AuthenticationManager
 from auth_models import UserRole
 
@@ -103,7 +101,7 @@ class TestPasswordReset:
         from auth_manager import AuthenticationManager as AM
         tmp = tempfile.mktemp(suffix=".db")
         am = AM(db_path=tmp)
-        user = am.db.create_user(
+        am.db.create_user(
             username="mgrreset",
             password="OldPass123",
             email="mgr@test.com",

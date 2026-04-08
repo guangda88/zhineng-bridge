@@ -12,7 +12,7 @@ import secrets
 import struct
 import time
 import base64
-from typing import Optional, Tuple
+from typing import Optional
 from io import BytesIO
 
 try:

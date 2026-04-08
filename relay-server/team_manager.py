@@ -9,7 +9,7 @@ from typing import Optional, List
 
 from logger import get_logger
 from auth_db import UserDatabase
-from team_models import TeamRole, TeamStatus, InviteStatus, Team, TeamMember, TeamInvite, SharedSession
+from team_models import TeamRole, Team, TeamMember, TeamInvite, SharedSession
 from team_db import TeamDatabase
 
 

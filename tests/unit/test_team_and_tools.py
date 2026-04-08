@@ -6,14 +6,11 @@
 import pytest
 import sys
 import os
-import json
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 
 from team_models import Team, TeamMember, TeamInvite, SharedSession, TeamRole, TeamStatus, InviteStatus
-from team_db import TeamDatabase
 from team_manager import TeamManager
 
 
@@ -226,7 +223,7 @@ class TestTeamManager:
 
     def test_cleanup_expired_invites(self):
         team = self.manager.create_team("Team", self.owner.user_id)
-        invite = self.manager.db.create_invite(team.team_id, self.owner.user_id, "test@test.com", expires_hours=-1)
+        self.manager.db.create_invite(team.team_id, self.owner.user_id, "test@test.com", expires_hours=-1)
         cleaned = self.manager.db.cleanup_expired_invites()
         assert cleaned >= 1
 

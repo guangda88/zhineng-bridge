@@ -5,7 +5,7 @@
 包含团队、团队成员、共享会话相关的数据模型。
 """
 
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 from dataclasses import dataclass, field
 from enum import Enum

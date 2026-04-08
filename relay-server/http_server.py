@@ -8,19 +8,15 @@ HTTP 服务器
 - 用户管理 API
 """
 
-import asyncio
 import html
-import json
-from typing import Dict, Any
 from aiohttp import web
-from datetime import datetime, timedelta
+from datetime import datetime
 import secrets
 
 from logger import get_logger
 from config import settings
-from user_auth import auth_manager, AuthenticationManager, UserRole
+from user_auth import AuthenticationManager
 from oauth2 import oauth2_manager
-from auth_totp import TOTPAuth
 from exceptions import (
     AuthenticationError,
     ValidationError,
@@ -719,7 +715,7 @@ class HTTPServer:
             email = data.get("email")
             if not email:
                 raise ValidationError("Email is required")
-            token = self.auth_manager.request_password_reset(email)
+            self.auth_manager.request_password_reset(email)
             # 无论邮箱是否存在都返回成功（防止枚举攻击）
             return web.json_response(
                 {"type": "password_reset_requested", "message": "If the email exists, a reset link has been sent"},

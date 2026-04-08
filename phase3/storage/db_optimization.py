@@ -6,8 +6,7 @@ zhineng-bridge 数据库优化
 import asyncio
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-import json
+from typing import Dict, List
 
 
 class DatabaseOptimizer:

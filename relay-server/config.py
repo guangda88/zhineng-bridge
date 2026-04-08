@@ -9,8 +9,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator, field_validator
 from typing import Optional, List
 from pathlib import Path
-import os
-import secrets
 
 
 class ServerSettings(BaseSettings):

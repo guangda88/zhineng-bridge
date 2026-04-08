@@ -4,9 +4,8 @@ relay-server 单元测试 — 测试 AIRelayServer 实际 API
 """
 
 import pytest
-import asyncio
 import json
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock
 import sys
 import os
 

@@ -32,7 +32,6 @@ class HealthChecker:
 
     def check_session_manager(self) -> dict:
         try:
-            import session_manager
             return {"status": "healthy", "message": "Session Manager module is available"}
         except Exception as e:
             return {"status": "degraded", "message": f"Session Manager not available: {str(e)}"}

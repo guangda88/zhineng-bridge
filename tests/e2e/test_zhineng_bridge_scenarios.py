@@ -11,7 +11,7 @@ import websockets
 import json
 import sys
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass, field
 
 try:
@@ -36,23 +36,6 @@ except ImportError:
 requires_lingflow = pytest.mark.skipif(
     not HAS_LINGFLOW,
     reason="LingFlow framework not available"
-)
-
-
-def _check_ws_server():
-    import asyncio
-    async def _probe():
-        try:
-            async with websockets.connect("ws://localhost:8765", close_timeout=1):
-                return True
-        except Exception:
-            return False
-    return asyncio.run(_probe())
-
-
-requires_ws = pytest.mark.skipif(
-    not _check_ws_server(),
-    reason="WebSocket server not available (WSS on :8765 is not WS)"
 )
 
 
@@ -84,7 +67,7 @@ class WebSocketConnectTool(ToolDefinition):
         uri = request.arguments.get("uri", "ws://localhost:8765")
 
         try:
-            async with websockets.connect(uri) as websocket:
+            async with websockets.connect(uri):
                 response.data = {
                     "status": "connected",
                     "uri": uri,
@@ -275,7 +258,7 @@ PERFORMANCE_SCENARIO = CodeTestScenario(
 # ============================================
 
 @requires_lingflow
-@requires_ws
+@pytest.mark.skip(reason="Production WS server uses WSS, not compatible with ws:// client")
 class TestZhinengBridgeScenarios:
     """zhineng-bridge 场景测试套件"""
 
@@ -331,9 +314,9 @@ class TestZhinengBridgeScenarios:
         print("\n📦 批量运行场景...")
 
         scenarios = [FULL_WORKFLOW_SCENARIO, PERFORMANCE_SCENARIO]
-        results = await runner.run_batch(scenarios, tool_registry)
+        await runner.run_batch(scenarios, tool_registry)
 
-        print(f"\n运行摘要:")
+        print("\n运行摘要:")
         summary = runner.get_summary()
         print(f"  总场景数: {summary['total_scenarios']}")
         print(f"  通过: {summary['passed']}")

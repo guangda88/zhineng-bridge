@@ -8,7 +8,6 @@ zhineng-bridge Session Manager — 真实子进程管理
 import asyncio
 import os
 import shutil
-import signal
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any

@@ -4,9 +4,7 @@ zhineng-bridge 中继服务器
 """
 
 import asyncio
-import json
 import sys
-import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))

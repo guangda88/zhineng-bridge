@@ -5,7 +5,6 @@ Ling-term-mcp 参数优化配置
 """
 
 import sys
-import os
 from pathlib import Path
 
 # 添加 LingMinOpt 路径
@@ -131,7 +130,7 @@ def evaluate_mcp_performance(params):
         log_score * 0.05
     )
 
-    print(f"\n📊 评分详情:")
+    print("\n📊 评分详情:")
     print(f"   响应时间: {response_time_score:.4f} × 0.4 = {response_time_score * 0.4:.4f}")
     print(f"   吞吐量: {throughput_score:.4f} × 0.3 = {throughput_score * 0.3:.4f}")
     print(f"   缓存效率: {cache_score:.4f} × 0.15 = {cache_score * 0.15:.4f}")
@@ -176,7 +175,7 @@ def main():
     print("=" * 60)
     print(f"⏱️  优化耗时: {elapsed_time:.2f} 秒")
     print(f"🎯 最佳评分: {result.best_score:.4f}")
-    print(f"📊 最佳参数:")
+    print("📊 最佳参数:")
     for key, value in result.best_params.items():
         print(f"   {key}: {value}")
 
@@ -207,7 +206,7 @@ def main():
         f.write("```json\n")
         f.write(json.dumps(result.best_params, indent=2))
         f.write("\n```\n\n")
-        f.write(f"## 最佳评分\n\n")
+        f.write("## 最佳评分\n\n")
         f.write(f"**综合评分**: {result.best_score:.4f}\n\n")
         f.write("## 评分详情\n\n")
         f.write("- 响应时间权重: 40%\n")

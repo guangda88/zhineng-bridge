@@ -8,7 +8,6 @@
 import subprocess
 import sys
 import argparse
-from pathlib import Path
 
 
 class Colors:

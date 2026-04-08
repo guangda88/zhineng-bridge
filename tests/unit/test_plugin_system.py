@@ -4,7 +4,6 @@
 
 import os
 import sys
-import json
 import tempfile
 import pytest
 
@@ -77,7 +76,7 @@ class TestPluginInterface:
 class TestPluginManagerInit:
     def test_creates_plugin_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            pm = PluginManager(base_dir=tmpdir)
+            PluginManager(base_dir=tmpdir)
             assert os.path.isdir(os.path.join(tmpdir, "plugins"))
 
     def test_default_plugin_dir(self):

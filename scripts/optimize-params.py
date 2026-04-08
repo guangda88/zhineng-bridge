@@ -7,15 +7,13 @@
 
 import sys
 import json
-import time
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 # 添加 LingMinOpt 路径
 lingminopt_path = Path(__file__).parent.parent.parent / "LingMinOpt"
 sys.path.insert(0, str(lingminopt_path))
 
-from lingminopt.core.searcher import SearchSpace
 from lingminopt.core.optimizer import MinimalOptimizer, ExperimentConfig
 
 # 添加项目路径

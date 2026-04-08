@@ -1,402 +1,321 @@
 #!/usr/bin/env python3
 """
-智桥性能基准测试
+智桥性能基准测试 — 自托管 AIRelayServer
 
-使用 pytest-benchmark 进行性能测试。
+测试指标:
+- WebSocket 连接建立时间
+- Ping/Pong 往返延迟
+- 消息路由延迟
+- 后端注册速度
+- 并发连接吞吐量
 """
 
-import pytest
 import asyncio
-import websockets
 import json
+import os
+import socket
+import sys
 import time
-import memory_profiler
-from typing import List
+
+import pytest
+import pytest_asyncio
+import websockets
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../relay-server"))
+from server import AIRelayServer
 
 
-def _check_ws_server():
-    """检查 WebSocket 服务器是否可达 (WS handshake)"""
-    import asyncio
-    async def _probe():
+def _find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest_asyncio.fixture
+async def relay_server():
+    port = _find_free_port()
+    server = AIRelayServer(host="127.0.0.1", port=port)
+    server.port = port
+
+    async def _serve():
         try:
-            async with websockets.connect("ws://localhost:8765", close_timeout=1):
-                return True
+            async with await websockets.serve(
+                server._handle_connection,
+                server.host,
+                server.port,
+                ping_interval=30,
+                ping_timeout=60,
+            ) as ws_server:
+                server.server = ws_server
+                await asyncio.Future()
         except Exception:
-            return False
-    return asyncio.run(_probe())
+            pass
+
+    task = asyncio.create_task(_serve())
+    await asyncio.sleep(0.3)
+    yield server, port
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
-requires_ws_server = pytest.mark.skipif(
-    not _check_ws_server(),
-    reason="WebSocket server not available on localhost:8765"
-)
+class TestConnectionPerformance:
+    """连接性能测试"""
 
+    @pytest.mark.asyncio
+    async def test_connection_time(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-# ============================================================================
-# WebSocket 连接性能测试
-# ============================================================================
-
-@requires_ws_server
-@pytest.mark.benchmark(group="websocket")
-@requires_ws_server
-def test_websocket_connection_benchmark(benchmark):
-    """
-    WebSocket 连接基准测试
-
-    测试建立 WebSocket 连接所需的时间。
-    """
-    async def connect():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            return ws
-
-    def run_connect():
-        return asyncio.run(connect())
-
-    result = benchmark(run_connect)
-    assert result is not None
-
-
-@requires_ws_server
-@pytest.mark.benchmark(group="websocket")
-def test_websocket_ping_benchmark(benchmark):
-    """
-    WebSocket Ping 基准测试
-
-    测试发送 ping 消息并接收 pong 响应的时间。
-    """
-    async def ping():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            await ws.send(json.dumps({"type": "ping"}))
-            response = await ws.recv()
-            return json.loads(response)
-
-    result = benchmark(lambda: asyncio.run(ping()))
-    assert result["type"] == "pong"
-
-
-# ============================================================================
-# 会话管理性能测试
-# ============================================================================
-
-@requires_ws_server
-@pytest.mark.benchmark(group="session")
-def test_list_sessions_benchmark(benchmark):
-    """
-    列出会话基准测试
-
-    测试列出所有会话的性能。
-    """
-    async def list_sessions():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            await ws.send(json.dumps({"type": "list_sessions"}))
-            response = await ws.recv()
-            return json.loads(response)
-
-    result = benchmark(lambda: asyncio.run(list_sessions()))
-    assert "type" in result
-
-
-@requires_ws_server
-@pytest.mark.benchmark(group="session")
-def test_create_session_benchmark(benchmark):
-    """
-    创建会话基准测试
-
-    测试创建新会话的性能。
-    """
-    async def create_session():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            await ws.send(json.dumps({
-                "type": "start_session",
-                "tool_name": "crush",
-                "args": ["--version"]
-            }))
-            response = await ws.recv()
-            data = json.loads(response)
-
-            # 清理会话
-            if "session_id" in data:
-                await ws.send(json.dumps({
-                    "type": "delete_session",
-                    "session_id": data["session_id"]
-                }))
-
-            return data
-
-    result = benchmark(lambda: asyncio.run(create_session()))
-    assert "type" in result
-
-
-# ============================================================================
-# 消息处理性能测试
-# ============================================================================
-
-@requires_ws_server
-@pytest.mark.benchmark(group="message")
-def test_message_send_benchmark(benchmark):
-    """
-    消息发送基准测试
-
-    测试发送消息的性能。
-    """
-    message = {
-        "type": "list_sessions"
-    }
-
-    async def send_message():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            await ws.send(json.dumps(message))
-            return True
-
-    result = benchmark(lambda: asyncio.run(send_message()))
-    assert result is True
-
-
-@requires_ws_server
-@pytest.mark.benchmark(group="message")
-def test_batch_message_benchmark(benchmark):
-    """
-    批量消息发送基准测试
-
-    测试发送多条消息的性能。
-    """
-    async def send_batch():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            for i in range(10):
-                await ws.send(json.dumps({"type": "ping"}))
-            return True
-
-    result = benchmark(lambda: asyncio.run(send_batch()))
-    assert result is True
-
-
-# ============================================================================
-# 并发性能测试
-# ============================================================================
-
-@requires_ws_server
-@pytest.mark.benchmark(group="concurrency")
-def test_concurrent_connections_benchmark(benchmark):
-    """
-    并发连接基准测试
-
-    测试并发建立多个连接的性能。
-    """
-    async def connect_multiple():
-        async def client(client_id):
-            async with websockets.connect("ws://localhost:8765") as ws:
-                await ws.send(json.dumps({"type": "ping"}))
-                await ws.recv()
-                return client_id
-
-        # 并发连接 10 个客户端
-        tasks = [client(i) for i in range(10)]
-        results = await asyncio.gather(*tasks)
-        return len(results)
-
-    result = benchmark(lambda: asyncio.run(connect_multiple()))
-    assert result == 10
-
-
-@requires_ws_server
-@pytest.mark.benchmark(group="concurrency")
-def test_concurrent_sessions_benchmark(benchmark):
-    """
-    并发会话创建基准测试
-
-    测试并发创建多个会话的性能。
-    """
-    async def create_sessions():
-        async def client(client_id):
-            async with websockets.connect("ws://localhost:8765") as ws:
-                await ws.send(json.dumps({
-                    "type": "start_session",
-                    "tool_name": "crush",
-                    "args": ["--version"]
-                }))
-                response = await ws.recv()
-                data = json.loads(response)
-
-                # 清理会话
-                if "session_id" in data:
-                    await ws.send(json.dumps({
-                        "type": "delete_session",
-                        "session_id": data["session_id"]
-                    }))
-
-                return client_id
-
-        # 并发创建 5 个会话
-        tasks = [client(i) for i in range(5)]
-        results = await asyncio.gather(*tasks)
-        return len(results)
-
-    result = benchmark(lambda: asyncio.run(create_sessions()))
-    assert result == 5
-
-
-# ============================================================================
-# 内存性能测试
-# ============================================================================
-
-@requires_ws_server
-@pytest.mark.benchmark(group="memory")
-@memory_profiler.profile
-def test_memory_usage_benchmark(benchmark):
-    """
-    内存使用基准测试
-
-    测试处理大量消息时的内存使用。
-    """
-    async def process_messages():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            messages = []
-            for i in range(100):
-                await ws.send(json.dumps({"type": "ping"}))
-                response = await ws.recv()
-                messages.append(response)
-            return len(messages)
-
-    result = benchmark(lambda: asyncio.run(process_messages()))
-    assert result == 100
-
-
-# ============================================================================
-# 响应时间测试
-# ============================================================================
-
-@requires_ws_server
-@pytest.mark.benchmark(group="response-time")
-def test_response_time_distribution(benchmark):
-    """
-    响应时间分布测试
-
-    测试多次请求的响应时间分布。
-    """
-    async def measure_response_time():
         times = []
         for _ in range(10):
-            start = time.time()
-            async with websockets.connect("ws://localhost:8765") as ws:
+            start = time.monotonic()
+            async with websockets.connect(uri) as ws:
                 await ws.send(json.dumps({"type": "ping"}))
                 await ws.recv()
-            times.append(time.time() - start)
-        return sum(times) / len(times)
+            elapsed = time.monotonic() - start
+            times.append(elapsed)
 
-    result = benchmark(lambda: asyncio.run(measure_response_time()))
-    assert result < 1.0  # 平均响应时间应小于 1 秒
+        avg = sum(times) / len(times)
+        assert avg < 0.5, f"连接+ping平均耗时 {avg:.3f}s > 0.5s"
+        print(f"\n连接+ping 平均: {avg*1000:.1f}ms")
+
+    @pytest.mark.asyncio
+    async def test_connection_establishment_only(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+
+        times = []
+        for _ in range(20):
+            start = time.monotonic()
+            async with websockets.connect(uri):
+                pass
+            times.append(time.monotonic() - start)
+
+        avg = sum(times) / len(times)
+        assert avg < 0.2, f"连接建立平均耗时 {avg:.3f}s > 0.2s"
+        print(f"\n连接建立 平均: {avg*1000:.1f}ms")
 
 
-# ============================================================================
-# 压力测试
-# ============================================================================
+class TestPingPongPerformance:
+    """Ping/Pong 性能测试"""
 
-@requires_ws_server
-@pytest.mark.benchmark(group="stress")
-def test_high_frequency_requests(benchmark):
-    """
-    高频请求压力测试
+    @pytest.mark.asyncio
+    async def test_ping_latency(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-    测试在高频率请求下的性能。
-    """
-    async def high_frequency():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            for _ in range(100):
+        async with websockets.connect(uri) as ws:
+            times = []
+            for _ in range(50):
+                start = time.monotonic()
                 await ws.send(json.dumps({"type": "ping"}))
-                await ws.recv()
-            return 100
+                resp = json.loads(await ws.recv())
+                elapsed = time.monotonic() - start
+                assert resp["type"] == "pong"
+                times.append(elapsed)
 
-    result = benchmark(lambda: asyncio.run(high_frequency()))
-    assert result == 100
+        avg = sum(times) / len(times)
+        p95 = sorted(times)[int(len(times) * 0.95)]
+        assert avg < 0.05, f"ping平均耗时 {avg*1000:.1f}ms > 50ms"
+        print(f"\nping/pong 平均: {avg*1000:.2f}ms, P95: {p95*1000:.2f}ms")
 
+    @pytest.mark.asyncio
+    async def test_batch_ping_throughput(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+        num = 100
 
-@requires_ws_server
-@pytest.mark.benchmark(group="stress")
-def test_rapid_session_creation(benchmark):
-    """
-    快速会话创建压力测试
+        async with websockets.connect(uri) as ws:
+            start = time.monotonic()
+            for _ in range(num):
+                await ws.send(json.dumps({"type": "ping"}))
+            for _ in range(num):
+                resp = json.loads(await ws.recv())
+                assert resp["type"] == "pong"
+            elapsed = time.monotonic() - start
 
-    测试快速创建和删除会话的性能。
-    """
-    async def rapid_sessions():
-        session_ids = []
-        async with websockets.connect("ws://localhost:8765") as ws:
-            # 创建 10 个会话
-            for _ in range(10):
-                await ws.send(json.dumps({
-                    "type": "start_session",
-                    "tool_name": "crush",
-                    "args": ["--version"]
-                }))
-                response = await ws.recv()
-                data = json.loads(response)
-                if "session_id" in data:
-                    session_ids.append(data["session_id"])
-
-            # 删除所有会话
-            for session_id in session_ids:
-                await ws.send(json.dumps({
-                    "type": "delete_session",
-                    "session_id": session_id
-                }))
-
-        return len(session_ids)
-
-    result = benchmark(lambda: asyncio.run(rapid_sessions()))
-    assert result == 10
+        rate = num / elapsed
+        print(f"\n吞吐量: {rate:.0f} msg/s ({num} msg in {elapsed:.3f}s)")
+        assert rate > 100, f"吞吐量 {rate:.0f} < 100 msg/s"
 
 
-# ============================================================================
-# 性能回归测试
-# ============================================================================
+class TestChatRoutingPerformance:
+    """消息路由性能测试"""
 
-@requires_ws_server
-@pytest.mark.benchmark(group="regression")
-def test_session_creation_regression(benchmark):
-    """
-    会话创建性能回归测试
+    @pytest.mark.asyncio
+    async def test_chat_round_trip_latency(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-    确保会话创建性能没有退化。
-    """
-    async def create_session():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            await ws.send(json.dumps({
-                "type": "start_session",
-                "tool_name": "crush",
-                "args": ["--version"]
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "perf-ai",
             }))
-            response = await ws.recv()
-            return json.loads(response)
+            await backend_ws.recv()
 
-    result = benchmark(lambda: asyncio.run(create_session()))
-    # 目标: 会话创建时间应小于 100ms
-    # 注意: 这是基准测试框架测量的时间，不是实际响应时间
-    assert result is not None
+            async with websockets.connect(uri) as user_ws:
+                times = []
+                for i in range(20):
+                    start = time.monotonic()
+                    await user_ws.send(json.dumps({
+                        "type": "chat",
+                        "target": "perf-ai",
+                        "text": f"perf-{i}",
+                    }))
+
+                    backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
+                    request_id = backend_msg["request_id"]
+
+                    await backend_ws.send(json.dumps({
+                        "type": "reply",
+                        "request_id": request_id,
+                        "text": f"reply-{i}",
+                    }))
+
+                    user_reply = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
+                    elapsed = time.monotonic() - start
+                    assert user_reply["text"] == f"reply-{i}"
+                    times.append(elapsed)
+
+        avg = sum(times) / len(times)
+        print(f"\nchat→reply 往返 平均: {avg*1000:.1f}ms")
+        assert avg < 0.2, f"chat往返平均耗时 {avg*1000:.1f}ms > 200ms"
 
 
-@requires_ws_server
-@pytest.mark.benchmark(group="regression")
-def test_websocket_ping_regression(benchmark):
-    """
-    WebSocket Ping 性能回归测试
+class TestBackendRegistrationPerformance:
+    """后端注册性能测试"""
 
-    确保 ping-pong 性能没有退化。
-    """
-    async def ping_pong():
-        async with websockets.connect("ws://localhost:8765") as ws:
-            start = time.time()
-            await ws.send(json.dumps({"type": "ping"}))
-            await ws.recv()
-            return time.time() - start
+    @pytest.mark.asyncio
+    async def test_registration_speed(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
 
-    result = benchmark(lambda: asyncio.run(ping_pong()))
-    # 目标: ping-pong 时间应小于 50ms
-    assert result < 0.05
+        times = []
+        for i in range(10):
+            start = time.monotonic()
+            async with websockets.connect(uri) as ws:
+                await ws.send(json.dumps({
+                    "type": "register_backend",
+                    "backend_id": f"bench-{i}",
+                }))
+                resp = json.loads(await ws.recv())
+                elapsed = time.monotonic() - start
+                assert resp["type"] == "backend_registered"
+                times.append(elapsed)
+
+        avg = sum(times) / len(times)
+        print(f"\n后端注册 平均: {avg*1000:.1f}ms")
+        assert avg < 0.2, f"后端注册平均耗时 {avg*1000:.1f}ms > 200ms"
 
 
-# ============================================================================
-# 运行配置
-# ============================================================================
+class TestConcurrentPerformance:
+    """并发性能测试"""
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--benchmark-only", "--benchmark-json=benchmark.json"])
+    @pytest.mark.asyncio
+    async def test_concurrent_ping_pong(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+        num_clients = 20
+
+        async def client_ping(client_id):
+            async with websockets.connect(uri) as ws:
+                start = time.monotonic()
+                await ws.send(json.dumps({"type": "ping"}))
+                resp = json.loads(await ws.recv())
+                elapsed = time.monotonic() - start
+                assert resp["type"] == "pong"
+                return elapsed
+
+        start = time.monotonic()
+        tasks = [asyncio.create_task(client_ping(i)) for i in range(num_clients)]
+        results = await asyncio.gather(*tasks)
+        total = time.monotonic() - start
+
+        avg = sum(results) / len(results)
+        print(f"\n并发 {num_clients} 客户端: 总耗时 {total:.3f}s, 平均 {avg*1000:.1f}ms")
+        assert len(results) == num_clients
+        assert total < 5.0, f"{num_clients} 并发总耗时 {total:.3f}s > 5s"
+
+    @pytest.mark.asyncio
+    async def test_concurrent_chat_throughput(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+        num_users = 10
+
+        async with websockets.connect(uri) as backend_ws:
+            await backend_ws.send(json.dumps({
+                "type": "register_backend",
+                "backend_id": "conc-ai",
+            }))
+            await backend_ws.recv()
+
+            async def user_chat(uid):
+                async with websockets.connect(uri) as ws:
+                    await ws.send(json.dumps({
+                        "type": "chat",
+                        "target": "conc-ai",
+                        "text": f"user-{uid}",
+                    }))
+                    return uid
+
+            start = time.monotonic()
+            tasks = [asyncio.create_task(user_chat(i)) for i in range(num_users)]
+            await asyncio.gather(*tasks)
+
+            received = []
+            for _ in range(num_users):
+                msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=5))
+                received.append(msg["text"])
+            elapsed = time.monotonic() - start
+
+        print(f"\n并发 {num_users} 聊天: {elapsed:.3f}s")
+        assert len(received) == num_users
+
+
+class TestStressPerformance:
+    """压力性能测试"""
+
+    @pytest.mark.asyncio
+    async def test_high_frequency_pings(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+        num = 200
+
+        async with websockets.connect(uri) as ws:
+            start = time.monotonic()
+            for _ in range(num):
+                await ws.send(json.dumps({"type": "ping"}))
+            for _ in range(num):
+                resp = json.loads(await asyncio.wait_for(ws.recv(), timeout=10))
+                assert resp["type"] == "pong"
+            elapsed = time.monotonic() - start
+
+        rate = num / elapsed
+        print(f"\n高频 {num} ping: {elapsed:.3f}s, {rate:.0f} msg/s")
+        assert rate > 50, f"吞吐量 {rate:.0f} < 50 msg/s"
+
+    @pytest.mark.asyncio
+    async def test_rapid_register_disconnect(self, relay_server):
+        server, port = relay_server
+        uri = f"ws://127.0.0.1:{port}"
+        num = 20
+
+        start = time.monotonic()
+        for i in range(num):
+            async with websockets.connect(uri) as ws:
+                await ws.send(json.dumps({
+                    "type": "register_backend",
+                    "backend_id": f"stress-{i}",
+                }))
+                resp = json.loads(await ws.recv())
+                assert resp["type"] == "backend_registered"
+        elapsed = time.monotonic() - start
+
+        rate = num / elapsed
+        print(f"\n快速注册/断开 {num} 次: {elapsed:.3f}s, {rate:.1f} ops/s")
+        await asyncio.sleep(0.3)
+        assert len(server.backends) == 0

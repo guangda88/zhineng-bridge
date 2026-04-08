@@ -34,7 +34,7 @@ def main():
     print()
 
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
-    print(f"✅ Health Check Server is running")
+    print("✅ Health Check Server is running")
     print(f"   Listening on http://0.0.0.0:{port}")
     print()
 

@@ -244,7 +244,7 @@ class TestIntegration:
         assert session_info['tool_name'] == 'crush'
 
         # 4. 创建第二个会话
-        session_id2 = manager.create_session('claude', args=['--version'])
+        manager.create_session('claude', args=['--version'])
         assert len(manager.sessions) == 2
 
         # 5. 列出所有会话

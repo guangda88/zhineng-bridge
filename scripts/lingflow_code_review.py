@@ -5,14 +5,12 @@ LingFlow 风格代码审查 - zhineng-bridge 项目
 替代 LingFlow code-review 技能的简化版本
 """
 
-import os
 import re
 import ast
 import sys
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from collections import defaultdict
-import subprocess
 import json
 
 
@@ -159,7 +157,7 @@ class CodeReviewAuditor:
                         "file": str(file_path),
                         "type": "hardcoded_secret",
                         "severity": "high",
-                        "message": f"发现可能的硬编码密钥/密码",
+                        "message": "发现可能的硬编码密钥/密码",
                         "line": line_num
                     })
 
@@ -442,9 +440,8 @@ def main():
     report = auditor.audit()
 
     if args.format == "json":
-        output = json.dumps(report, indent=2, ensure_ascii=False)
+        json.dumps(report, indent=2, ensure_ascii=False)
     else:
-        output = report
         print_report(report)
 
     if args.output:

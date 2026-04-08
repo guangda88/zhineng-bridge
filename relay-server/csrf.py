@@ -10,7 +10,7 @@ import time
 import hashlib
 import hmac
 from typing import Optional, Dict, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
 from dataclasses import dataclass
 
 from logger import get_logger
