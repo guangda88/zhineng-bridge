@@ -3,16 +3,16 @@
 relay-server 单元测试 — 测试 AIRelayServer 实际 API
 """
 
-import pytest
 import json
-from unittest.mock import AsyncMock
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../relay-server'))
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../relay-server"))
 
 import websockets
-
 from server import AIRelayServer
 
 

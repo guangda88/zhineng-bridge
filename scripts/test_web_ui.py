@@ -5,14 +5,18 @@
 在命令行中测试 Web UI 的各种功能
 """
 
-import requests
-import websockets
 import asyncio
 import json
 from datetime import datetime
 
+import requests
+import websockets
+
+
 class WebUITester:
-    def __init__(self, base_url: str = "http://10.113.22.99:8080", ws_url: str = "ws://10.113.22.99:8765"):
+    def __init__(
+        self, base_url: str = "http://10.113.22.99:8080", ws_url: str = "ws://10.113.22.99:8765"
+    ):
         self.base_url = base_url
         self.ws_url = ws_url
         self.results = []
@@ -21,7 +25,7 @@ class WebUITester:
         """打印测试标题"""
         print(f"\n{'='*60}")
         print(f"{title}")
-        print('='*60)
+        print("=" * 60)
 
     def test_page_access(self):
         """测试页面访问"""
@@ -148,7 +152,7 @@ class WebUITester:
             r = requests.get(
                 f"{self.base_url}/api/files/list",
                 params={"path": "/home/ai/zhineng-bridge/relay-server", "limit": 5},
-                timeout=10
+                timeout=10,
             )
             if r.status_code == 200:
                 data = r.json()
@@ -167,7 +171,7 @@ class WebUITester:
             r = requests.get(
                 f"{self.base_url}/api/files/search",
                 params={"query": "server", "limit": 5},
-                timeout=10
+                timeout=10,
             )
             if r.status_code == 200:
                 data = r.json()
@@ -208,9 +212,9 @@ class WebUITester:
 
     def run_all_tests(self):
         """运行所有测试"""
-        print("\n" + "🚀"*30)
+        print("\n" + "🚀" * 30)
         print("   智桥 Web UI 快速测试")
-        print("🚀"*30)
+        print("🚀" * 30)
 
         # 检查服务器状态
         try:
@@ -236,9 +240,7 @@ class WebUITester:
         # 打印总结
         self.print_summary()
 
+
 if __name__ == "__main__":
-    tester = WebUITester(
-        base_url="http://10.113.22.99:8080",
-        ws_url="ws://10.113.22.99:8765"
-    )
+    tester = WebUITester(base_url="http://10.113.22.99:8080", ws_url="ws://10.113.22.99:8765")
     tester.run_all_tests()

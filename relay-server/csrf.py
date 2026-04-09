@@ -5,17 +5,17 @@ zhineng-bridge CSRF Protection
 Provides Cross-Site Request Forgery protection for WebSocket connections.
 """
 
-import secrets
-import time
 import hashlib
 import hmac
-from typing import Optional, Dict, Tuple
-from datetime import datetime
+import secrets
+import time
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, Optional, Tuple
 
 from logger import get_logger
-from config import settings
 
+from config import settings
 
 # CSRF Token configuration
 CSRF_TOKEN_LENGTH = 32  # bytes
@@ -87,9 +87,7 @@ class CSRFProtection:
         self._user_tokens: Dict[str, str] = {}  # user_id -> token mapping
 
         self.logger.info(
-            "CSRF protection initialized",
-            token_ttl=CSRF_TOKEN_TTL,
-            token_length=CSRF_TOKEN_LENGTH
+            "CSRF protection initialized", token_ttl=CSRF_TOKEN_TTL, token_length=CSRF_TOKEN_LENGTH
         )
 
     def generate_token(
@@ -115,9 +113,7 @@ class CSRFProtection:
 
         # Sign with HMAC
         signature = hmac.new(
-            self.secret_key.encode(),
-            token_data.encode(),
-            hashlib.sha256
+            self.secret_key.encode(), token_data.encode(), hashlib.sha256
         ).hexdigest()
 
         # Combine nonce and signature
@@ -142,7 +138,7 @@ class CSRFProtection:
             "CSRF token generated",
             user_id=user_id,
             session_id=session_id,
-            nonce=nonce[:8] + "..."  # Log partial nonce for debugging
+            nonce=nonce[:8] + "...",  # Log partial nonce for debugging
         )
 
         return csrf_token
@@ -155,7 +151,9 @@ class CSRFProtection:
             return None, "Invalid CSRF token format"
         return (parts[0], parts[1]), None
 
-    def _check_token_expiration(self, csrf_obj: 'CSRFToken', nonce: str, token: str) -> Tuple[bool, Optional[str]]:
+    def _check_token_expiration(
+        self, csrf_obj: "CSRFToken", nonce: str, token: str
+    ) -> Tuple[bool, Optional[str]]:
         """检查token是否过期"""
         if csrf_obj.is_expired():
             self.logger.warning("CSRF validation failed: token expired")
@@ -166,13 +164,15 @@ class CSRFProtection:
             return False, "CSRF token has expired"
         return True, None
 
-    def _verify_token_binding(self, csrf_obj: 'CSRFToken', user_id: Optional[str], session_id: Optional[str]) -> Tuple[bool, Optional[str]]:
+    def _verify_token_binding(
+        self, csrf_obj: "CSRFToken", user_id: Optional[str], session_id: Optional[str]
+    ) -> Tuple[bool, Optional[str]]:
         """验证token绑定"""
         if user_id and csrf_obj.user_id and csrf_obj.user_id != user_id:
             self.logger.warning(
                 "CSRF validation failed: user mismatch",
                 expected_user=csrf_obj.user_id,
-                provided_user=user_id
+                provided_user=user_id,
             )
             return False, "CSRF token user mismatch"
 
@@ -180,19 +180,21 @@ class CSRFProtection:
             self.logger.warning(
                 "CSRF validation failed: session mismatch",
                 expected_session=csrf_obj.session_id,
-                provided_session=session_id
+                provided_session=session_id,
             )
             return False, "CSRF token session mismatch"
 
         return True, None
 
-    def _verify_token_signature(self, nonce: str, csrf_obj: 'CSRFToken', signature: str) -> Tuple[bool, Optional[str]]:
+    def _verify_token_signature(
+        self, nonce: str, csrf_obj: "CSRFToken", signature: str
+    ) -> Tuple[bool, Optional[str]]:
         """验证token签名"""
-        token_data = f"{nonce}:{csrf_obj.created_at}:{csrf_obj.user_id or ''}:{csrf_obj.session_id or ''}"
+        token_data = (
+            f"{nonce}:{csrf_obj.created_at}:{csrf_obj.user_id or ''}:{csrf_obj.session_id or ''}"
+        )
         expected_signature = hmac.new(
-            self.secret_key.encode(),
-            token_data.encode(),
-            hashlib.sha256
+            self.secret_key.encode(), token_data.encode(), hashlib.sha256
         ).hexdigest()
 
         if not hmac.compare_digest(signature, expected_signature):
@@ -251,11 +253,7 @@ class CSRFProtection:
             if signature_result[1]:
                 return False, signature_result[1]
 
-            self.logger.debug(
-                "CSRF token validated",
-                user_id=user_id,
-                nonce=nonce[:8] + "..."
-            )
+            self.logger.debug("CSRF token validated", user_id=user_id, nonce=nonce[:8] + "...")
 
             return True, None
 
@@ -311,8 +309,7 @@ class CSRFProtection:
 
         # Find and remove all tokens for this user
         tokens_to_remove = [
-            nonce for nonce, csrf_obj in self._tokens.items()
-            if csrf_obj.user_id == user_id
+            nonce for nonce, csrf_obj in self._tokens.items() if csrf_obj.user_id == user_id
         ]
 
         for nonce in tokens_to_remove:

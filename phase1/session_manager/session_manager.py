@@ -10,7 +10,7 @@ import os
 import shutil
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 class SessionManager:
@@ -170,7 +170,11 @@ class SessionManager:
         executable = tool_info["executable"]
         if not shutil.which(executable):
             session.status = "error"
-            return {"session_id": session_id, "status": "error", "message": f"executable not found: {executable}"}
+            return {
+                "session_id": session_id,
+                "status": "error",
+                "message": f"executable not found: {executable}",
+            }
 
         try:
             proc = await asyncio.create_subprocess_exec(

@@ -7,26 +7,23 @@
 - 创建默认管理员用户（如果不存在）
 """
 
-import sys
 import secrets
+import sys
 from pathlib import Path
 
 # 添加路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "relay-server"))
 
-from user_auth import auth_manager, UserRole
 from logger import configure_logging, get_logger
+from user_auth import UserRole, auth_manager
+
 from config import settings
 
 
 def init_database():
     """初始化数据库并创建默认管理员用户"""
     # 配置日志
-    configure_logging(
-        log_level="INFO",
-        log_format="console",
-        log_file=None
-    )
+    configure_logging(log_level="INFO", log_format="console", log_file=None)
 
     logger = get_logger(__name__)
     logger.info("Initializing authentication database")
@@ -42,7 +39,9 @@ def init_database():
     admin_user = db.get_user(username="admin")
 
     if admin_user:
-        logger.info("Admin user already exists", user_id=admin_user.user_id, username=admin_user.username)
+        logger.info(
+            "Admin user already exists", user_id=admin_user.user_id, username=admin_user.username
+        )
     else:
         # 创建默认管理员用户
         logger.info("Creating default admin user")
@@ -99,5 +98,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ 初始化失败: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

@@ -9,12 +9,12 @@ This adds an additional layer of security beyond CSRF protection.
 import hashlib
 import hmac
 import time
-from typing import Optional, Dict, Tuple
 from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
 
 from logger import get_logger
-from config import settings
 
+from config import settings
 
 # Signature configuration
 SIGNATURE_VERSION = "v1"
@@ -75,7 +75,7 @@ class RequestSigner:
             "Request signing initialized",
             algorithm=SIGNATURE_ALGORITHM,
             version=SIGNATURE_VERSION,
-            ttl=SIGNATURE_TTL
+            ttl=SIGNATURE_TTL,
         )
 
     def sign_request(
@@ -108,19 +108,14 @@ class RequestSigner:
 
         # Generate signature
         signature = hmac.new(
-            self.secret_key.encode(),
-            message.encode(),
-            getattr(hashlib, SIGNATURE_ALGORITHM)
+            self.secret_key.encode(), message.encode(), getattr(hashlib, SIGNATURE_ALGORITHM)
         ).hexdigest()
 
         # Combine into final signature string
         sig_string = f"{SIGNATURE_VERSION}:{timestamp}:{signature}"
 
         self.logger.debug(
-            "Request signed",
-            version=SIGNATURE_VERSION,
-            data_keys=sorted_keys,
-            user_id=user_id
+            "Request signed", version=SIGNATURE_VERSION, data_keys=sorted_keys, user_id=user_id
         )
 
         return sig_string
@@ -168,7 +163,10 @@ class RequestSigner:
 
             # Check timestamp is not too far in future (clock skew)
             if timestamp - time.time() > TIMESTAMP_TOLERANCE:
-                return False, f"Signature timestamp too far in future (max skew: {TIMESTAMP_TOLERANCE}s)"
+                return (
+                    False,
+                    f"Signature timestamp too far in future (max skew: {TIMESTAMP_TOLERANCE}s)",
+                )
 
             # Recreate the message that was signed
             sorted_keys = sorted(data.keys())
@@ -181,9 +179,7 @@ class RequestSigner:
 
             # Calculate expected signature
             expected_signature = hmac.new(
-                self.secret_key.encode(),
-                message.encode(),
-                getattr(hashlib, SIGNATURE_ALGORITHM)
+                self.secret_key.encode(), message.encode(), getattr(hashlib, SIGNATURE_ALGORITHM)
             ).hexdigest()
 
             # Compare signatures using constant-time comparison

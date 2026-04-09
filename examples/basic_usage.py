@@ -6,14 +6,15 @@
 """
 
 import asyncio
-import websockets
 import json
-from typing import Dict, Any
-import sys
 import os
+import sys
+from typing import Any, Dict
+
+import websockets
 
 # 添加路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../phase1/session_manager'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../phase1/session_manager"))
 
 from session_manager import SessionManager
 
@@ -88,11 +89,7 @@ class ZhinengBridgeClient:
         Returns:
             会话信息
         """
-        message = {
-            "type": "start_session",
-            "tool_name": tool_name,
-            "args": args or []
-        }
+        message = {"type": "start_session", "tool_name": tool_name, "args": args or []}
         return await self.send_message(message)
 
     async def stop_session(self, session_id: str) -> Dict[str, Any]:
@@ -105,10 +102,7 @@ class ZhinengBridgeClient:
         Returns:
             响应
         """
-        message = {
-            "type": "stop_session",
-            "session_id": session_id
-        }
+        message = {"type": "stop_session", "session_id": session_id}
         return await self.send_message(message)
 
     async def delete_session(self, session_id: str) -> Dict[str, Any]:
@@ -121,10 +115,7 @@ class ZhinengBridgeClient:
         Returns:
             响应
         """
-        message = {
-            "type": "delete_session",
-            "session_id": session_id
-        }
+        message = {"type": "delete_session", "session_id": session_id}
         return await self.send_message(message)
 
     async def ping(self) -> Dict[str, Any]:
@@ -249,7 +240,7 @@ async def example_5_session_manager():
     # 创建会话
     print("\n创建会话...")
     try:
-        session_id = manager.create_session('crush', args=['--help'])
+        session_id = manager.create_session("crush", args=["--help"])
         print(f"✅ 会话已创建: {session_id}")
 
         # 获取会话信息

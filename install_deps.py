@@ -49,7 +49,7 @@ def install_requirements(req_file: str, description: str):
         print(f"❌ Requirements file not found: {req_file}")
         return False
 
-    if not req_path.suffix == '.txt':
+    if not req_path.suffix == ".txt":
         print(f"❌ File must be a .txt file: {req_file}")
         return False
 
@@ -126,18 +126,21 @@ def main():
         print("\n验证安装:")
         try:
             import websockets
+
             print(f"  ✅ websockets {websockets.__version__}")
         except ImportError:
             print("  ❌ websockets")
 
         try:
             import pydantic
+
             print(f"  ✅ pydantic {pydantic.VERSION}")
         except ImportError:
             print("  ❌ pydantic")
 
         try:
             import psutil
+
             print(f"  ✅ psutil {psutil.__version__}")
         except ImportError:
             print("  ❌ psutil")

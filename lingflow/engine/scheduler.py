@@ -55,9 +55,7 @@ class DAGScheduler:
 
                 running_nodes.add(nid)
                 ready.discard(nid)
-                task = asyncio.create_task(
-                    self._execute_node(flow, nid, ctx, completed)
-                )
+                task = asyncio.create_task(self._execute_node(flow, nid, ctx, completed))
                 tasks.append((nid, task))
 
             if not tasks:
@@ -69,9 +67,7 @@ class DAGScheduler:
                     running_nodes.clear()
                 break
 
-            done_results = await asyncio.gather(
-                *[t[1] for t in tasks], return_exceptions=True
-            )
+            done_results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
 
             for (nid, _), result in zip(tasks, done_results):
                 running_nodes.discard(nid)

@@ -5,13 +5,13 @@ LingFlow 风格代码审查 - zhineng-bridge 项目
 替代 LingFlow code-review 技能的简化版本
 """
 
-import re
 import ast
-import sys
-from pathlib import Path
-from typing import List, Dict, Any
-from collections import defaultdict
 import json
+import re
+import sys
+from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List
 
 
 class CodeReviewAuditor:
@@ -47,7 +47,7 @@ class CodeReviewAuditor:
     def _audit_file(self, file_path: Path):
         """审查单个文件"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             self.metrics["total_lines"] += len(content.splitlines())
@@ -70,22 +70,21 @@ class CodeReviewAuditor:
             self._check_naming_conventions(file_path, tree)
 
         except Exception as e:
-            self.issues["parse_errors"].append({
-                "file": str(file_path),
-                "error": str(e)
-            })
+            self.issues["parse_errors"].append({"file": str(file_path), "error": str(e)})
 
     def _check_file_length(self, file_path: Path, content: str):
         """检查文件长度"""
         lines = len(content.splitlines())
         if lines > 500:
-            self.issues["code_quality"].append({
-                "file": str(file_path),
-                "type": "file_too_long",
-                "severity": "medium",
-                "message": f"文件过长 ({lines} 行)，建议拆分模块",
-                "line": lines
-            })
+            self.issues["code_quality"].append(
+                {
+                    "file": str(file_path),
+                    "type": "file_too_long",
+                    "severity": "medium",
+                    "message": f"文件过长 ({lines} 行)，建议拆分模块",
+                    "line": lines,
+                }
+            )
 
     def _check_function_complexity(self, file_path: Path, tree: ast.AST):
         """检查函数复杂度"""
@@ -93,15 +92,17 @@ class CodeReviewAuditor:
             if isinstance(node, ast.FunctionDef):
                 complexity = self._calculate_complexity(node)
                 if complexity > 10:
-                    self.issues["code_quality"].append({
-                        "file": str(file_path),
-                        "type": "function_too_complex",
-                        "severity": "medium" if complexity < 15 else "high",
-                        "message": f"函数 {node.name} 复杂度过高 ({complexity})，建议重构",
-                        "line": node.lineno,
-                        "function": node.name,
-                        "complexity": complexity
-                    })
+                    self.issues["code_quality"].append(
+                        {
+                            "file": str(file_path),
+                            "type": "function_too_complex",
+                            "severity": "medium" if complexity < 15 else "high",
+                            "message": f"函数 {node.name} 复杂度过高 ({complexity})，建议重构",
+                            "line": node.lineno,
+                            "function": node.name,
+                            "complexity": complexity,
+                        }
+                    )
 
     def _check_import_order(self, file_path: Path, tree: ast.AST):
         """检查导入顺序"""
@@ -120,13 +121,15 @@ class CodeReviewAuditor:
                 # 检查是否交替出现
                 for i in range(len(groups) - 1):
                     if groups[i] != groups[i + 1] and groups[i] in ["import", "from"]:
-                        self.issues["code_quality"].append({
-                            "file": str(file_path),
-                            "type": "import_order",
-                            "severity": "low",
-                            "message": f"导入语句顺序不规范 (line {imports[i][1]})",
-                            "line": imports[i][1]
-                        })
+                        self.issues["code_quality"].append(
+                            {
+                                "file": str(file_path),
+                                "type": "import_order",
+                                "severity": "low",
+                                "message": f"导入语句顺序不规范 (line {imports[i][1]})",
+                                "line": imports[i][1],
+                            }
+                        )
                         break
 
     def _check_code_quality(self, file_path: Path, content: str, tree: ast.AST):
@@ -152,36 +155,42 @@ class CodeReviewAuditor:
                 value = match.group(1)
                 # 排除明显不是真实密钥的值
                 if len(value) > 5 and not value.startswith(("${", "os.", "env.")):
-                    line_num = content[:match.start()].count('\n') + 1
-                    self.issues["security"].append({
-                        "file": str(file_path),
-                        "type": "hardcoded_secret",
-                        "severity": "high",
-                        "message": "发现可能的硬编码密钥/密码",
-                        "line": line_num
-                    })
+                    line_num = content[: match.start()].count("\n") + 1
+                    self.issues["security"].append(
+                        {
+                            "file": str(file_path),
+                            "type": "hardcoded_secret",
+                            "severity": "high",
+                            "message": "发现可能的硬编码密钥/密码",
+                            "line": line_num,
+                        }
+                    )
 
         # 检查 eval/exec (使用AST避免误报)
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
-                    if node.func.id in ('eval', 'exec'):
-                        self.issues["security"].append({
-                            "file": str(file_path),
-                            "type": "dangerous_function",
-                            "severity": "high",
-                            "message": f"使用 {node.func.id}() 存在安全风险",
-                            "line": node.lineno
-                        })
+                    if node.func.id in ("eval", "exec"):
+                        self.issues["security"].append(
+                            {
+                                "file": str(file_path),
+                                "type": "dangerous_function",
+                                "severity": "high",
+                                "message": f"使用 {node.func.id}() 存在安全风险",
+                                "line": node.lineno,
+                            }
+                        )
 
         # 检查 SQL 注入风险
         if re.search(r'execute\s*\(\s*["\'][^"\']*%s', content):
-            self.issues["security"].append({
-                "file": str(file_path),
-                "type": "sql_injection_risk",
-                "severity": "high",
-                "message": "存在 SQL 注入风险，请使用参数化查询"
-            })
+            self.issues["security"].append(
+                {
+                    "file": str(file_path),
+                    "type": "sql_injection_risk",
+                    "severity": "high",
+                    "message": "存在 SQL 注入风险，请使用参数化查询",
+                }
+            )
 
     def _check_best_practices(self, file_path: Path, content: str, tree: ast.AST):
         """3. 最佳实践检查"""
@@ -200,24 +209,28 @@ class CodeReviewAuditor:
                                 global_vars.append([target.id])
 
         if global_vars and len(global_vars) > 5:
-            self.issues["best_practices"].append({
-                "file": str(file_path),
-                "type": "too_many_globals",
-                "severity": "medium",
-                "message": f"过多的全局变量 ({len(global_vars)})"
-            })
+            self.issues["best_practices"].append(
+                {
+                    "file": str(file_path),
+                    "type": "too_many_globals",
+                    "severity": "medium",
+                    "message": f"过多的全局变量 ({len(global_vars)})",
+                }
+            )
 
         # 检查 TODO/FIXME 注释
-        todo_pattern = r'#\s*(TODO|FIXME|HACK|XXX)\s*'
+        todo_pattern = r"#\s*(TODO|FIXME|HACK|XXX)\s*"
         for match in re.finditer(todo_pattern, content, re.IGNORECASE):
-            line_num = content[:match.start()].count('\n') + 1
-            self.issues["best_practices"].append({
-                "file": str(file_path),
-                "type": "todo_comment",
-                "severity": "low",
-                "message": f"发现 {match.group(1).upper()} 注释",
-                "line": line_num
-            })
+            line_num = content[: match.start()].count("\n") + 1
+            self.issues["best_practices"].append(
+                {
+                    "file": str(file_path),
+                    "type": "todo_comment",
+                    "severity": "low",
+                    "message": f"发现 {match.group(1).upper()} 注释",
+                    "line": line_num,
+                }
+            )
 
     def _check_naming_conventions(self, file_path: Path, tree: ast.AST):
         """4. 命名规范检查"""
@@ -225,28 +238,32 @@ class CodeReviewAuditor:
         # 函数命名：snake_case
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
-                if not re.match(r'^[a-z_][a-z0-9_]*$', node.name):
+                if not re.match(r"^[a-z_][a-z0-9_]*$", node.name):
                     # 排除特殊函数
-                    if not node.name.startswith('_'):
-                        self.issues["naming"].append({
-                            "file": str(file_path),
-                            "type": "function_naming",
-                            "severity": "low",
-                            "message": f"函数名不符合 snake_case 规范: {node.name}",
-                            "line": node.lineno
-                        })
+                    if not node.name.startswith("_"):
+                        self.issues["naming"].append(
+                            {
+                                "file": str(file_path),
+                                "type": "function_naming",
+                                "severity": "low",
+                                "message": f"函数名不符合 snake_case 规范: {node.name}",
+                                "line": node.lineno,
+                            }
+                        )
 
         # 类命名：PascalCase
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                if not re.match(r'^[A-Z][a-zA-Z0-9]*$', node.name):
-                    self.issues["naming"].append({
-                        "file": str(file_path),
-                        "type": "class_naming",
-                        "severity": "medium",
-                        "message": f"类名不符合 PascalCase 规范: {node.name}",
-                        "line": node.lineno
-                    })
+                if not re.match(r"^[A-Z][a-zA-Z0-9]*$", node.name):
+                    self.issues["naming"].append(
+                        {
+                            "file": str(file_path),
+                            "type": "class_naming",
+                            "severity": "medium",
+                            "message": f"类名不符合 PascalCase 规范: {node.name}",
+                            "line": node.lineno,
+                        }
+                    )
 
     def _calculate_complexity(self, node: ast.FunctionDef) -> int:
         """计算圈复杂度"""
@@ -265,11 +282,7 @@ class CodeReviewAuditor:
     def _generate_report(self) -> Dict[str, Any]:
         """生成审查报告"""
         total_issues = sum(len(issues) for issues in self.issues.values())
-        severity_count = {
-            "high": 0,
-            "medium": 0,
-            "low": 0
-        }
+        severity_count = {"high": 0, "medium": 0, "low": 0}
 
         for category, issues in self.issues.items():
             for issue in issues:
@@ -283,14 +296,12 @@ class CodeReviewAuditor:
                 "total_functions": self.metrics["total_functions"],
                 "total_classes": self.metrics["total_classes"],
                 "total_issues": total_issues,
-                "severity_breakdown": severity_count
+                "severity_breakdown": severity_count,
             },
             "issues_by_category": {
-                category: issues
-                for category, issues in self.issues.items()
-                if issues
+                category: issues for category, issues in self.issues.items() if issues
             },
-            "recommendations": self._generate_recommendations()
+            "recommendations": self._generate_recommendations(),
         }
 
     def _generate_recommendations(self) -> List[str]:
@@ -311,25 +322,20 @@ class CodeReviewAuditor:
         security_issues = self.issues.get("security", [])
         if security_issues:
             recommendations.append(
-                f"🔴 立即修复 {len(security_issues)} 个安全问题，"
-                "特别是硬编码密钥和 SQL 注入风险"
+                f"🔴 立即修复 {len(security_issues)} 个安全问题，" "特别是硬编码密钥和 SQL 注入风险"
             )
 
         # 命名规范
         naming_issues = self.issues.get("naming", [])
         if naming_issues:
-            recommendations.append(
-                f"⚠️  统一命名规范，修复 {len(naming_issues)} 个命名问题"
-            )
+            recommendations.append(f"⚠️  统一命名规范，修复 {len(naming_issues)} 个命名问题")
 
         # 最佳实践
         best_practice_issues = self.issues.get("best_practices", [])
         if best_practice_issues:
             todo_count = len([i for i in best_practice_issues if i["type"] == "todo_comment"])
             if todo_count > 0:
-                recommendations.append(
-                    f"💡 清理 {todo_count} 个 TODO/FIXME 注释"
-                )
+                recommendations.append(f"💡 清理 {todo_count} 个 TODO/FIXME 注释")
 
         return recommendations
 
@@ -365,7 +371,7 @@ def print_report(report: Dict[str, Any]):
             "security": "安全性",
             "best_practices": "最佳实践",
             "naming": "命名规范",
-            "parse_errors": "解析错误"
+            "parse_errors": "解析错误",
         }
 
         for category, issues in sorted(issues_by_category.items()):
@@ -377,9 +383,7 @@ def print_report(report: Dict[str, Any]):
                 severity = issue.get("severity", "low")
                 severity_breakdown[severity] = severity_breakdown.get(severity, 0) + 1
 
-            severity_str = ", ".join(
-                f"{k}: {v}" for k, v in sorted(severity_breakdown.items())
-            )
+            severity_str = ", ".join(f"{k}: {v}" for k, v in sorted(severity_breakdown.items()))
             print(f"  {name}: {count} ({severity_str})")
 
         print()
@@ -417,22 +421,11 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="LingFlow 代码审查工具")
+    parser.add_argument("target", nargs="?", default=".", help="审查目标目录（默认：当前目录）")
     parser.add_argument(
-        "target",
-        nargs="?",
-        default=".",
-        help="审查目标目录（默认：当前目录）"
+        "--format", choices=["text", "json"], default="text", help="输出格式（默认：text）"
     )
-    parser.add_argument(
-        "--format",
-        choices=["text", "json"],
-        default="text",
-        help="输出格式（默认：text）"
-    )
-    parser.add_argument(
-        "--output",
-        help="输出到文件"
-    )
+    parser.add_argument("--output", help="输出到文件")
 
     args = parser.parse_args()
 
@@ -445,13 +438,14 @@ def main():
         print_report(report)
 
     if args.output:
-        with open(args.output, 'w', encoding='utf-8') as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             if args.format == "json":
                 f.write(json.dumps(report, indent=2, ensure_ascii=False))
             else:
                 # 重新生成报告文本
-                import io
                 import contextlib
+                import io
+
                 f_capture = io.StringIO()
                 with contextlib.redirect_stdout(f_capture):
                     print_report(report)

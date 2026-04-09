@@ -5,14 +5,15 @@
 使用 Token Bucket 算法实现速率限制
 """
 
-import time
 import threading
-from typing import Dict, Tuple
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Dict, Tuple
 
 from logger import get_logger
+
 from config import settings
 
 
@@ -152,12 +153,8 @@ class RateLimiter:
         self.algorithm = algorithm
 
         # 使用配置文件中的值，如果没有则使用默认值
-        self.requests_per_minute = (
-            requests_per_minute or settings.security.rate_limit_per_minute
-        )
-        self.requests_per_hour = (
-            requests_per_hour or settings.security.rate_limit_per_hour
-        )
+        self.requests_per_minute = requests_per_minute or settings.security.rate_limit_per_minute
+        self.requests_per_hour = requests_per_hour or settings.security.rate_limit_per_hour
 
         # 根据算法选择不同的限制器
         if algorithm == "token_bucket":
@@ -175,9 +172,7 @@ class RateLimiter:
             self.minute_window = SlidingWindow(
                 window_size=60, max_requests=self.requests_per_minute
             )
-            self.hour_window = SlidingWindow(
-                window_size=3600, max_requests=self.requests_per_hour
-            )
+            self.hour_window = SlidingWindow(window_size=3600, max_requests=self.requests_per_hour)
 
         # 为每个客户端维护独立的限制器
         self.client_limiters: Dict[str, Dict[str, object]] = defaultdict(
@@ -188,9 +183,7 @@ class RateLimiter:
                         refill_rate=self.requests_per_minute / 60.0,
                     )
                     if algorithm == "token_bucket"
-                    else SlidingWindow(
-                        window_size=60, max_requests=self.requests_per_minute
-                    )
+                    else SlidingWindow(window_size=60, max_requests=self.requests_per_minute)
                 ),
                 "hour": (
                     TokenBucket(
@@ -198,9 +191,7 @@ class RateLimiter:
                         refill_rate=self.requests_per_hour / 3600.0,
                     )
                     if algorithm == "token_bucket"
-                    else SlidingWindow(
-                        window_size=3600, max_requests=self.requests_per_hour
-                    )
+                    else SlidingWindow(window_size=3600, max_requests=self.requests_per_hour)
                 ),
                 "blocked_until": None,
                 "last_activity": datetime.now(),  # 跟踪客户端最后活动时间
@@ -215,9 +206,7 @@ class RateLimiter:
                     refill_rate=self.requests_per_minute * 10 / 60.0,
                 )
                 if algorithm == "token_bucket"
-                else SlidingWindow(
-                    window_size=60, max_requests=self.requests_per_minute * 10
-                )
+                else SlidingWindow(window_size=60, max_requests=self.requests_per_minute * 10)
             ),
             "hour": (
                 TokenBucket(
@@ -225,9 +214,7 @@ class RateLimiter:
                     refill_rate=self.requests_per_hour * 10 / 3600.0,
                 )
                 if algorithm == "token_bucket"
-                else SlidingWindow(
-                    window_size=3600, max_requests=self.requests_per_hour * 10
-                )
+                else SlidingWindow(window_size=3600, max_requests=self.requests_per_hour * 10)
             ),
         }
 
@@ -283,7 +270,10 @@ class RateLimiter:
                 return False, f"Global rate limit exceeded. Reset after {reset_time:.1f} seconds"
             if not self.global_limiters["hour"].allow_request():
                 reset_time = self.global_limiters["hour"].reset_time()
-                return False, f"Global hourly rate limit exceeded. Reset after {reset_time:.1f} seconds"
+                return (
+                    False,
+                    f"Global hourly rate limit exceeded. Reset after {reset_time:.1f} seconds",
+                )
 
         # 检查客户端限制
         minute_limiter = client_limiter["minute"]
@@ -338,9 +328,7 @@ class RateLimiter:
         """
         client_limiter = self.client_limiters[client_id]
         client_limiter["blocked_until"] = datetime.now() + timedelta(seconds=duration)
-        self.logger.warning(
-            "Client blocked", client_id=client_id, duration=duration
-        )
+        self.logger.warning("Client blocked", client_id=client_id, duration=duration)
 
     def unblock_client(self, client_id: str):
         """
@@ -408,9 +396,7 @@ class RateLimiter:
             stats["global_minute_tokens"] = self.global_limiters["minute"].tokens
             stats["global_hour_tokens"] = self.global_limiters["hour"].tokens
         else:
-            stats["global_minute_requests"] = (
-                self.global_limiters["minute"].get_count()
-            )
+            stats["global_minute_requests"] = self.global_limiters["minute"].get_count()
             stats["global_hour_requests"] = self.global_limiters["hour"].get_count()
 
         return stats

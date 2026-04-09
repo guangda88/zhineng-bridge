@@ -5,35 +5,31 @@ zhineng-bridge 端到端测试 - 基于 LingFlow 测试框架
 使用 AI 场景运行器进行综合测试
 """
 
-import pytest
 import asyncio
-import websockets
 import json
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
+import websockets
 
 try:
     sys.path.insert(0, str(Path("/home/ai/LingFlow")))
-    from lingflow.testing import (
-        CodeTestScenario,
-        CapturedToolCall,
-        TestInteractionType
-    )
+    from lingflow.testing import CapturedToolCall, CodeTestScenario, TestInteractionType
     from lingflow.testing.ai_runner import AIScenarioRunner
+
     HAS_LINGFLOW = True
 except ImportError:
     HAS_LINGFLOW = False
 
-requires_lingflow = pytest.mark.skipif(
-    not HAS_LINGFLOW,
-    reason="LingFlow framework not available"
-)
+requires_lingflow = pytest.mark.skipif(not HAS_LINGFLOW, reason="LingFlow framework not available")
 
 
 # ============================================
 # 测试工具定义
 # ============================================
+
 
 class ZhinengBridgeTestTool:
     """zhineng-bridge 测试工具"""
@@ -50,24 +46,16 @@ class ZhinengBridgeTestTool:
                 return {
                     "status": "connected",
                     "uri": self.websocket_uri,
-                    "timestamp": asyncio.get_event_loop().time()
+                    "timestamp": asyncio.get_event_loop().time(),
                 }
         except Exception as e:
-            return {
-                "status": "failed",
-                "error": str(e),
-                "uri": self.websocket_uri
-            }
+            return {"status": "failed", "error": str(e), "uri": self.websocket_uri}
 
     async def test_session_creation(self) -> Dict[str, Any]:
         """测试会话创建"""
         try:
             async with websockets.connect(self.websocket_uri) as websocket:
-                message = {
-                    "type": "start_session",
-                    "tool_name": "crush",
-                    "args": []
-                }
+                message = {"type": "start_session", "tool_name": "crush", "args": []}
                 await websocket.send(json.dumps(message))
                 response = await websocket.recv()
                 response_data = json.loads(response)
@@ -75,22 +63,16 @@ class ZhinengBridgeTestTool:
                 return {
                     "status": "created",
                     "response": response_data,
-                    "session_id": response_data.get("session_id")
+                    "session_id": response_data.get("session_id"),
                 }
         except Exception as e:
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
     async def test_session_listing(self) -> Dict[str, Any]:
         """测试会话列表"""
         try:
             async with websockets.connect(self.websocket_uri) as websocket:
-                message = {
-                    "type": "list_sessions",
-                    "data": {}
-                }
+                message = {"type": "list_sessions", "data": {}}
                 await websocket.send(json.dumps(message))
                 response = await websocket.recv()
                 response_data = json.loads(response)
@@ -98,13 +80,10 @@ class ZhinengBridgeTestTool:
                 return {
                     "status": "listed",
                     "sessions": response_data.get("sessions", []),
-                    "count": response_data.get("count", 0)
+                    "count": response_data.get("count", 0),
                 }
         except Exception as e:
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
     async def test_message_exchange(self) -> Dict[str, Any]:
         """测试消息交换"""
@@ -121,13 +100,10 @@ class ZhinengBridgeTestTool:
                 return {
                     "status": "exchanged",
                     "response_type": response_data.get("type"),
-                    "success": response_data.get("type") == "pong"
+                    "success": response_data.get("type") == "pong",
                 }
         except Exception as e:
-            return {
-                "status": "failed",
-                "error": str(e)
-            }
+            return {"status": "failed", "error": str(e)}
 
 
 # ============================================
@@ -142,7 +118,7 @@ WEBSOCKET_CONNECTION_SCENARIO = CodeTestScenario(
     max_turns=2,
     expected_tools=["connect_websocket"],
     category=TestInteractionType.CODE_ANALYSIS,
-    tags=["websocket", "connection"]
+    tags=["websocket", "connection"],
 )
 
 SESSION_CREATION_SCENARIO = CodeTestScenario(
@@ -153,7 +129,7 @@ SESSION_CREATION_SCENARIO = CodeTestScenario(
     max_turns=3,
     expected_tools=["test_session_creation"],
     category=TestInteractionType.CODE_GENERATION,
-    tags=["session", "creation"]
+    tags=["session", "creation"],
 )
 
 SESSION_LISTING_SCENARIO = CodeTestScenario(
@@ -164,7 +140,7 @@ SESSION_LISTING_SCENARIO = CodeTestScenario(
     max_turns=2,
     expected_tools=["test_session_listing"],
     category=TestInteractionType.CODE_ANALYSIS,
-    tags=["session", "listing"]
+    tags=["session", "listing"],
 )
 
 MESSAGE_EXCHANGE_SCENARIO = CodeTestScenario(
@@ -175,7 +151,7 @@ MESSAGE_EXCHANGE_SCENARIO = CodeTestScenario(
     max_turns=2,
     expected_tools=["test_message_exchange"],
     category=TestInteractionType.CODE_ANALYSIS,
-    tags=["websocket", "ping-pong"]
+    tags=["websocket", "ping-pong"],
 )
 
 # 综合测试场景
@@ -207,18 +183,19 @@ async with websockets.connect('ws://localhost:8765') as websocket:
         "connect_websocket",
         "test_session_creation",
         "test_session_listing",
-        "test_message_exchange"
+        "test_message_exchange",
     ],
     required_tools=["connect_websocket"],
     category=TestInteractionType.CODE_REFACTORING,
     tags=["comprehensive", "e2e"],
-    priority=5
+    priority=5,
 )
 
 
 # ============================================
 # 测试类定义
 # ============================================
+
 
 @requires_lingflow
 @pytest.mark.skip(reason="Production WS server uses WSS, not compatible with ws:// client")
@@ -240,7 +217,7 @@ class TestZhinengBridgeE2E:
         result = await test_tool.connect_websocket()
 
         print(f"连接状态: {result['status']}")
-        assert result['status'] == "connected", f"WebSocket 连接失败: {result}"
+        assert result["status"] == "connected", f"WebSocket 连接失败: {result}"
 
     @pytest.mark.asyncio
     async def test_session_creation_scenario(self, test_tool):
@@ -250,7 +227,7 @@ class TestZhinengBridgeE2E:
         result = await test_tool.test_session_creation()
 
         print(f"创建状态: {result['status']}")
-        assert result['status'] == "created", f"会话创建失败: {result}"
+        assert result["status"] == "created", f"会话创建失败: {result}"
 
     @pytest.mark.asyncio
     async def test_session_listing_scenario(self, test_tool):
@@ -261,7 +238,7 @@ class TestZhinengBridgeE2E:
 
         print(f"列表状态: {result['status']}")
         print(f"会话数量: {result.get('count', 0)}")
-        assert result['status'] == "listed", f"会话列表获取失败: {result}"
+        assert result["status"] == "listed", f"会话列表获取失败: {result}"
 
     @pytest.mark.asyncio
     async def test_message_exchange_scenario(self, test_tool):
@@ -272,8 +249,8 @@ class TestZhinengBridgeE2E:
 
         print(f"交换状态: {result['status']}")
         print(f"响应类型: {result.get('response_type')}")
-        assert result['status'] == "exchanged", f"消息交换失败: {result}"
-        assert result.get('success'), "ping-pong 测试失败"
+        assert result["status"] == "exchanged", f"消息交换失败: {result}"
+        assert result.get("success"), "ping-pong 测试失败"
 
     @pytest.mark.asyncio
     async def test_comprehensive_e2e_scenario(self, test_tool):
@@ -286,33 +263,33 @@ class TestZhinengBridgeE2E:
         print("\n1️⃣ 测试 WebSocket 连接...")
         conn_result = await test_tool.connect_websocket()
         results.append(("websocket", conn_result))
-        assert conn_result['status'] == "connected"
+        assert conn_result["status"] == "connected"
 
         # 2. 会话创建
         print("\n2️⃣ 测试会话创建...")
         create_result = await test_tool.test_session_creation()
         results.append(("session_creation", create_result))
-        assert create_result['status'] == "created"
+        assert create_result["status"] == "created"
 
         # 3. 会话列表
         print("\n3️⃣ 测试会话列表...")
         list_result = await test_tool.test_session_listing()
         results.append(("session_listing", list_result))
-        assert list_result['status'] == "listed"
+        assert list_result["status"] == "listed"
 
         # 4. 消息交换
         print("\n4️⃣ 测试消息交换...")
         exchange_result = await test_tool.test_message_exchange()
         results.append(("message_exchange", exchange_result))
-        assert exchange_result['status'] == "exchanged"
-        assert exchange_result.get('success')
+        assert exchange_result["status"] == "exchanged"
+        assert exchange_result.get("success")
 
         # 打印结果摘要
         print("\n" + "=" * 70)
         print("综合测试结果摘要")
         print("=" * 70)
         for name, result in results:
-            status_icon = "✅" if result.get('status') not in ["failed", "error"] else "❌"
+            status_icon = "✅" if result.get("status") not in ["failed", "error"] else "❌"
             print(f"{status_icon} {name}: {result['status']}")
 
         print("\n✅ 所有端到端测试通过!")

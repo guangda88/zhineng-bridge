@@ -9,33 +9,40 @@
 4. 前端协议自动检测测试
 """
 
-import sys
-import ssl
 import asyncio
-import websockets
 import json
+import ssl
+import sys
 from pathlib import Path
+
+import websockets
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 # 颜色输出
 def print_success(msg):
     print(f"✅ {msg}")
 
+
 def print_error(msg):
     print(f"❌ {msg}")
+
 
 def print_warning(msg):
     print(f"⚠️  {msg}")
 
+
 def print_info(msg):
     print(f"ℹ️  {msg}")
+
 
 def print_header(msg):
     print(f"\n{'='*60}")
     print(f"  {msg}")
     print(f"{'='*60}\n")
+
 
 # 测试SSL证书
 def test_ssl_certificate():
@@ -55,10 +62,11 @@ def test_ssl_certificate():
     try:
         # 验证证书文件
         import subprocess
+
         result = subprocess.run(
-            ['openssl', 'x509', '-in', str(cert_path), '-noout', '-text'],
+            ["openssl", "x509", "-in", str(cert_path), "-noout", "-text"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if result.returncode == 0:
@@ -70,7 +78,8 @@ def test_ssl_certificate():
             output = result.stdout
             if "Not Before" in output and "Not After" in output:
                 import re
-                not_after = re.search(r'Not After\s*:\s*(.+)', output)
+
+                not_after = re.search(r"Not After\s*:\s*(.+)", output)
                 if not_after:
                     print_info(f"有效期至: {not_after.group(1).strip()}")
 
@@ -84,11 +93,12 @@ def test_ssl_certificate():
         print_error(f"SSL证书验证失败: {e}")
         return False
 
+
 # 测试HTTPS本地访问
 async def test_https_access():
     print_header("测试2: HTTPS本地访问")
 
-    hosts = ['10.113.22.99', '100.66.1.8', '192.168.2.1', 'localhost']
+    hosts = ["10.113.22.99", "100.66.1.8", "192.168.2.1", "localhost"]
     port = 443
 
     for host in hosts:
@@ -100,8 +110,7 @@ async def test_https_access():
             context.verify_mode = ssl.CERT_NONE
 
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port, ssl=context),
-                timeout=5
+                asyncio.open_connection(host, port, ssl=context), timeout=5
             )
 
             request = f"GET /health HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
@@ -129,11 +138,12 @@ async def test_https_access():
     print_info("提示: 请确保nginx已启动并监听443端口")
     return False
 
+
 # 测试WSS WebSocket连接
 async def test_websocket_secure():
     print_header("测试3: WSS WebSocket连接测试")
 
-    hosts = ['10.113.22.99', '100.66.1.8', '192.168.2.1', 'localhost']
+    hosts = ["10.113.22.99", "100.66.1.8", "192.168.2.1", "localhost"]
     port = 443
 
     for host in hosts:
@@ -176,6 +186,7 @@ async def test_websocket_secure():
     print_info("提示: 请确保nginx正确代理WebSocket到8765端口")
     return False
 
+
 # 测试前端协议检测
 def test_frontend_protocol_detection():
     print_header("测试4: 前端协议自动检测")
@@ -187,7 +198,7 @@ def test_frontend_protocol_detection():
         return False
 
     try:
-        with open(client_js_path, 'r') as f:
+        with open(client_js_path, "r") as f:
             content = f.read()
 
         # 检查关键代码
@@ -211,6 +222,7 @@ def test_frontend_protocol_detection():
         print_error(f"读取client.js失败: {e}")
         return False
 
+
 # 测试frp配置
 def test_frp_configuration():
     print_header("测试5: FRP配置检查")
@@ -226,7 +238,7 @@ def test_frp_configuration():
         return False
 
     try:
-        with open(frpc_config_path, 'r') as f:
+        with open(frpc_config_path, "r") as f:
             content = f.read()
 
         checks = [
@@ -255,29 +267,30 @@ def test_frp_configuration():
         print_error(f"读取FRP配置失败: {e}")
         return False
 
+
 # 主测试函数
 async def main():
     print_header("🌐 智桥公网访问功能测试")
     print_info("测试环境: 本地开发环境")
-    test_time = __import__('datetime').datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    test_time = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print_info(f"测试日期: {test_time}")
 
     results = {}
 
     # 测试1: SSL证书
-    results['ssl_certificate'] = test_ssl_certificate()
+    results["ssl_certificate"] = test_ssl_certificate()
 
     # 测试2: HTTPS访问
-    results['https_access'] = await test_https_access()
+    results["https_access"] = await test_https_access()
 
     # 测试3: WSS连接
-    results['websocket_secure'] = await test_websocket_secure()
+    results["websocket_secure"] = await test_websocket_secure()
 
     # 测试4: 前端协议检测
-    results['frontend_protocol'] = test_frontend_protocol_detection()
+    results["frontend_protocol"] = test_frontend_protocol_detection()
 
     # 测试5: FRP配置
-    results['frp_config'] = test_frp_configuration()
+    results["frp_config"] = test_frp_configuration()
 
     # 汇总结果
     print_header("测试结果汇总")
@@ -298,7 +311,7 @@ async def main():
     # 给出建议
     print_header("下一步建议")
 
-    if results['ssl_certificate'] and results['frontend_protocol']:
+    if results["ssl_certificate"] and results["frontend_protocol"]:
         print_success("基础配置已完成")
         print_info("下一步:")
         print_info("  1. 启动nginx服务（监听443端口）")
@@ -309,17 +322,18 @@ async def main():
         print_warning("基础配置不完整")
         print_info("请检查失败的测试项")
 
-    if results['frp_config']:
+    if results["frp_config"]:
         print_info("\nFRP配置已就绪，需要:")
         print_info("  1. 安装frp客户端")
         print_info("  2. 填写实际的server_addr和token")
         print_info("  3. 启动frpc")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print_info("测试完成！")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     return all(results.values())
+
 
 if __name__ == "__main__":
     try:
@@ -331,5 +345,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n\n测试发生错误: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

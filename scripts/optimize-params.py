@@ -5,23 +5,23 @@
 使用 LingMinOpt 框架优化智桥的关键性能参数。
 """
 
-import sys
 import json
+import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 # 添加 LingMinOpt 路径
 lingminopt_path = Path(__file__).parent.parent.parent / "LingMinOpt"
 sys.path.insert(0, str(lingminopt_path))
 
-from lingminopt.core.optimizer import MinimalOptimizer, ExperimentConfig
+from lingminopt.core.optimizer import ExperimentConfig, MinimalOptimizer
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from optimization.evaluator import evaluate_websocket_params, evaluate_performance_params
-from optimization.variable import create_websocket_search_space, create_performance_search_space
+from optimization.evaluator import evaluate_performance_params, evaluate_websocket_params
+from optimization.variable import create_performance_search_space, create_websocket_search_space
 
 
 def create_evaluator(params_type: str):
@@ -34,6 +34,7 @@ def create_evaluator(params_type: str):
     Returns:
         评估函数
     """
+
     def evaluator(params: Dict[str, Any]) -> float:
         # 根据类型选择评估函数
         if params_type == "websocket":
@@ -72,9 +73,7 @@ def optimize_websocket_params(iterations: int = 20) -> Dict[str, Any]:
 
     # 创建配置
     config = ExperimentConfig(
-        max_experiments=iterations,
-        direction="maximize",  # 最大化得分
-        random_seed=42
+        max_experiments=iterations, direction="maximize", random_seed=42  # 最大化得分
     )
 
     # 创建优化器
@@ -102,7 +101,7 @@ def optimize_websocket_params(iterations: int = 20) -> Dict[str, Any]:
         "iterations": iterations,
         "evaluation_count": result.total_experiments,
         "elapsed_time": elapsed_time,
-        "improvement": result.improvement
+        "improvement": result.improvement,
     }
 
 
@@ -129,9 +128,7 @@ def optimize_performance_params(iterations: int = 20) -> Dict[str, Any]:
 
     # 创建配置
     config = ExperimentConfig(
-        max_experiments=iterations,
-        direction="maximize",  # 最大化得分
-        random_seed=42
+        max_experiments=iterations, direction="maximize", random_seed=42  # 最大化得分
     )
 
     # 创建优化器
@@ -159,7 +156,7 @@ def optimize_performance_params(iterations: int = 20) -> Dict[str, Any]:
         "iterations": iterations,
         "evaluation_count": result.total_experiments,
         "elapsed_time": elapsed_time,
-        "improvement": result.improvement
+        "improvement": result.improvement,
     }
 
 
@@ -203,7 +200,7 @@ def optimize_all(iterations: int = 20) -> Dict[str, Any]:
         "performance": perf_result,
         "total_score": total_score,
         "total_time": total_time,
-        "total_evaluations": total_evaluations
+        "total_evaluations": total_evaluations,
     }
 
 
@@ -220,7 +217,7 @@ def save_results(results: Dict[str, Any], output_file: str = None):
 
     output_path = Path(output_file)
 
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
     print(f"\n✓ 优化结果已保存到: {output_path}")
@@ -242,7 +239,7 @@ def load_config_file(config_file: str) -> Dict[str, Any]:
         print(f"警告: 配置文件不存在: {config_file}")
         return {}
 
-    with open(config_path, 'r', encoding='utf-8') as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -259,35 +256,20 @@ def main():
   python3 scripts/optimize-params.py --iterations 50
   python3 scripts/optimize-params.py --only websocket
   python3 scripts/optimize-params.py --output results.json
-        """
+        """,
+    )
+
+    parser.add_argument("--iterations", type=int, default=20, help="优化迭代次数（默认: 20）")
+
+    parser.add_argument(
+        "--only", type=str, choices=["websocket", "performance"], help="只优化指定的参数组"
     )
 
     parser.add_argument(
-        "--iterations",
-        type=int,
-        default=20,
-        help="优化迭代次数（默认: 20）"
+        "--output", type=str, default=None, help="输出文件路径（默认: optimization_results.json）"
     )
 
-    parser.add_argument(
-        "--only",
-        type=str,
-        choices=["websocket", "performance"],
-        help="只优化指定的参数组"
-    )
-
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help="输出文件路径（默认: optimization_results.json）"
-    )
-
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="显示详细信息"
-    )
+    parser.add_argument("--verbose", action="store_true", help="显示详细信息")
 
     args = parser.parse_args()
 
@@ -314,6 +296,7 @@ def main():
     except Exception as e:
         print(f"\n❌ 错误: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

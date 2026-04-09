@@ -7,6 +7,7 @@
 
 import socket
 
+
 def test_port(host, port, timeout=2):
     """测试端口是否可访问"""
     try:
@@ -18,20 +19,20 @@ def test_port(host, port, timeout=2):
     except Exception:
         return False
 
+
 def main():
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("智桥网络访问快速测试")
-    print("="*60)
+    print("=" * 60)
 
     # 测试常用地址
     test_addresses = [
-        ('127.0.0.1', '本地回环'),
-        ('10.113.22.99', 'ZeroTier'),
-        ('100.66.1.8', 'NodeBabyLink'),
-        ('192.168.2.1', '本地网络 1'),
-        ('192.168.31.99', '本地网络 2'),
+        ("127.0.0.1", "本地回环"),
+        ("10.113.22.99", "ZeroTier"),
+        ("100.66.1.8", "NodeBabyLink"),
+        ("192.168.2.1", "本地网络 1"),
+        ("192.168.31.99", "本地网络 2"),
     ]
-
 
     # 测试表格
     print("\n端口访问测试:")
@@ -50,16 +51,16 @@ def main():
 
         print(f"{ip:<20} {desc:<15} {status_8080:<8} {status_8765:<8}")
 
-        if ip != '127.0.0.1':
+        if ip != "127.0.0.1":
             if not port_8080_ok or not port_8765_ok:
                 all_ok = False
 
     print("-" * 60)
 
     # 分析结果
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("诊断结果")
-    print("="*60)
+    print("=" * 60)
 
     if all_ok:
         print("\n✅ 所有地址都可以访问！")
@@ -90,9 +91,9 @@ def main():
         print("  docs/NETWORK_ACCESS_TROUBLESHOOTING.md")
 
     # 提供可用地址
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("可用访问地址")
-    print("="*60)
+    print("=" * 60)
 
     available = []
     for ip, desc in test_addresses:
@@ -110,7 +111,8 @@ def main():
     else:
         print("\n没有找到可用的访问地址！")
 
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
+
 
 if __name__ == "__main__":
     main()

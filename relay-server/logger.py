@@ -5,11 +5,12 @@
 使用 structlog 进行结构化日志记录
 """
 
+import logging
 import sys
-import structlog
 from pathlib import Path
 from typing import Optional
-import logging
+
+import structlog
 
 
 def configure_logging(
@@ -90,6 +91,7 @@ def get_logger(name: str = __name__) -> structlog.BoundLogger:
 # 日志装饰器
 # ============================================================================
 
+
 def log_execution(logger_name: Optional[str] = None):
     """
     记录函数执行的装饰器
@@ -156,6 +158,7 @@ def log_execution(logger_name: Optional[str] = None):
 
         # 返回适当的包装器
         import asyncio
+
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -167,6 +170,7 @@ def log_execution(logger_name: Optional[str] = None):
 # ============================================================================
 # 日志上下文管理器
 # ============================================================================
+
 
 class LogContext:
     """日志上下文管理器"""
@@ -186,23 +190,18 @@ class LogContext:
 
 def log_client_context(client_id: str, **additional_context):
     """客户端日志上下文管理器"""
-    return LogContext(
-        client_id=client_id,
-        **additional_context
-    )
+    return LogContext(client_id=client_id, **additional_context)
 
 
 def log_session_context(session_id: str, **additional_context):
     """会话日志上下文管理器"""
-    return LogContext(
-        session_id=session_id,
-        **additional_context
-    )
+    return LogContext(session_id=session_id, **additional_context)
 
 
 # ============================================================================
 # 日志指标收集
 # ============================================================================
+
 
 class MetricsLogger:
     """日志指标收集器"""

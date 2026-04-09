@@ -5,12 +5,12 @@
 提供安全的文件读取、搜索、统计和列表功能
 """
 
-import os
 import mimetypes
-from aiohttp import web
-from pathlib import Path
+import os
 import re
+from pathlib import Path
 
+from aiohttp import web
 from logger import get_logger
 
 
@@ -20,26 +20,44 @@ class FileAPI:
     # 安全配置
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
     ALLOWED_EXTENSIONS = {
-        '.txt', '.md', '.py', '.js', '.ts', '.html', '.css',
-        '.json', '.yaml', '.yml', '.xml', '.ini', '.cfg',
-        '.c', '.cpp', '.h', '.hpp', '.java', '.go', '.rs',
-        '.sh', '.bash', '.zsh', '.fish',
-        '.log', '.csv'
+        ".txt",
+        ".md",
+        ".py",
+        ".js",
+        ".ts",
+        ".html",
+        ".css",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".xml",
+        ".ini",
+        ".cfg",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".java",
+        ".go",
+        ".rs",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".log",
+        ".csv",
     }
 
     # 禁止访问的目录（安全黑名单）
-    BLACKLIST_DIRS = {
-        '/etc', '/sys', '/proc', '/dev', '/root',
-        '~/.ssh', '~/.gnupg', '~/.config'
-    }
+    BLACKLIST_DIRS = {"/etc", "/sys", "/proc", "/dev", "/root", "~/.ssh", "~/.gnupg", "~/.config"}
 
     # 默认允许访问的目录（相对于项目根目录）
     DEFAULT_ALLOWED_DIRS = [
-        '/home/ai/zhineng-bridge',
-        '/home/ai/zhineng-bridge/web',
-        '/home/ai/zhineng-bridge/relay-server',
-        '/home/ai/zhineng-bridge/phase1',
-        '/home/ai/zhineng-bridge/docs'
+        "/home/ai/zhineng-bridge",
+        "/home/ai/zhineng-bridge/web",
+        "/home/ai/zhineng-bridge/relay-server",
+        "/home/ai/zhineng-bridge/phase1",
+        "/home/ai/zhineng-bridge/docs",
     ]
 
     def __init__(self, base_dir: str = None):
@@ -50,7 +68,7 @@ class FileAPI:
             base_dir: 基础目录（默认使用项目根目录）
         """
         self.logger = get_logger(__name__)
-        self.base_dir = base_dir or '/home/ai/zhineng-bridge'
+        self.base_dir = base_dir or "/home/ai/zhineng-bridge"
         self.allowed_dirs = self.DEFAULT_ALLOWED_DIRS.copy()
         self.cache = {}  # 简单的内存缓存
 
@@ -78,7 +96,7 @@ class FileAPI:
         abs_path = abs_path.resolve()
 
         # 检查路径遍历攻击（防止访问上级目录）
-        if '..' in str(abs_path.parts):
+        if ".." in str(abs_path.parts):
             raise ValueError("Path traversal attack detected")
 
         # 检查是否在黑名单目录中
@@ -140,16 +158,12 @@ class FileAPI:
             JSON 响应包含文件内容
         """
         try:
-            file_path = request.query.get('path')
+            file_path = request.query.get("path")
 
             if not file_path:
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": "Missing 'path' parameter",
-                        "code": 400
-                    },
-                    status=400
+                    {"type": "error", "message": "Missing 'path' parameter", "code": 400},
+                    status=400,
                 )
 
             # 验证路径安全性
@@ -158,12 +172,8 @@ class FileAPI:
             # 检查是否为文件
             if not validated_path.is_file():
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": f"Not a file: {file_path}",
-                        "code": 404
-                    },
-                    status=404
+                    {"type": "error", "message": f"Not a file: {file_path}", "code": 404},
+                    status=404,
                 )
 
             # 检查文件权限
@@ -174,23 +184,18 @@ class FileAPI:
             if cache_key in self.cache:
                 mtime = validated_path.stat().st_mtime
                 cached = self.cache[cache_key]
-                if cached['mtime'] == mtime:
+                if cached["mtime"] == mtime:
                     self.logger.debug("File cache hit", path=file_path)
-                    return web.json_response(cached['data'])
+                    return web.json_response(cached["data"])
 
             # 读取文件内容
             try:
-                with open(validated_path, 'r', encoding='utf-8', errors='replace') as f:
+                with open(validated_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
             except UnicodeDecodeError:
                 # 如果是二进制文件，返回错误
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": "Cannot read binary file",
-                        "code": 400
-                    },
-                    status=400
+                    {"type": "error", "message": "Cannot read binary file", "code": 400}, status=400
                 )
 
             # 获取文件元数据
@@ -206,15 +211,12 @@ class FileAPI:
                     "size": stat.st_size,
                     "modified": stat.st_mtime,
                     "mime_type": mime_type or "text/plain",
-                    "extension": validated_path.suffix
-                }
+                    "extension": validated_path.suffix,
+                },
             }
 
             # 缓存结果
-            self.cache[cache_key] = {
-                'mtime': stat.st_mtime,
-                'data': data
-            }
+            self.cache[cache_key] = {"mtime": stat.st_mtime, "data": data}
 
             self.logger.info("File read successfully", path=file_path, size=stat.st_size)
 
@@ -222,33 +224,15 @@ class FileAPI:
 
         except ValueError as e:
             self.logger.warning("Path validation failed", path=file_path, error=str(e))
-            return web.json_response(
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "code": 400
-                },
-                status=400
-            )
+            return web.json_response({"type": "error", "message": str(e), "code": 400}, status=400)
         except PermissionError as e:
             self.logger.warning("Permission denied", path=file_path, error=str(e))
-            return web.json_response(
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "code": 403
-                },
-                status=403
-            )
+            return web.json_response({"type": "error", "message": str(e), "code": 403}, status=403)
         except Exception as e:
             self.logger.error("File read failed", path=file_path, error=str(e), exc_info=True)
             return web.json_response(
-                {
-                    "type": "error",
-                    "message": f"Failed to read file: {str(e)}",
-                    "code": 500
-                },
-                status=500
+                {"type": "error", "message": f"Failed to read file: {str(e)}", "code": 500},
+                status=500,
             )
 
     async def search_files(self, request: web.Request) -> web.Response:
@@ -264,19 +248,15 @@ class FileAPI:
             JSON 响应包含匹配的文件列表
         """
         try:
-            query = request.query.get('query', '').strip()
-            search_path = request.query.get('path', self.base_dir)
-            limit = int(request.query.get('limit', 50))
-            offset = int(request.query.get('offset', 0))
+            query = request.query.get("query", "").strip()
+            search_path = request.query.get("path", self.base_dir)
+            limit = int(request.query.get("limit", 50))
+            offset = int(request.query.get("offset", 0))
 
             if not query:
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": "Missing 'query' parameter",
-                        "code": 400
-                    },
-                    status=400
+                    {"type": "error", "message": "Missing 'query' parameter", "code": 400},
+                    status=400,
                 )
 
             # 验证搜索路径
@@ -287,9 +267,9 @@ class FileAPI:
                     {
                         "type": "error",
                         "message": f"Search path does not exist: {search_path}",
-                        "code": 404
+                        "code": 404,
                     },
-                    status=404
+                    status=404,
                 )
 
             # 搜索文件
@@ -299,20 +279,22 @@ class FileAPI:
             # 使用模糊搜索
             query_pattern = re.compile(re.escape(query), re.IGNORECASE)
 
-            for file_path in validated_path.rglob('*'):
+            for file_path in validated_path.rglob("*"):
                 if file_path.is_file():
                     # 检查文件名匹配
                     if query_pattern.search(file_path.name):
                         if count >= offset and len(results) < limit:
                             try:
                                 stat = file_path.stat()
-                                results.append({
-                                    "path": str(file_path),
-                                    "name": file_path.name,
-                                    "size": stat.st_size,
-                                    "modified": stat.st_mtime,
-                                    "extension": file_path.suffix
-                                })
+                                results.append(
+                                    {
+                                        "path": str(file_path),
+                                        "name": file_path.name,
+                                        "size": stat.st_size,
+                                        "modified": stat.st_mtime,
+                                        "extension": file_path.suffix,
+                                    }
+                                )
                             except OSError:
                                 pass
                         count += 1
@@ -322,39 +304,30 @@ class FileAPI:
                 query=query,
                 path=search_path,
                 matches=len(results),
-                total=count
+                total=count,
             )
 
-            return web.json_response({
-                "type": "search_results",
-                "query": query,
-                "path": search_path,
-                "results": results,
-                "count": len(results),
-                "total": count,
-                "limit": limit,
-                "offset": offset
-            })
+            return web.json_response(
+                {
+                    "type": "search_results",
+                    "query": query,
+                    "path": search_path,
+                    "results": results,
+                    "count": len(results),
+                    "total": count,
+                    "limit": limit,
+                    "offset": offset,
+                }
+            )
 
         except ValueError as e:
             self.logger.warning("Search validation failed", error=str(e))
-            return web.json_response(
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "code": 400
-                },
-                status=400
-            )
+            return web.json_response({"type": "error", "message": str(e), "code": 400}, status=400)
         except Exception as e:
             self.logger.error("File search failed", error=str(e), exc_info=True)
             return web.json_response(
-                {
-                    "type": "error",
-                    "message": f"Failed to search files: {str(e)}",
-                    "code": 500
-                },
-                status=500
+                {"type": "error", "message": f"Failed to search files: {str(e)}", "code": 500},
+                status=500,
             )
 
     async def get_file_stats(self, request: web.Request) -> web.Response:
@@ -370,16 +343,12 @@ class FileAPI:
             JSON 响应包含文件元数据
         """
         try:
-            file_path = request.query.get('path')
+            file_path = request.query.get("path")
 
             if not file_path:
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": "Missing 'path' parameter",
-                        "code": 400
-                    },
-                    status=400
+                    {"type": "error", "message": "Missing 'path' parameter", "code": 400},
+                    status=400,
                 )
 
             # 验证路径
@@ -387,12 +356,8 @@ class FileAPI:
 
             if not validated_path.exists():
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": f"File not found: {file_path}",
-                        "code": 404
-                    },
-                    status=404
+                    {"type": "error", "message": f"File not found: {file_path}", "code": 404},
+                    status=404,
                 )
 
             # 获取文件统计信息
@@ -409,7 +374,8 @@ class FileAPI:
                 "is_file": validated_path.is_file(),
                 "is_dir": validated_path.is_dir(),
                 "extension": validated_path.suffix,
-                "mime_type": mime_type or ("inode/directory" if validated_path.is_dir() else "application/octet-stream")
+                "mime_type": mime_type
+                or ("inode/directory" if validated_path.is_dir() else "application/octet-stream"),
             }
 
             # 如果是目录，添加文件计数
@@ -421,10 +387,7 @@ class FileAPI:
                         file_count += 1
                     elif _.is_dir():
                         dir_count += 1
-                data['directory'] = {
-                    "file_count": file_count,
-                    "dir_count": dir_count
-                }
+                data["directory"] = {"file_count": file_count, "dir_count": dir_count}
 
             self.logger.info("File stats retrieved", path=file_path)
 
@@ -432,23 +395,12 @@ class FileAPI:
 
         except ValueError as e:
             self.logger.warning("Stats validation failed", error=str(e))
-            return web.json_response(
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "code": 400
-                },
-                status=400
-            )
+            return web.json_response({"type": "error", "message": str(e), "code": 400}, status=400)
         except Exception as e:
             self.logger.error("Get file stats failed", error=str(e), exc_info=True)
             return web.json_response(
-                {
-                    "type": "error",
-                    "message": f"Failed to get file stats: {str(e)}",
-                    "code": 500
-                },
-                status=500
+                {"type": "error", "message": f"Failed to get file stats: {str(e)}", "code": 500},
+                status=500,
             )
 
     async def list_files(self, request: web.Request) -> web.Response:
@@ -464,32 +416,24 @@ class FileAPI:
             JSON 响应包含文件列表
         """
         try:
-            dir_path = request.query.get('path', self.base_dir)
-            recursive = request.query.get('recursive', 'false').lower() == 'true'
-            limit = int(request.query.get('limit', 100))
-            offset = int(request.query.get('offset', 0))
+            dir_path = request.query.get("path", self.base_dir)
+            recursive = request.query.get("recursive", "false").lower() == "true"
+            limit = int(request.query.get("limit", 100))
+            offset = int(request.query.get("offset", 0))
 
             # 验证路径
             validated_path = self._validate_path(dir_path)
 
             if not validated_path.exists():
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": f"Directory not found: {dir_path}",
-                        "code": 404
-                    },
-                    status=404
+                    {"type": "error", "message": f"Directory not found: {dir_path}", "code": 404},
+                    status=404,
                 )
 
             if not validated_path.is_dir():
                 return web.json_response(
-                    {
-                        "type": "error",
-                        "message": f"Not a directory: {dir_path}",
-                        "code": 400
-                    },
-                    status=400
+                    {"type": "error", "message": f"Not a directory: {dir_path}", "code": 400},
+                    status=400,
                 )
 
             # 列出文件
@@ -498,19 +442,21 @@ class FileAPI:
 
             if recursive:
                 # 递归列出所有文件
-                for file_path in validated_path.rglob('*'):
+                for file_path in validated_path.rglob("*"):
                     if count >= offset and len(files) < limit:
                         try:
                             stat = file_path.stat()
-                            files.append({
-                                "path": str(file_path.relative_to(validated_path)),
-                                "name": file_path.name,
-                                "size": stat.st_size,
-                                "modified": stat.st_mtime,
-                                "is_file": file_path.is_file(),
-                                "is_dir": file_path.is_dir(),
-                                "extension": file_path.suffix
-                            })
+                            files.append(
+                                {
+                                    "path": str(file_path.relative_to(validated_path)),
+                                    "name": file_path.name,
+                                    "size": stat.st_size,
+                                    "modified": stat.st_mtime,
+                                    "is_file": file_path.is_file(),
+                                    "is_dir": file_path.is_dir(),
+                                    "extension": file_path.suffix,
+                                }
+                            )
                         except OSError:
                             pass
                     count += 1
@@ -520,66 +466,60 @@ class FileAPI:
                     if count >= offset and len(files) < limit:
                         try:
                             stat = item.stat()
-                            files.append({
-                                "path": str(item.relative_to(validated_path)),
-                                "name": item.name,
-                                "size": stat.st_size,
-                                "modified": stat.st_mtime,
-                                "is_file": item.is_file(),
-                                "is_dir": item.is_dir(),
-                                "extension": item.suffix
-                            })
+                            files.append(
+                                {
+                                    "path": str(item.relative_to(validated_path)),
+                                    "name": item.name,
+                                    "size": stat.st_size,
+                                    "modified": stat.st_mtime,
+                                    "is_file": item.is_file(),
+                                    "is_dir": item.is_dir(),
+                                    "extension": item.suffix,
+                                }
+                            )
                         except OSError:
                             pass
                     count += 1
 
             # 按类型和名称排序
-            files.sort(key=lambda x: (not x['is_dir'], x['name']))
+            files.sort(key=lambda x: (not x["is_dir"], x["name"]))
 
             self.logger.info(
                 "File list retrieved",
                 path=dir_path,
                 count=len(files),
                 total=count,
-                recursive=recursive
+                recursive=recursive,
             )
 
-            return web.json_response({
-                "type": "file_list",
-                "path": dir_path,
-                "recursive": recursive,
-                "files": files,
-                "count": len(files),
-                "total": count,
-                "limit": limit,
-                "offset": offset
-            })
+            return web.json_response(
+                {
+                    "type": "file_list",
+                    "path": dir_path,
+                    "recursive": recursive,
+                    "files": files,
+                    "count": len(files),
+                    "total": count,
+                    "limit": limit,
+                    "offset": offset,
+                }
+            )
 
         except ValueError as e:
             self.logger.warning("List validation failed", error=str(e))
-            return web.json_response(
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "code": 400
-                },
-                status=400
-            )
+            return web.json_response({"type": "error", "message": str(e), "code": 400}, status=400)
         except Exception as e:
             self.logger.error("List files failed", error=str(e), exc_info=True)
             return web.json_response(
-                {
-                    "type": "error",
-                    "message": f"Failed to list files: {str(e)}",
-                    "code": 500
-                },
-                status=500
+                {"type": "error", "message": f"Failed to list files: {str(e)}", "code": 500},
+                status=500,
             )
 
 
 # ============================================================================
 # 辅助函数
 # ============================================================================
+
 
 def setup_file_routes(app: web.Application, file_api: FileAPI):
     """

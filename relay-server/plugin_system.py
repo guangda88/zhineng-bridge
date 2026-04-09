@@ -5,20 +5,21 @@
 支持动态加载、生命周期管理、钩子机制。
 """
 
-import os
-import sys
 import importlib
 import inspect
-from typing import Dict, List, Optional, Any, Callable
-from datetime import datetime
+import os
+import sys
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 from logger import get_logger
 
 
 class PluginState(Enum):
     """插件状态"""
+
     LOADED = "loaded"
     ENABLED = "enabled"
     DISABLED = "disabled"
@@ -28,6 +29,7 @@ class PluginState(Enum):
 @dataclass
 class PluginInfo:
     """插件元信息"""
+
     plugin_id: str
     name: str
     version: str = "1.0.0"
@@ -188,9 +190,9 @@ class PluginManager:
         # Check both the discovered list and filesystem existence
         plugin_path = os.path.join(self.plugin_dir, plugin_id)
         is_valid = (
-            plugin_id in self.ALLOWED_PLUGIN_IDS or
-            os.path.isdir(plugin_path) or
-            os.path.isfile(plugin_path + ".py")
+            plugin_id in self.ALLOWED_PLUGIN_IDS
+            or os.path.isdir(plugin_path)
+            or os.path.isfile(plugin_path + ".py")
         )
         if not is_valid:
             self.logger.error(
@@ -205,9 +207,11 @@ class PluginManager:
 
             for attr_name in dir(module):
                 attr = getattr(module, attr_name)
-                if (inspect.isclass(attr) and
-                        issubclass(attr, PluginInterface) and
-                        attr is not PluginInterface):
+                if (
+                    inspect.isclass(attr)
+                    and issubclass(attr, PluginInterface)
+                    and attr is not PluginInterface
+                ):
                     plugin_class = attr
                     break
 
@@ -218,12 +222,12 @@ class PluginManager:
 
             info = PluginInfo(
                 plugin_id=plugin_id,
-                name=getattr(plugin_instance, 'name', plugin_id),
-                version=getattr(plugin_instance, 'version', '1.0.0'),
-                description=getattr(plugin_instance, 'description', ''),
-                author=getattr(plugin_instance, 'author', ''),
-                category=getattr(plugin_instance, 'category', 'general'),
-                dependencies=getattr(plugin_instance, 'dependencies', []),
+                name=getattr(plugin_instance, "name", plugin_id),
+                version=getattr(plugin_instance, "version", "1.0.0"),
+                description=getattr(plugin_instance, "description", ""),
+                author=getattr(plugin_instance, "author", ""),
+                category=getattr(plugin_instance, "category", "general"),
+                dependencies=getattr(plugin_instance, "dependencies", []),
             )
 
             self._plugins[plugin_id] = plugin_instance
@@ -246,7 +250,9 @@ class PluginManager:
 
         except Exception as e:
             self.logger.error("Failed to load plugin", plugin_id=plugin_id, error=str(e))
-            info = PluginInfo(plugin_id=plugin_id, name=plugin_id, state=PluginState.ERROR, error_message=str(e))
+            info = PluginInfo(
+                plugin_id=plugin_id, name=plugin_id, state=PluginState.ERROR, error_message=str(e)
+            )
             self._plugin_info[plugin_id] = info
             return info
 
@@ -268,10 +274,10 @@ class PluginManager:
             plugin.on_disable()
         plugin.on_unload()
 
-        self._hooks = {e: [(pid, h) for pid, h in hs if pid != plugin_id]
-                       for e, hs in self._hooks.items()}
-        self._commands = {c: (pid, h) for c, (pid, h) in self._commands.items()
-                          if pid != plugin_id}
+        self._hooks = {
+            e: [(pid, h) for pid, h in hs if pid != plugin_id] for e, hs in self._hooks.items()
+        }
+        self._commands = {c: (pid, h) for c, (pid, h) in self._commands.items() if pid != plugin_id}
 
         del self._plugins[plugin_id]
         del self._plugin_info[plugin_id]
@@ -321,8 +327,9 @@ class PluginManager:
                 result = handler(*args, **kwargs)
                 results.append(result)
             except Exception as e:
-                self.logger.error("Hook handler error", plugin_id=plugin_id,
-                                  hook_event=event, error=str(e))
+                self.logger.error(
+                    "Hook handler error", plugin_id=plugin_id, hook_event=event, error=str(e)
+                )
         return results
 
     def execute_command(self, command: str, *args, **kwargs) -> Any:

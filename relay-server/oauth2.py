@@ -8,18 +8,20 @@ OAuth2 认证提供商集成
 """
 
 import secrets
-import httpx
-from typing import Optional, Dict, List
 from dataclasses import dataclass
+from typing import Dict, List, Optional
 
+import httpx
 from logger import get_logger
-from config import settings
 from user_auth import User, UserRole
+
+from config import settings
 
 
 @dataclass
 class OAuth2Provider:
     """OAuth2 提供商配置"""
+
     name: str
     auth_url: str
     token_url: str
@@ -32,6 +34,7 @@ class OAuth2Provider:
 @dataclass
 class OAuth2UserInfo:
     """OAuth2 用户信息"""
+
     provider: str
     user_id: str
     username: str
@@ -87,9 +90,7 @@ class GitHubOAuth2:
 
         return f"{self.provider.auth_url}?{urllib.parse.urlencode(params)}"
 
-    async def exchange_code_for_token(
-        self, code: str, redirect_uri: str
-    ) -> Dict:
+    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> Dict:
         """
         用授权码换取 access token
 
@@ -218,9 +219,7 @@ class GoogleOAuth2:
 
         return f"{self.provider.auth_url}?{urllib.parse.urlencode(params)}"
 
-    async def exchange_code_for_token(
-        self, code: str, redirect_uri: str
-    ) -> Dict:
+    async def exchange_code_for_token(self, code: str, redirect_uri: str) -> Dict:
         """
         用授权码换取 access token
 
@@ -365,6 +364,7 @@ class OAuth2Manager:
             state 字符串
         """
         import time
+
         state = secrets.token_urlsafe(32)
         self._pending_states[state] = time.time()
         # 清理超过10分钟的pending states

@@ -5,18 +5,19 @@
 包含所有数据模型和枚举类型。
 """
 
-from typing import Optional, List
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-
+from typing import List, Optional
 
 # ============================================================================
 # 枚举类型
 # ============================================================================
 
+
 class AuthType(Enum):
     """认证类型"""
+
     TOKEN = "token"
     JWT = "jwt"
     OAUTH2 = "oauth2"
@@ -24,6 +25,7 @@ class AuthType(Enum):
 
 class UserRole(Enum):
     """用户角色"""
+
     USER = "user"
     ADMIN = "admin"
     MODERATOR = "moderator"
@@ -31,6 +33,7 @@ class UserRole(Enum):
 
 class Permission(Enum):
     """权限"""
+
     READ = "read"
     WRITE = "write"
     ADMIN = "admin"
@@ -42,9 +45,11 @@ class Permission(Enum):
 # 数据模型
 # ============================================================================
 
+
 @dataclass
 class User:
     """用户模型"""
+
     user_id: str
     username: str
     email: Optional[str] = None
@@ -78,6 +83,7 @@ class User:
 @dataclass
 class TokenInfo:
     """令牌信息"""
+
     token: str
     token_type: str
     user_id: str
@@ -104,6 +110,7 @@ class TokenInfo:
 @dataclass
 class OAuth2Token:
     """OAuth2 令牌"""
+
     token_id: str
     user_id: str
     provider: str

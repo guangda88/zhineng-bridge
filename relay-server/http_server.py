@@ -9,24 +9,25 @@ HTTP 服务器
 """
 
 import html
-from aiohttp import web
-from datetime import datetime
 import secrets
+from datetime import datetime
 
-from logger import get_logger
-from config import settings
-from user_auth import AuthenticationManager
-from oauth2 import oauth2_manager
+from aiohttp import web
 from exceptions import (
     AuthenticationError,
     ValidationError,
     exception_to_dict,
 )
 from file_api import FileAPI, setup_file_routes
+from logger import get_logger
+from oauth2 import oauth2_manager
+from plugin_system import PluginManager
 from push_service import PushService, setup_push_routes
 from team_manager import TeamManager
 from team_models import TeamRole
-from plugin_system import PluginManager
+from user_auth import AuthenticationManager
+
+from config import settings
 
 
 class HTTPServer:
@@ -45,7 +46,7 @@ class HTTPServer:
         self.app = web.Application()
 
         # 初始化文件 API
-        self.file_api = FileAPI(base_dir='/home/ai/zhineng-bridge')
+        self.file_api = FileAPI(base_dir="/home/ai/zhineng-bridge")
 
         # 初始化推送服务
         self.push_service = PushService()
@@ -155,7 +156,7 @@ class HTTPServer:
         state = secrets.token_urlsafe(32)
 
         # F-021: 存储 state 用于回调验证
-        if not hasattr(self, '_oauth_states'):
+        if not hasattr(self, "_oauth_states"):
             self._oauth_states = {}
         self._oauth_states[state] = datetime.now().isoformat()
 
@@ -179,7 +180,8 @@ class HTTPServer:
         host_without_port = host.split(":")[0]
         if host_without_port not in allowed_hosts:
             return web.json_response(
-                {"type": "error", "message": "Invalid host header"}, status=400,
+                {"type": "error", "message": "Invalid host header"},
+                status=400,
             )
 
         # 构建回调 URL
@@ -226,7 +228,7 @@ class HTTPServer:
             )
 
         # F-021: 验证 state 参数
-        if hasattr(self, '_oauth_states'):
+        if hasattr(self, "_oauth_states"):
             if state not in self._oauth_states:
                 return web.Response(
                     text="Invalid or expired state parameter",
@@ -311,7 +313,8 @@ class HTTPServer:
                 content_type="text/html",
             )
             response.set_cookie(
-                "auth_token", token,
+                "auth_token",
+                token,
                 httponly=True,
                 secure=request.scheme == "https",
                 max_age=86400,
@@ -427,7 +430,9 @@ class HTTPServer:
                     "token": token,
                     "user_id": token_info.user_id,
                     "username": token_info.username,
-                    "expires_at": token_info.expires_at.isoformat() if token_info.expires_at else None,
+                    "expires_at": (
+                        token_info.expires_at.isoformat() if token_info.expires_at else None
+                    ),
                     "scopes": token_info.scopes,
                 },
                 status=200,
@@ -718,7 +723,10 @@ class HTTPServer:
             self.auth_manager.request_password_reset(email)
             # 无论邮箱是否存在都返回成功（防止枚举攻击）
             return web.json_response(
-                {"type": "password_reset_requested", "message": "If the email exists, a reset link has been sent"},
+                {
+                    "type": "password_reset_requested",
+                    "message": "If the email exists, a reset link has been sent",
+                },
                 status=200,
             )
         except ValidationError as e:
@@ -727,7 +735,10 @@ class HTTPServer:
             self.logger.error("Password reset request failed", error=str(e), exc_info=True)
             # 仍然返回成功（防止枚举）
             return web.json_response(
-                {"type": "password_reset_requested", "message": "If the email exists, a reset link has been sent"},
+                {
+                    "type": "password_reset_requested",
+                    "message": "If the email exists, a reset link has been sent",
+                },
                 status=200,
             )
 
@@ -743,8 +754,14 @@ class HTTPServer:
                 raise ValidationError("Password must be at least 8 characters")
             success = self.auth_manager.confirm_password_reset(token, new_password)
             if success:
-                return web.json_response({"type": "password_reset_confirmed", "message": "Password has been reset"}, status=200)
-            return web.json_response({"type": "error", "message": "Invalid or expired reset token", "code": 400}, status=400)
+                return web.json_response(
+                    {"type": "password_reset_confirmed", "message": "Password has been reset"},
+                    status=200,
+                )
+            return web.json_response(
+                {"type": "error", "message": "Invalid or expired reset token", "code": 400},
+                status=400,
+            )
         except ValidationError as e:
             return web.json_response(e.to_dict(), status=400)
         except Exception as e:
@@ -767,10 +784,18 @@ class HTTPServer:
                 raise ValidationError("current_password and new_password are required")
             if len(new_password) < 8:
                 raise ValidationError("Password must be at least 8 characters")
-            success = self.auth_manager.change_password(user.user_id, current_password, new_password)
+            success = self.auth_manager.change_password(
+                user.user_id, current_password, new_password
+            )
             if success:
-                return web.json_response({"type": "password_changed", "message": "Password changed successfully"}, status=200)
-            return web.json_response({"type": "error", "message": "Current password is incorrect", "code": 401}, status=401)
+                return web.json_response(
+                    {"type": "password_changed", "message": "Password changed successfully"},
+                    status=200,
+                )
+            return web.json_response(
+                {"type": "error", "message": "Current password is incorrect", "code": 401},
+                status=401,
+            )
         except ValidationError as e:
             return web.json_response(e.to_dict(), status=400)
         except AuthenticationError as e:
@@ -817,8 +842,12 @@ class HTTPServer:
                 raise ValidationError("TOTP code is required")
             success = self.auth_manager.enable_2fa(user.user_id, code)
             if success:
-                return web.json_response({"type": "2fa_enabled", "message": "2FA has been enabled"}, status=200)
-            return web.json_response({"type": "error", "message": "Invalid TOTP code", "code": 400}, status=400)
+                return web.json_response(
+                    {"type": "2fa_enabled", "message": "2FA has been enabled"}, status=200
+                )
+            return web.json_response(
+                {"type": "error", "message": "Invalid TOTP code", "code": 400}, status=400
+            )
         except ValidationError as e:
             return web.json_response(e.to_dict(), status=400)
         except AuthenticationError as e:
@@ -842,8 +871,12 @@ class HTTPServer:
                 raise ValidationError("TOTP code is required")
             success = self.auth_manager.verify_2fa(user.user_id, code)
             if success:
-                return web.json_response({"type": "2fa_verified", "message": "2FA verification successful"}, status=200)
-            return web.json_response({"type": "error", "message": "Invalid TOTP code", "code": 401}, status=401)
+                return web.json_response(
+                    {"type": "2fa_verified", "message": "2FA verification successful"}, status=200
+                )
+            return web.json_response(
+                {"type": "error", "message": "Invalid TOTP code", "code": 401}, status=401
+            )
         except ValidationError as e:
             return web.json_response(e.to_dict(), status=400)
         except AuthenticationError as e:
@@ -867,8 +900,12 @@ class HTTPServer:
                 raise ValidationError("TOTP code or backup code is required")
             success = self.auth_manager.disable_2fa(user.user_id, code)
             if success:
-                return web.json_response({"type": "2fa_disabled", "message": "2FA has been disabled"}, status=200)
-            return web.json_response({"type": "error", "message": "Invalid code", "code": 401}, status=401)
+                return web.json_response(
+                    {"type": "2fa_disabled", "message": "2FA has been disabled"}, status=200
+                )
+            return web.json_response(
+                {"type": "error", "message": "Invalid code", "code": 401}, status=401
+            )
         except ValidationError as e:
             return web.json_response(e.to_dict(), status=400)
         except AuthenticationError as e:
@@ -892,8 +929,12 @@ class HTTPServer:
                 raise ValidationError("TOTP code is required")
             new_codes = self.auth_manager.regenerate_backup_codes(user.user_id, code)
             if new_codes is not None:
-                return web.json_response({"type": "backup_codes_regenerated", "backup_codes": new_codes}, status=200)
-            return web.json_response({"type": "error", "message": "Invalid code", "code": 401}, status=401)
+                return web.json_response(
+                    {"type": "backup_codes_regenerated", "backup_codes": new_codes}, status=200
+                )
+            return web.json_response(
+                {"type": "error", "message": "Invalid code", "code": 401}, status=401
+            )
         except ValidationError as e:
             return web.json_response(e.to_dict(), status=400)
         except AuthenticationError as e:
@@ -940,7 +981,9 @@ class HTTPServer:
         try:
             user_id = await self._get_auth_user_id(request)
             teams = self.team_manager.list_user_teams(user_id)
-            return web.json_response({"type": "teams_list", "teams": [t.to_dict() for t in teams], "count": len(teams)})
+            return web.json_response(
+                {"type": "teams_list", "teams": [t.to_dict() for t in teams], "count": len(teams)}
+            )
         except AuthenticationError as e:
             return web.json_response(exception_to_dict(e), status=401)
         except Exception as e:
@@ -954,9 +997,17 @@ class HTTPServer:
             team_id = request.match_info["team_id"]
             team = self.team_manager.get_team(team_id, user_id)
             if not team:
-                return web.json_response({"type": "error", "message": "团队不存在或无权访问"}, status=404)
+                return web.json_response(
+                    {"type": "error", "message": "团队不存在或无权访问"}, status=404
+                )
             members = self.team_manager.get_team_members(team_id, user_id)
-            return web.json_response({"type": "team_info", "team": team.to_dict(), "members": [m.to_dict() for m in members]})
+            return web.json_response(
+                {
+                    "type": "team_info",
+                    "team": team.to_dict(),
+                    "members": [m.to_dict() for m in members],
+                }
+            )
         except (AuthenticationError,) as e:
             return web.json_response(exception_to_dict(e), status=401)
         except PermissionError as e:
@@ -1007,7 +1058,13 @@ class HTTPServer:
             user_id = await self._get_auth_user_id(request)
             team_id = request.match_info["team_id"]
             members = self.team_manager.get_team_members(team_id, user_id)
-            return web.json_response({"type": "team_members", "members": [m.to_dict() for m in members], "count": len(members)})
+            return web.json_response(
+                {
+                    "type": "team_members",
+                    "members": [m.to_dict() for m in members],
+                    "count": len(members),
+                }
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except AuthenticationError as e:
@@ -1029,7 +1086,14 @@ class HTTPServer:
             except ValueError:
                 raise ValidationError(f"无效的角色: {role_str}")
             self.team_manager.update_member_role(team_id, user_id, target_id, new_role)
-            return web.json_response({"type": "member_role_updated", "team_id": team_id, "user_id": target_id, "role": role_str})
+            return web.json_response(
+                {
+                    "type": "member_role_updated",
+                    "team_id": team_id,
+                    "user_id": target_id,
+                    "role": role_str,
+                }
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except (ValidationError, ValueError) as e:
@@ -1047,7 +1111,9 @@ class HTTPServer:
             team_id = request.match_info["team_id"]
             target_id = request.match_info["target_id"]
             self.team_manager.remove_member(team_id, user_id, target_id)
-            return web.json_response({"type": "member_removed", "team_id": team_id, "user_id": target_id})
+            return web.json_response(
+                {"type": "member_removed", "team_id": team_id, "user_id": target_id}
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except (ValidationError, ValueError) as e:
@@ -1084,7 +1150,9 @@ class HTTPServer:
                 raise ValidationError("邮箱不能为空")
             hours = data.get("expires_hours", 72)
             invite = self.team_manager.create_invite(team_id, user_id, email, hours)
-            return web.json_response({"type": "invite_created", "invite": invite.to_dict()}, status=201)
+            return web.json_response(
+                {"type": "invite_created", "invite": invite.to_dict()}, status=201
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except (ValidationError, ValueError) as e:
@@ -1101,7 +1169,13 @@ class HTTPServer:
             user_id = await self._get_auth_user_id(request)
             team_id = request.match_info["team_id"]
             invites = self.team_manager.list_team_invites(team_id, user_id)
-            return web.json_response({"type": "invites_list", "invites": [i.to_dict() for i in invites], "count": len(invites)})
+            return web.json_response(
+                {
+                    "type": "invites_list",
+                    "invites": [i.to_dict() for i in invites],
+                    "count": len(invites),
+                }
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except AuthenticationError as e:
@@ -1136,7 +1210,9 @@ class HTTPServer:
                 raise ValidationError("session_id 不能为空")
             title = data.get("title")
             shared = self.team_manager.share_session(session_id, team_id, user_id, title)
-            return web.json_response({"type": "session_shared", "share": shared.to_dict()}, status=201)
+            return web.json_response(
+                {"type": "session_shared", "share": shared.to_dict()}, status=201
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except (ValidationError, ValueError) as e:
@@ -1174,7 +1250,13 @@ class HTTPServer:
             user_id = await self._get_auth_user_id(request)
             team_id = request.match_info["team_id"]
             sessions = self.team_manager.get_team_sessions(team_id, user_id)
-            return web.json_response({"type": "team_sessions", "sessions": [s.to_dict() for s in sessions], "count": len(sessions)})
+            return web.json_response(
+                {
+                    "type": "team_sessions",
+                    "sessions": [s.to_dict() for s in sessions],
+                    "count": len(sessions),
+                }
+            )
         except PermissionError as e:
             return web.json_response({"type": "error", "message": str(e)}, status=403)
         except AuthenticationError as e:
@@ -1192,11 +1274,13 @@ class HTTPServer:
         try:
             await self._get_auth_user_id(request)
             plugins = self.plugin_manager.list_plugins()
-            return web.json_response({
-                "type": "plugins_list",
-                "plugins": [p.to_dict() for p in plugins],
-                "count": len(plugins),
-            })
+            return web.json_response(
+                {
+                    "type": "plugins_list",
+                    "plugins": [p.to_dict() for p in plugins],
+                    "count": len(plugins),
+                }
+            )
         except AuthenticationError as e:
             return web.json_response(exception_to_dict(e), status=401)
         except Exception as e:
@@ -1210,7 +1294,9 @@ class HTTPServer:
             plugin_id = request.match_info["plugin_id"]
             info = self.plugin_manager.get_plugin_info(plugin_id)
             if not info:
-                return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+                return web.json_response(
+                    {"type": "error", "message": "Plugin not found"}, status=404
+                )
             return web.json_response({"type": "plugin_info", "plugin": info.to_dict()})
         except AuthenticationError as e:
             return web.json_response(exception_to_dict(e), status=401)
@@ -1257,7 +1343,9 @@ class HTTPServer:
             info = self.plugin_manager.load_plugin(plugin_id)
             if info:
                 return web.json_response({"type": "plugin_reloaded", "plugin": info.to_dict()})
-            return web.json_response({"type": "error", "message": "Failed to reload plugin"}, status=500)
+            return web.json_response(
+                {"type": "error", "message": "Failed to reload plugin"}, status=500
+            )
         except AuthenticationError as e:
             return web.json_response(exception_to_dict(e), status=401)
         except Exception as e:
@@ -1272,7 +1360,9 @@ class HTTPServer:
             data = await request.json()
             plugin = self.plugin_manager.get_plugin(plugin_id)
             if not plugin:
-                return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+                return web.json_response(
+                    {"type": "error", "message": "Plugin not found"}, status=404
+                )
             plugin.set_config(data)
             return web.json_response({"type": "plugin_configured", "plugin_id": plugin_id})
         except AuthenticationError as e:
@@ -1288,14 +1378,18 @@ class HTTPServer:
             plugin_id = request.match_info["plugin_id"]
             plugin = self.plugin_manager.get_plugin(plugin_id)
             if not plugin:
-                return web.json_response({"type": "error", "message": "Plugin not found"}, status=404)
+                return web.json_response(
+                    {"type": "error", "message": "Plugin not found"}, status=404
+                )
             commands = plugin.get_commands()
-            return web.json_response({
-                "type": "plugin_commands",
-                "plugin_id": plugin_id,
-                "commands": list(commands.keys()),
-                "count": len(commands),
-            })
+            return web.json_response(
+                {
+                    "type": "plugin_commands",
+                    "plugin_id": plugin_id,
+                    "commands": list(commands.keys()),
+                    "count": len(commands),
+                }
+            )
         except AuthenticationError as e:
             return web.json_response(exception_to_dict(e), status=401)
         except Exception as e:
@@ -1307,11 +1401,13 @@ class HTTPServer:
         try:
             await self._get_auth_user_id(request)
             discovered = self.plugin_manager.discover_plugins()
-            return web.json_response({
-                "type": "plugins_discovered",
-                "plugin_ids": discovered,
-                "count": len(discovered),
-            })
+            return web.json_response(
+                {
+                    "type": "plugins_discovered",
+                    "plugin_ids": discovered,
+                    "count": len(discovered),
+                }
+            )
         except AuthenticationError as e:
             return web.json_response(exception_to_dict(e), status=401)
         except Exception as e:
@@ -1376,10 +1472,7 @@ class HTTPServer:
                 "free_percent": round(free_pct, 1),
             }
             if free_pct <= 10:
-                hints["disk"] = (
-                    f"磁盘空间不足 ({free_pct:.0f}% 可用)，"
-                    "可能导致数据库写入失败"
-                )
+                hints["disk"] = f"磁盘空间不足 ({free_pct:.0f}% 可用)，" "可能导致数据库写入失败"
         except Exception:
             pass
 

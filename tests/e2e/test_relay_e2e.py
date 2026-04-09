@@ -12,10 +12,11 @@ E2E 测试 — AIRelayServer 全链路测试
 
 import asyncio
 import json
+import os
+import sys
+
 import pytest
 import pytest_asyncio
-import sys
-import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../relay-server"))
 
@@ -23,6 +24,7 @@ from server import AIRelayServer
 
 try:
     import websockets
+
     HAS_WEBSOCKETS = True
 except ImportError:
     HAS_WEBSOCKETS = False
@@ -30,6 +32,7 @@ except ImportError:
 
 def _find_free_port():
     import socket
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
@@ -86,12 +89,16 @@ class TestRelayE2E:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "test-ai",
-                "name": "Test AI",
-                "description": "Test backend",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "test-ai",
+                        "name": "Test AI",
+                        "description": "Test backend",
+                    }
+                )
+            )
             resp = json.loads(await backend_ws.recv())
             assert resp["type"] == "backend_registered"
             assert resp["backend_id"] == "test-ai"
@@ -109,18 +116,26 @@ class TestRelayE2E:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "chat-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "chat-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
-                await user_ws.send(json.dumps({
-                    "type": "chat",
-                    "target": "chat-ai",
-                    "text": "Hello AI!",
-                }))
+                await user_ws.send(
+                    json.dumps(
+                        {
+                            "type": "chat",
+                            "target": "chat-ai",
+                            "text": "Hello AI!",
+                        }
+                    )
+                )
 
                 backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
                 assert backend_msg["type"] == "chat"
@@ -129,11 +144,15 @@ class TestRelayE2E:
 
                 request_id = backend_msg["request_id"]
 
-                await backend_ws.send(json.dumps({
-                    "type": "reply",
-                    "request_id": request_id,
-                    "text": "Hello human!",
-                }))
+                await backend_ws.send(
+                    json.dumps(
+                        {
+                            "type": "reply",
+                            "request_id": request_id,
+                            "text": "Hello human!",
+                        }
+                    )
+                )
 
                 user_reply = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
                 assert user_reply["type"] == "reply"
@@ -189,10 +208,14 @@ class TestRelayE2E:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "temp-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "temp-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
             assert "temp-ai" in server.backends
 
@@ -205,19 +228,27 @@ class TestRelayE2E:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "multi-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "multi-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async def user_chat(msg_text):
                 async with websockets.connect(uri) as user_ws:
-                    await user_ws.send(json.dumps({
-                        "type": "chat",
-                        "target": "multi-ai",
-                        "text": msg_text,
-                    }))
+                    await user_ws.send(
+                        json.dumps(
+                            {
+                                "type": "chat",
+                                "target": "multi-ai",
+                                "text": msg_text,
+                            }
+                        )
+                    )
                     return msg_text
 
             tasks = [asyncio.create_task(user_chat(f"msg-{i}")) for i in range(5)]

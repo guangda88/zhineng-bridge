@@ -7,9 +7,10 @@ VAPID (Voluntary Application Server Identification)
 使用ECDSA P-256曲线
 """
 
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization
 import base64
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 
 def generate_vapid_keys():
@@ -21,7 +22,7 @@ def generate_vapid_keys():
     private_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
 
     # 获取公钥
@@ -29,15 +30,13 @@ def generate_vapid_keys():
 
     # 序列化公钥 (SubjectPublicKeyInfo格式)
     public_pem = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
+        encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
     # 生成URL安全的Base64编码的公钥（用于前端配置）
     # VAPID需要去掉PEM格式中的头尾和换行符，然后Base64编码
     public_key_der = public_key.public_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
+        encoding=serialization.Encoding.DER, format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
     # 生成适合Web Push的Base64URL编码
@@ -46,13 +45,13 @@ def generate_vapid_keys():
     if len(public_key_bytes) == 65 and public_key_bytes[0] == 0x04:
         public_key_bytes = public_key_bytes[1:]
 
-    public_key_base64url = base64.urlsafe_b64encode(public_key_bytes).decode('utf-8').rstrip('=')
+    public_key_base64url = base64.urlsafe_b64encode(public_key_bytes).decode("utf-8").rstrip("=")
 
     # 同样处理私钥
     private_key_der = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
         format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
+        encryption_algorithm=serialization.NoEncryption(),
     )
 
     # 私钥DER编码通常是32字节，但可能带有其他信息
@@ -62,13 +61,13 @@ def generate_vapid_keys():
     else:
         private_key_bytes = private_key_der
 
-    private_key_base64url = base64.urlsafe_b64encode(private_key_bytes).decode('utf-8').rstrip('=')
+    private_key_base64url = base64.urlsafe_b64encode(private_key_bytes).decode("utf-8").rstrip("=")
 
     return {
-        'private_key_pem': private_pem.decode('utf-8'),
-        'public_key_pem': public_pem.decode('utf-8'),
-        'public_key_base64url': public_key_base64url,
-        'private_key_base64url': private_key_base64url
+        "private_key_pem": private_pem.decode("utf-8"),
+        "public_key_pem": public_pem.decode("utf-8"),
+        "public_key_base64url": public_key_base64url,
+        "private_key_base64url": private_key_base64url,
     }
 
 
@@ -88,9 +87,9 @@ def main():
     print("-" * 60)
     print()
     print("私钥:")
-    print(keys['private_key_pem'])
+    print(keys["private_key_pem"])
     print("公钥:")
-    print(keys['public_key_pem'])
+    print(keys["public_key_pem"])
     print()
 
     print("-" * 60)
@@ -111,10 +110,14 @@ def main():
     print("   )")
     print()
     print("2. 将 VAPID_PRIVATE_KEY 添加到服务器配置文件:")
-    print("   VAPID_PRIVATE_KEY={}" + keys['private_key_base64url'])
+    print("   VAPID_PRIVATE_KEY={}" + keys["private_key_base64url"])
     print()
     print("3. 保存私钥PEM格式到文件 (可选):")
-    print("   echo '{}' > vapid_private_key.pem".format(keys['private_key_pem'].strip().replace('\n', '\\n')))
+    print(
+        "   echo '{}' > vapid_private_key.pem".format(
+            keys["private_key_pem"].strip().replace("\n", "\\n")
+        )
+    )
     print()
     print("=" * 60)
     print("✅ 完成！请按照上述说明配置VAPID密钥")
@@ -123,5 +126,5 @@ def main():
     return keys
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

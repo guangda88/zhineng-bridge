@@ -3,17 +3,18 @@
 密码重置和双因素认证单元测试
 """
 
-import pytest
-import sys
 import os
+import sys
 import tempfile
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../relay-server'))
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../relay-server"))
 
 from auth_db import UserDatabase
-from auth_totp import TOTPAuth
 from auth_manager import AuthenticationManager
 from auth_models import UserRole
+from auth_totp import TOTPAuth
 
 
 class TestPasswordReset:
@@ -46,6 +47,7 @@ class TestPasswordReset:
     def test_expired_reset_token(self, db, user_data):
         token = db.create_password_reset_token(user_data.user_id, expires_in_hours=0)
         import time
+
         time.sleep(1)
         user_id = db.verify_password_reset_token(token)
         assert user_id is None
@@ -91,14 +93,16 @@ class TestPasswordReset:
         db.create_password_reset_token(user_data.user_id, expires_in_hours=1)
         db.create_password_reset_token(user_data.user_id, expires_in_hours=0)
         import time
+
         time.sleep(1)
         count = db.cleanup_expired_reset_tokens()
         assert count >= 1
 
     def test_manager_request_password_reset(self, user_data):
         mgr = AuthenticationManager.__new__(AuthenticationManager)
-        mgr.db = user_data.__class__.__bases__[0].__dict__.get('_user_cache', None)
+        mgr.db = user_data.__class__.__bases__[0].__dict__.get("_user_cache", None)
         from auth_manager import AuthenticationManager as AM
+
         tmp = tempfile.mktemp(suffix=".db")
         am = AM(db_path=tmp)
         am.db.create_user(
@@ -139,6 +143,7 @@ class TestTOTP:
         secret = TOTPAuth.generate_secret()
         assert len(secret) == 32
         import base64
+
         decoded = base64.b32decode(secret, casefold=True)
         assert len(decoded) == 20
 
@@ -175,6 +180,7 @@ class TestTOTP:
         totp = TOTPAuth()
         secret = TOTPAuth.generate_secret()
         import time
+
         code = totp.generate_totp(secret, timestamp=int(time.time()) - 30)
         assert totp.verify_totp(secret, code, window=1)
 

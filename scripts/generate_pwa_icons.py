@@ -7,17 +7,16 @@ PWA 图标生成器
 """
 
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
 from typing import List
+
+from PIL import Image, ImageDraw, ImageFont
 
 
 class IconGenerator:
     """图标生成器"""
 
     # PWA 图标尺寸
-    ICON_SIZES = [
-        16, 32, 72, 96, 128, 144, 152, 192, 384, 512
-    ]
+    ICON_SIZES = [16, 32, 72, 96, 128, 144, 152, 192, 384, 512]
 
     # 图标颜色
     PRIMARY_COLOR = (102, 126, 234)  # #667eea
@@ -34,10 +33,7 @@ class IconGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_gradient_background(
-        self,
-        size: int
-    ) -> Image.Image:
+    def create_gradient_background(self, size: int) -> Image.Image:
         """
         创建渐变背景
 
@@ -47,7 +43,7 @@ class IconGenerator:
         Returns:
             PIL Image 对象
         """
-        img = Image.new('RGB', (size, size), self.PRIMARY_COLOR)
+        img = Image.new("RGB", (size, size), self.PRIMARY_COLOR)
         draw = ImageDraw.Draw(img)
 
         # 创建从左上到右下的渐变
@@ -65,12 +61,7 @@ class IconGenerator:
 
         return img
 
-    def draw_text_centered(
-        self,
-        img: Image.Image,
-        text: str,
-        font_size: int
-    ) -> None:
+    def draw_text_centered(self, img: Image.Image, text: str, font_size: int) -> None:
         """
         在图像中心绘制文字
 
@@ -85,8 +76,7 @@ class IconGenerator:
         try:
             # 尝试使用系统字体
             font = ImageFont.truetype(
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                font_size
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size
             )
         except:
             # 如果系统字体不可用，使用默认字体
@@ -127,7 +117,7 @@ class IconGenerator:
         draw.rectangle(
             [left_pillar_x, margin, left_pillar_x + pillar_width, margin + pillar_height],
             fill=self.WHITE,
-            outline=self.WHITE
+            outline=self.WHITE,
         )
 
         # 右支柱
@@ -135,7 +125,7 @@ class IconGenerator:
         draw.rectangle(
             [right_pillar_x, margin, right_pillar_x + pillar_width, margin + pillar_height],
             fill=self.WHITE,
-            outline=self.WHITE
+            outline=self.WHITE,
         )
 
         # 桥面（拱形）
@@ -145,11 +135,16 @@ class IconGenerator:
         # 绘制拱形桥面
         arch_bottom_y = arch_top_y + arch_height
         draw.arc(
-            [left_pillar_x, arch_top_y - line_width, right_pillar_x + pillar_width, arch_bottom_y + line_width],
+            [
+                left_pillar_x,
+                arch_top_y - line_width,
+                right_pillar_x + pillar_width,
+                arch_bottom_y + line_width,
+            ],
             start=180,
             end=0,
             fill=self.WHITE,
-            width=line_width
+            width=line_width,
         )
 
         # 添加 "Z" 字母
@@ -176,7 +171,7 @@ class IconGenerator:
         filename = f"icon-{size}x{size}.png"
         filepath = self.output_dir / filename
 
-        img.save(filepath, 'PNG', optimize=True)
+        img.save(filepath, "PNG", optimize=True)
 
         return filepath
 
@@ -214,7 +209,7 @@ class IconGenerator:
         """
         manifest_path = self.output_dir.parent / "manifest.json"
 
-        manifest_content = '''{
+        manifest_content = """{
   "name": "智桥 - AI工具连接器",
   "short_name": "智桥",
   "description": "跨平台实时同步和通信SDK，连接多个AI编程工具",
@@ -225,24 +220,24 @@ class IconGenerator:
   "theme_color": "#667eea",
   "scope": "/",
   "icons": [
-'''
+"""
 
         icon_entries = []
         for size in self.ICON_SIZES:
-            icon_entries.append(f'''    {{
+            icon_entries.append(f"""    {{
       "src": "/web/ui/icons/icon-{size}x{size}.png",
       "sizes": "{size}x{size}",
       "type": "image/png",
       "purpose": "any maskable"
-    }}''')
+    }}""")
 
-        manifest_content += ',\n'.join(icon_entries)
-        manifest_content += '''
+        manifest_content += ",\n".join(icon_entries)
+        manifest_content += """
   ]
 }
-'''
+"""
 
-        with open(manifest_path, 'w') as f:
+        with open(manifest_path, "w") as f:
             f.write(manifest_content)
 
         print("✅ manifest.json 已更新")
@@ -251,7 +246,7 @@ class IconGenerator:
 def main():
     """主函数"""
     # 输出目录
-    output_dir = '/home/ai/zhineng-bridge/web/ui/icons'
+    output_dir = "/home/ai/zhineng-bridge/web/ui/icons"
 
     # 创建生成器
     generator = IconGenerator(output_dir)
@@ -279,5 +274,5 @@ def main():
     print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

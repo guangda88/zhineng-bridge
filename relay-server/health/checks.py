@@ -1,6 +1,7 @@
 """健康检查逻辑 — 各组件的状态检测"""
 
 import socket
+
 import psutil
 
 
@@ -21,9 +22,15 @@ class HealthChecker:
             result = sock.connect_ex((host, self.port))
             sock.close()
             if result == 0:
-                return {"status": "healthy", "message": f"WebSocket server is reachable on {host}:{self.port}"}
+                return {
+                    "status": "healthy",
+                    "message": f"WebSocket server is reachable on {host}:{self.port}",
+                }
             else:
-                return {"status": "unhealthy", "message": f"Cannot connect to WebSocket server on {host}:{self.port}"}
+                return {
+                    "status": "unhealthy",
+                    "message": f"Cannot connect to WebSocket server on {host}:{self.port}",
+                }
         except Exception as e:
             return {"status": "unhealthy", "message": f"Error checking WebSocket server: {str(e)}"}
 
@@ -59,19 +66,31 @@ class HealthChecker:
                 "memory_percent": memory.percent,
                 "memory_available_mb": memory.available / (1024 * 1024),
                 "disk_percent": disk.percent,
-                "disk_free_gb": disk.free / (1024 ** 3),
+                "disk_free_gb": disk.free / (1024**3),
             }
 
             if issues:
-                return {"status": "degraded" if len(issues) == 1 else "unhealthy", "message": "; ".join(issues), "metrics": metrics}
-            return {"status": "healthy", "message": "System resources are within normal limits", "metrics": metrics}
+                return {
+                    "status": "degraded" if len(issues) == 1 else "unhealthy",
+                    "message": "; ".join(issues),
+                    "metrics": metrics,
+                }
+            return {
+                "status": "healthy",
+                "message": "System resources are within normal limits",
+                "metrics": metrics,
+            }
         except Exception as e:
             return {"status": "unhealthy", "message": f"Error checking system resources: {str(e)}"}
 
     def check_rate_limiter(self, rate_limiter) -> dict:
         try:
             stats = rate_limiter.get_global_stats()
-            return {"status": "healthy", "message": "Rate limiter is operational", "active_clients": stats["active_clients"]}
+            return {
+                "status": "healthy",
+                "message": "Rate limiter is operational",
+                "active_clients": stats["active_clients"],
+            }
         except Exception as e:
             return {"status": "unhealthy", "message": f"Rate limiter error: {str(e)}"}
 

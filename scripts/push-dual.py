@@ -5,19 +5,20 @@
 支持同时推送到 GitHub 和 Gitea。
 """
 
+import argparse
 import subprocess
 import sys
-import argparse
 
 
 class Colors:
     """终端颜色"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
 
 
 class DualRepoPusher:
@@ -25,8 +26,8 @@ class DualRepoPusher:
 
     def __init__(self):
         self.remotes = {
-            'origin': 'https://github.com/guangda88/zhineng-bridge.git',
-            'gitea': 'http://zhinenggitea.iepose.cn/guangda/zhineng-bridge.git'
+            "origin": "https://github.com/guangda88/zhineng-bridge.git",
+            "gitea": "http://zhinenggitea.iepose.cn/guangda/zhineng-bridge.git",
         }
 
     def run_command(self, command: list) -> tuple:
@@ -40,12 +41,7 @@ class DualRepoPusher:
             (是否成功, 输出)
         """
         try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+            result = subprocess.run(command, capture_output=True, text=True, timeout=60)
             return result.returncode == 0, result.stdout + result.stderr
         except subprocess.TimeoutExpired:
             return False, "Command timed out"
@@ -54,12 +50,12 @@ class DualRepoPusher:
 
     def check_git_repo(self) -> bool:
         """检查是否在 Git 仓库中"""
-        success, output = self.run_command(['git', 'rev-parse', '--is-inside-work-tree'])
+        success, output = self.run_command(["git", "rev-parse", "--is-inside-work-tree"])
         return success
 
     def get_current_branch(self) -> str:
         """获取当前分支"""
-        success, output = self.run_command(['git', 'symbolic-ref', '--short', 'HEAD'])
+        success, output = self.run_command(["git", "symbolic-ref", "--short", "HEAD"])
         if success:
             return output.strip()
         return None
@@ -74,7 +70,7 @@ class DualRepoPusher:
         Returns:
             是否存在
         """
-        success, output = self.run_command(['git', 'remote', '-v'])
+        success, output = self.run_command(["git", "remote", "-v"])
         if success:
             return remote_name in output
         return False
@@ -92,7 +88,7 @@ class DualRepoPusher:
         """
         print(f"{Colors.BLUE}ℹ{Colors.END} 添加远程仓库: {remote_name}")
 
-        success, output = self.run_command(['git', 'remote', 'add', remote_name, url])
+        success, output = self.run_command(["git", "remote", "add", remote_name, url])
         if success:
             print(f"{Colors.GREEN}✓{Colors.END} 远程仓库已添加: {remote_name}")
             return True
@@ -136,7 +132,7 @@ class DualRepoPusher:
         print(f"{Colors.BLUE}ℹ{Colors.END} 推送到 {remote_name}: {branch}")
 
         # 推送分支
-        command = ['git', 'push', remote_name, branch]
+        command = ["git", "push", remote_name, branch]
         success, output = self.run_command(command)
 
         if success:
@@ -150,7 +146,7 @@ class DualRepoPusher:
         if push_tags:
             print(f"{Colors.BLUE}ℹ{Colors.END} 推送标签到 {remote_name}")
 
-            command = ['git', 'push', remote_name, '--tags']
+            command = ["git", "push", remote_name, "--tags"]
             success, output = self.run_command(command)
 
             if success:
@@ -190,7 +186,7 @@ class DualRepoPusher:
 
         for remote_name in self.remotes.keys():
             print(f"{Colors.BLUE}ℹ{Colors.END} 从 {remote_name} 拉取更新...")
-            success, output = self.run_command(['git', 'fetch', remote_name])
+            success, output = self.run_command(["git", "fetch", remote_name])
             if success:
                 print(f"{Colors.GREEN}✓{Colors.END} {remote_name} 已同步")
             else:
@@ -206,7 +202,7 @@ class DualRepoPusher:
 
         # 远程仓库
         print("远程仓库:")
-        success, output = self.run_command(['git', 'remote', '-v'])
+        success, output = self.run_command(["git", "remote", "-v"])
         if success:
             print(output)
 
@@ -217,7 +213,7 @@ class DualRepoPusher:
 
         # 未提交的更改
         print("\n未提交的更改:")
-        success, output = self.run_command(['git', 'status', '--short'])
+        success, output = self.run_command(["git", "status", "--short"])
         if success and output.strip():
             print(output)
         else:
@@ -236,34 +232,21 @@ def main():
   python3 scripts/push-dual.py setup
   python3 scripts/push-dual.py sync
   python3 scripts/push-dual.py status
-        """
+        """,
     )
 
-    parser.add_argument(
-        'command',
-        choices=['push', 'setup', 'sync', 'status'],
-        help='命令'
-    )
+    parser.add_argument("command", choices=["push", "setup", "sync", "status"], help="命令")
+
+    parser.add_argument("--branch", type=str, default=None, help="分支名称（默认: 当前分支）")
+
+    parser.add_argument("--tags", action="store_true", help="同时推送标签")
 
     parser.add_argument(
-        '--branch',
+        "--remote",
         type=str,
         default=None,
-        help='分支名称（默认: 当前分支）'
-    )
-
-    parser.add_argument(
-        '--tags',
-        action='store_true',
-        help='同时推送标签'
-    )
-
-    parser.add_argument(
-        '--remote',
-        type=str,
-        default=None,
-        choices=['origin', 'gitea'],
-        help='仅推送到指定的远程仓库'
+        choices=["origin", "gitea"],
+        help="仅推送到指定的远程仓库",
     )
 
     args = parser.parse_args()
@@ -276,7 +259,7 @@ def main():
 
     # 执行命令
     try:
-        if args.command == 'push':
+        if args.command == "push":
             if args.remote:
                 # 推送到指定仓库
                 success = pusher.push_to_remote(args.remote, args.branch, args.tags)
@@ -291,7 +274,7 @@ def main():
                 print(f"\n{Colors.RED}❌{Colors.END} 推送失败")
                 sys.exit(1)
 
-        elif args.command == 'setup':
+        elif args.command == "setup":
             success = pusher.setup_remotes()
             if success:
                 print(f"\n{Colors.GREEN}✅{Colors.END} 远程仓库配置完成")
@@ -300,7 +283,7 @@ def main():
                 print(f"\n{Colors.RED}❌{Colors.END} 远程仓库配置失败")
                 sys.exit(1)
 
-        elif args.command == 'sync':
+        elif args.command == "sync":
             success = pusher.sync_remotes()
             if success:
                 print(f"\n{Colors.GREEN}✅{Colors.END} 同步完成")
@@ -309,7 +292,7 @@ def main():
                 print(f"\n{Colors.RED}❌{Colors.END} 同步失败")
                 sys.exit(1)
 
-        elif args.command == 'status':
+        elif args.command == "status":
             pusher.show_status()
             sys.exit(0)
 
@@ -319,6 +302,7 @@ def main():
     except Exception as e:
         print(f"\n{Colors.RED}❌{Colors.END} 错误: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

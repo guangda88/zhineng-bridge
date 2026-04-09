@@ -35,26 +35,22 @@ Chrome DevTools MCP E2E 测试
     nvm use 20
 """
 
-import pytest
 import subprocess
-from typing import Dict, Any
 from pathlib import Path
+from typing import Any, Dict
+
+import pytest
 
 
 def check_node_version():
     """检查 Node.js 版本是否满足要求"""
     try:
-        result = subprocess.run(
-            ['node', '--version'],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             version_str = result.stdout.strip()  # 例如：v18.19.1
-            version_num = version_str.lstrip('v')  # 去掉 'v' 前缀
-            major_version = int(version_num.split('.')[0])
-            minor_version = int(version_num.split('.')[1])
+            version_num = version_str.lstrip("v")  # 去掉 'v' 前缀
+            major_version = int(version_num.split(".")[0])
+            minor_version = int(version_num.split(".")[1])
 
             # 检查是否 >= 20.19.0
             if major_version > 20:
@@ -64,13 +60,19 @@ def check_node_version():
             else:
                 return False, version_str
         return False, "未安装"
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError, ValueError, IndexError):
+    except (
+        subprocess.TimeoutExpired,
+        subprocess.SubprocessError,
+        FileNotFoundError,
+        ValueError,
+        IndexError,
+    ):
         return False, "检查失败"
 
 
 @pytest.mark.skipif(
     not check_node_version()[0],
-    reason=f"需要 Node.js v20.19.0+ (当前版本: {check_node_version()[1]})"
+    reason=f"需要 Node.js v20.19.0+ (当前版本: {check_node_version()[1]})",
 )
 class TestChromeDevToolsMCP:
     """
@@ -96,7 +98,7 @@ class TestChromeDevToolsMCP:
             "base_url": "http://localhost:8000",
             "websocket_url": "ws://localhost:8765",
             "timeout": 5000,
-            "test_tools": ["crush", "claude", "cursor", "copilot"]
+            "test_tools": ["crush", "claude", "cursor", "copilot"],
         }
 
     # 测试步骤指令（供 MCP 使用）
@@ -288,7 +290,7 @@ class TestChromeDevToolsMCP:
 
 @pytest.mark.skipif(
     not check_node_version()[0],
-    reason=f"需要 Node.js v20.19.0+ (当前版本: {check_node_version()[1]})"
+    reason=f"需要 Node.js v20.19.0+ (当前版本: {check_node_version()[1]})",
 )
 class TestWebUIWithPlaywright:
     """
@@ -304,6 +306,7 @@ class TestWebUIWithPlaywright:
         """检查 Playwright 是否可用"""
         try:
             import playwright
+
             return True
         except ImportError:
             pytest.skip("Playwright 未安装")
@@ -409,8 +412,8 @@ class TestWebUIBasic:
         content = web_ui_file.read_text()
 
         # F-036: WebSocket 配置不应在 HTML 注释中暴露
-        assert 'WS_PORT' not in content, "WebSocket 端口配置不应暴露在 HTML 中"
-        assert 'WS_HOST' not in content, "WebSocket 主机配置不应暴露在 HTML 中"
+        assert "WS_PORT" not in content, "WebSocket 端口配置不应暴露在 HTML 中"
+        assert "WS_HOST" not in content, "WebSocket 主机配置不应暴露在 HTML 中"
 
     def test_relay_server_file_exists(self):
         """测试中继服务器文件存在"""

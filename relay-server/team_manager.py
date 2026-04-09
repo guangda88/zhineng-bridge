@@ -5,12 +5,12 @@
 提供团队协作的业务逻辑层，包含权限检查。
 """
 
-from typing import Optional, List
+from typing import List, Optional
 
-from logger import get_logger
 from auth_db import UserDatabase
-from team_models import TeamRole, Team, TeamMember, TeamInvite, SharedSession
+from logger import get_logger
 from team_db import TeamDatabase
+from team_models import SharedSession, Team, TeamInvite, TeamMember, TeamRole
 
 
 class TeamManager:
@@ -20,7 +20,9 @@ class TeamManager:
         self.logger = get_logger(__name__)
         self.db = TeamDatabase(user_db)
 
-    def _check_permission(self, team_id: str, user_id: str, min_role: TeamRole = TeamRole.MEMBER) -> bool:
+    def _check_permission(
+        self, team_id: str, user_id: str, min_role: TeamRole = TeamRole.MEMBER
+    ) -> bool:
         role = self.db.get_member_role(team_id, user_id)
         if role is None:
             return False
@@ -66,8 +68,9 @@ class TeamManager:
             raise PermissionError("无权查看团队成员")
         return self.db.get_team_members(team_id)
 
-    def update_member_role(self, team_id: str, user_id: str, target_user_id: str,
-                           new_role: TeamRole) -> bool:
+    def update_member_role(
+        self, team_id: str, user_id: str, target_user_id: str, new_role: TeamRole
+    ) -> bool:
         if not self._check_permission(team_id, user_id, TeamRole.OWNER):
             raise PermissionError("只有团队所有者才能修改成员角色")
         if new_role == TeamRole.OWNER:
@@ -99,8 +102,9 @@ class TeamManager:
     # Invites
     # ========================================================================
 
-    def create_invite(self, team_id: str, inviter_id: str, invitee_email: str,
-                      expires_hours: int = 72) -> TeamInvite:
+    def create_invite(
+        self, team_id: str, inviter_id: str, invitee_email: str, expires_hours: int = 72
+    ) -> TeamInvite:
         if not self._check_permission(team_id, inviter_id, TeamRole.ADMIN):
             raise PermissionError("需要管理员权限才能邀请成员")
         return self.db.create_invite(team_id, inviter_id, invitee_email, expires_hours)
@@ -120,8 +124,9 @@ class TeamManager:
     # Shared Sessions
     # ========================================================================
 
-    def share_session(self, session_id: str, team_id: str, shared_by: str,
-                      title: str = None) -> SharedSession:
+    def share_session(
+        self, session_id: str, team_id: str, shared_by: str, title: str = None
+    ) -> SharedSession:
         if not self._check_permission(team_id, shared_by, TeamRole.MEMBER):
             raise PermissionError("需要成员权限才能共享会话")
         return self.db.share_session(session_id, team_id, shared_by, title)

@@ -4,14 +4,15 @@ Prometheus Metrics Collection Module
 Provides Prometheus metrics for monitoring the Zhineng-bridge relay server
 """
 
-from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, generate_latest
+import threading
+import time
+from threading import Lock
+from types import TracebackType
+from typing import Iterator, Optional, Type
+
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import REGISTRY
-import time
-from typing import Optional, Iterator, Type
-from types import TracebackType
-import threading
-from threading import Lock
 
 # Custom registry to avoid conflicts
 REGISTRY = CollectorRegistry()
@@ -19,136 +20,126 @@ REGISTRY = CollectorRegistry()
 
 # Counter metrics - Monotonically increasing values
 websocket_connections_total = Counter(
-    'zhineng_bridge_websocket_connections_total',
-    'Total number of WebSocket connections',
-    ['status'],  # Labels: success, error
-    registry=REGISTRY
+    "zhineng_bridge_websocket_connections_total",
+    "Total number of WebSocket connections",
+    ["status"],  # Labels: success, error
+    registry=REGISTRY,
 )
 
 messages_received_total = Counter(
-    'zhineng_bridge_messages_received_total',
-    'Total number of messages received',
-    ['message_type'],
-    registry=REGISTRY
+    "zhineng_bridge_messages_received_total",
+    "Total number of messages received",
+    ["message_type"],
+    registry=REGISTRY,
 )
 
 messages_sent_total = Counter(
-    'zhineng_bridge_messages_sent_total',
-    'Total number of messages sent',
-    ['message_type'],
-    registry=REGISTRY
+    "zhineng_bridge_messages_sent_total",
+    "Total number of messages sent",
+    ["message_type"],
+    registry=REGISTRY,
 )
 
 sessions_created_total = Counter(
-    'zhineng_bridge_sessions_created_total',
-    'Total number of sessions created',
-    ['tool_name', 'status'],
-    registry=REGISTRY
+    "zhineng_bridge_sessions_created_total",
+    "Total number of sessions created",
+    ["tool_name", "status"],
+    registry=REGISTRY,
 )
 
 errors_total = Counter(
-    'zhineng_bridge_errors_total',
-    'Total number of errors',
-    ['error_type', 'severity'],
-    registry=REGISTRY
+    "zhineng_bridge_errors_total",
+    "Total number of errors",
+    ["error_type", "severity"],
+    registry=REGISTRY,
 )
 
 authentication_attempts_total = Counter(
-    'zhineng_bridge_authentication_attempts_total',
-    'Total number of authentication attempts',
-    ['status'],  # success, failed
-    registry=REGISTRY
+    "zhineng_bridge_authentication_attempts_total",
+    "Total number of authentication attempts",
+    ["status"],  # success, failed
+    registry=REGISTRY,
 )
 
 rate_limit_violations_total = Counter(
-    'zhineng_bridge_rate_limit_violations_total',
-    'Total number of rate limit violations',
-    ['client_id'],
-    registry=REGISTRY
+    "zhineng_bridge_rate_limit_violations_total",
+    "Total number of rate limit violations",
+    ["client_id"],
+    registry=REGISTRY,
 )
 
 
 # Gauge metrics - Values that can go up and down
 active_websocket_connections = Gauge(
-    'zhineng_bridge_active_websocket_connections',
-    'Current number of active WebSocket connections',
-    registry=REGISTRY
+    "zhineng_bridge_active_websocket_connections",
+    "Current number of active WebSocket connections",
+    registry=REGISTRY,
 )
 
 active_sessions = Gauge(
-    'zhineng_bridge_active_sessions',
-    'Current number of active sessions',
-    ['tool_name'],
-    registry=REGISTRY
+    "zhineng_bridge_active_sessions",
+    "Current number of active sessions",
+    ["tool_name"],
+    registry=REGISTRY,
 )
 
 pending_messages = Gauge(
-    'zhineng_bridge_pending_messages',
-    'Number of messages pending to be sent',
-    registry=REGISTRY
+    "zhineng_bridge_pending_messages", "Number of messages pending to be sent", registry=REGISTRY
 )
 
 memory_usage_bytes = Gauge(
-    'zhineng_bridge_memory_usage_bytes',
-    'Memory usage in bytes',
-    registry=REGISTRY
+    "zhineng_bridge_memory_usage_bytes", "Memory usage in bytes", registry=REGISTRY
 )
 
 cpu_usage_percent = Gauge(
-    'zhineng_bridge_cpu_usage_percent',
-    'CPU usage percentage',
-    registry=REGISTRY
+    "zhineng_bridge_cpu_usage_percent", "CPU usage percentage", registry=REGISTRY
 )
 
 uptime_seconds = Gauge(
-    'zhineng_bridge_uptime_seconds',
-    'Server uptime in seconds',
-    registry=REGISTRY
+    "zhineng_bridge_uptime_seconds", "Server uptime in seconds", registry=REGISTRY
 )
 
 message_queue_depth = Gauge(
-    'zhineng_bridge_message_queue_depth',
-    'Current message queue depth',
-    registry=REGISTRY
+    "zhineng_bridge_message_queue_depth", "Current message queue depth", registry=REGISTRY
 )
 
 session_manager_status = Gauge(
-    'zhineng_bridge_session_manager_status',
-    'Session manager status (1=connected, 0=disconnected)',
-    registry=REGISTRY
+    "zhineng_bridge_session_manager_status",
+    "Session manager status (1=connected, 0=disconnected)",
+    registry=REGISTRY,
 )
 
 
 # Histogram metrics - Track distributions
 request_duration_seconds = Histogram(
-    'zhineng_bridge_request_duration_seconds',
-    'Request duration in seconds',
-    ['request_type'],
+    "zhineng_bridge_request_duration_seconds",
+    "Request duration in seconds",
+    ["request_type"],
     buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
-    registry=REGISTRY
+    registry=REGISTRY,
 )
 
 message_processing_duration_seconds = Histogram(
-    'zhineng_bridge_message_processing_duration_seconds',
-    'Message processing duration in seconds',
-    ['message_type'],
+    "zhineng_bridge_message_processing_duration_seconds",
+    "Message processing duration in seconds",
+    ["message_type"],
     buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
-    registry=REGISTRY
+    registry=REGISTRY,
 )
 
 session_creation_duration_seconds = Histogram(
-    'zhineng_bridge_session_creation_duration_seconds',
-    'Session creation duration in seconds',
-    ['tool_name'],
+    "zhineng_bridge_session_creation_duration_seconds",
+    "Session creation duration in seconds",
+    ["tool_name"],
     buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0),
-    registry=REGISTRY
+    registry=REGISTRY,
 )
 
 websocket_connection_duration_seconds = Histogram(
-    'zhineng_bridge_websocket_connection_duration_seconds',
-    'WebSocket connection duration in seconds',
+    "zhineng_bridge_websocket_connection_duration_seconds",
+    "WebSocket connection duration in seconds",
     buckets=(1.0, 5.0, 10.0, 30.0, 60.0, 300.0, 600.0, 1800.0, 3600.0),
-    registry=REGISTRY
+    registry=REGISTRY,
 )
 
 
@@ -165,9 +156,9 @@ class MetricsCollector:
             # Update uptime
             time.time() - self.start_time
             yield GaugeMetricFamily(
-                'zhineng_bridge_start_time_seconds',
-                'Server start time in seconds',
-                value=self.start_time
+                "zhineng_bridge_start_time_seconds",
+                "Server start time in seconds",
+                value=self.start_time,
             )
 
 
@@ -177,10 +168,10 @@ REGISTRY.register(metrics_collector)
 
 
 # Metrics update functions
-def increment_websocket_connections(status: str = 'success') -> None:
+def increment_websocket_connections(status: str = "success") -> None:
     """Increment WebSocket connection counter"""
     websocket_connections_total.labels(status=status).inc()
-    if status == 'success':
+    if status == "success":
         active_websocket_connections.inc()
     else:
         active_websocket_connections.dec()
@@ -201,10 +192,10 @@ def increment_messages_sent(message_type: str) -> None:
     messages_sent_total.labels(message_type=message_type).inc()
 
 
-def increment_sessions_created(tool_name: str, status: str = 'success') -> None:
+def increment_sessions_created(tool_name: str, status: str = "success") -> None:
     """Increment sessions created counter"""
     sessions_created_total.labels(tool_name=tool_name, status=status).inc()
-    if status == 'success':
+    if status == "success":
         active_sessions.labels(tool_name=tool_name).inc()
 
 
@@ -213,7 +204,7 @@ def decrement_sessions(tool_name: str) -> None:
     active_sessions.labels(tool_name=tool_name).dec()
 
 
-def increment_errors(error_type: str, severity: str = 'error') -> None:
+def increment_errors(error_type: str, severity: str = "error") -> None:
     """Increment errors counter"""
     errors_total.labels(error_type=error_type, severity=severity).inc()
 
@@ -252,16 +243,19 @@ def update_memory_usage() -> None:
     """Update memory usage metric"""
     try:
         import psutil
+
         process = psutil.Process()
         memory_usage_bytes.set(process.memory_info().rss)
     except ImportError:
         # psutil not available, use simple fallback
         memory_usage_bytes.set(0)
 
+
 def update_cpu_usage() -> None:
     """Update CPU usage metric"""
     try:
         import psutil
+
         cpu_usage_percent.set(psutil.cpu_percent(interval=0.1))
     except ImportError:
         # psutil not available
@@ -285,11 +279,16 @@ class RequestDurationTracker:
         self.request_type: str = request_type
         self.start_time: Optional[float] = None
 
-    def __enter__(self) -> 'RequestDurationTracker':
+    def __enter__(self) -> "RequestDurationTracker":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> bool:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         if self.start_time is not None:
             duration = time.time() - self.start_time
             track_request_duration(self.request_type, duration)
@@ -303,11 +302,16 @@ class MessageProcessingTracker:
         self.message_type: str = message_type
         self.start_time: Optional[float] = None
 
-    def __enter__(self) -> 'MessageProcessingTracker':
+    def __enter__(self) -> "MessageProcessingTracker":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> bool:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         if self.start_time is not None:
             duration = time.time() - self.start_time
             track_message_processing_duration(self.message_type, duration)
@@ -321,15 +325,20 @@ class SessionCreationTracker:
         self.tool_name: str = tool_name
         self.start_time: Optional[float] = None
 
-    def __enter__(self) -> 'SessionCreationTracker':
+    def __enter__(self) -> "SessionCreationTracker":
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> bool:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         if self.start_time is not None:
             duration = time.time() - self.start_time
             track_session_creation_duration(self.tool_name, duration)
-            status = 'success' if exc_type is None else 'error'
+            status = "success" if exc_type is None else "error"
             increment_sessions_created(self.tool_name, status)
         return False
 
@@ -342,11 +351,16 @@ class AsyncRequestDurationTracker:
         self.request_type: str = request_type
         self.start_time: Optional[float] = None
 
-    async def __aenter__(self) -> 'AsyncRequestDurationTracker':
+    async def __aenter__(self) -> "AsyncRequestDurationTracker":
         self.start_time = time.time()
         return self
 
-    async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> bool:
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         if self.start_time is not None:
             duration = time.time() - self.start_time
             track_request_duration(self.request_type, duration)
@@ -360,11 +374,16 @@ class AsyncMessageProcessingTracker:
         self.message_type: str = message_type
         self.start_time: Optional[float] = None
 
-    async def __aenter__(self) -> 'AsyncMessageProcessingTracker':
+    async def __aenter__(self) -> "AsyncMessageProcessingTracker":
         self.start_time = time.time()
         return self
 
-    async def __aexit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> bool:
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         if self.start_time is not None:
             duration = time.time() - self.start_time
             track_message_processing_duration(self.message_type, duration)
@@ -386,6 +405,7 @@ def start_metrics_updater(interval: int = 5) -> threading.Thread:
                 time_module.sleep(interval)
             except Exception as e:
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.error(f"Error updating metrics: {e}")
                 time_module.sleep(interval)
@@ -398,12 +418,12 @@ def start_metrics_updater(interval: int = 5) -> threading.Thread:
 # Convenience functions
 def track_connection_success() -> None:
     """Track successful WebSocket connection"""
-    increment_websocket_connections('success')
+    increment_websocket_connections("success")
 
 
 def track_connection_error() -> None:
     """Track failed WebSocket connection"""
-    increment_websocket_connections('error')
+    increment_websocket_connections("error")
 
 
 def track_message(message_type: str) -> None:
@@ -416,19 +436,19 @@ def track_response(message_type: str) -> None:
     increment_messages_sent(message_type)
 
 
-def track_error(error_type: str, severity: str = 'error') -> None:
+def track_error(error_type: str, severity: str = "error") -> None:
     """Track error"""
     increment_errors(error_type, severity)
 
 
 def track_auth_success() -> None:
     """Track successful authentication"""
-    increment_authentication_attempts('success')
+    increment_authentication_attempts("success")
 
 
 def track_auth_failure() -> None:
     """Track failed authentication"""
-    increment_authentication_attempts('failed')
+    increment_authentication_attempts("failed")
 
 
 def track_rate_limit_violation(client_id: str) -> None:

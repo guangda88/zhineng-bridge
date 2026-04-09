@@ -8,17 +8,18 @@
 import hashlib
 import hmac
 import secrets
-import time
 import threading
-from typing import Optional, Dict, List, Tuple
-from datetime import datetime, timedelta
+import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
 from logger import get_logger
-from config import settings
 
 # Import UserDatabase for token persistence
 from user_auth import UserDatabase
+
+from config import settings
 
 # Import AuthType from auth_models to avoid duplication
 
@@ -26,6 +27,7 @@ from user_auth import UserDatabase
 @dataclass
 class TokenInfo:
     """令牌信息"""
+
     token: str
     user_id: str
     username: str
@@ -101,9 +103,7 @@ class TokenAuth:
         nonce = secrets.token_hex(16)
         data = f"{user_id}:{username}:{timestamp}:{nonce}".encode()
 
-        signature = hmac.new(
-            self.secret_key.encode(), data, hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(self.secret_key.encode(), data, hashlib.sha256).hexdigest()
 
         token = f"{user_id}:{timestamp}:{nonce}:{signature}"
 
@@ -223,9 +223,7 @@ class TokenAuth:
         if token_data:
             deleted = self.db.revoke_token(token)
             if deleted:
-                self.logger.info(
-                    "Token revoked", user_id=token_data["user_id"]
-                )
+                self.logger.info("Token revoked", user_id=token_data["user_id"])
             return deleted
         return False
 
@@ -259,14 +257,16 @@ class TokenAuth:
             for token_data in token_list:
                 user = self.db.get_user(user_id=user_id)
                 if user:
-                    result.append(TokenInfo(
-                        token=token_data["token"],
-                        user_id=user_id,
-                        username=user.username,
-                        created_at=token_data["created_at"],
-                        expires_at=token_data["expires_at"],
-                        scopes=["read", "write"],
-                    ))
+                    result.append(
+                        TokenInfo(
+                            token=token_data["token"],
+                            user_id=user_id,
+                            username=user.username,
+                            created_at=token_data["created_at"],
+                            expires_at=token_data["expires_at"],
+                            scopes=["read", "write"],
+                        )
+                    )
             return result
         else:
             # 获取所有活跃令牌（需要查询数据库）
@@ -298,9 +298,7 @@ class WebSocketAuth:
         self.authenticated_connections: Dict[str, TokenInfo] = {}
         self._connections_lock = threading.Lock()
 
-    def authenticate_connection(
-        self, connection_id: str, token: str
-    ) -> Tuple[bool, str]:
+    def authenticate_connection(self, connection_id: str, token: str) -> Tuple[bool, str]:
         """
         认证 WebSocket 连接
 

@@ -23,7 +23,7 @@ import json
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ChromeDevToolsMCPTester:
@@ -55,11 +55,7 @@ class ChromeDevToolsMCPTester:
         if details:
             print(f"   {details}")
 
-        self.results.append({
-            "test_name": test_name,
-            "passed": passed,
-            "details": details
-        })
+        self.results.append({"test_name": test_name, "passed": passed, "details": details})
 
         self.test_count += 1
         if passed:
@@ -172,20 +168,24 @@ runTest().catch(console.error);
             # 将测试脚本写入容器
             # 在 Linux 上使用 host 网络模式，host.docker.internal 不可用
             cmd = [
-                'docker', 'run', '--rm',
-                '--network', 'host',
-                '--add-host', 'host.docker.internal:host-gateway',
-                '-v', '/tmp:/tmp',
-                'chrome-devtools-mcp:latest',
-                'node', '-e', test_script
+                "docker",
+                "run",
+                "--rm",
+                "--network",
+                "host",
+                "--add-host",
+                "host.docker.internal:host-gateway",
+                "-v",
+                "/tmp:/tmp",
+                "chrome-devtools-mcp:latest",
+                "node",
+                "-e",
+                test_script,
             ]
 
             self.log("启动 Chrome 测试容器...")
             self.process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
 
             # 等待进程完成
@@ -215,9 +215,9 @@ runTest().catch(console.error);
         """解析测试输出行"""
         test_results = {}
 
-        for line in stdout.split('\n'):
-            if line.startswith('TEST:'):
-                parts = line[5:].split(':')
+        for line in stdout.split("\n"):
+            if line.startswith("TEST:"):
+                parts = line[5:].split(":")
                 if len(parts) < 2:
                     self.log(f"解析错误: {line}", "⚠️")
                     continue
@@ -225,54 +225,74 @@ runTest().catch(console.error);
                 test_name = parts[0]
                 status = parts[1]
 
-                if status == 'start':
-                    test_results[test_name] = {'started': True, 'success': False}
-                elif status == 'success':
+                if status == "start":
+                    test_results[test_name] = {"started": True, "success": False}
+                elif status == "success":
                     if test_name not in test_results:
                         test_results[test_name] = {}
-                    test_results[test_name]['success'] = True
+                    test_results[test_name]["success"] = True
                     if len(parts) > 2:
-                        test_results[test_name]['value'] = ':'.join(parts[2:])
-                elif status == 'error':
+                        test_results[test_name]["value"] = ":".join(parts[2:])
+                elif status == "error":
                     if test_name not in test_results:
                         test_results[test_name] = {}
-                    test_results[test_name]['error'] = ':'.join(parts[2:]) if len(parts) > 2 else 'Unknown error'
+                    test_results[test_name]["error"] = (
+                        ":".join(parts[2:]) if len(parts) > 2 else "Unknown error"
+                    )
 
         return test_results
 
     def _log_test_results(self, test_results: Dict[str, Any]):
         """记录测试结果"""
-        self.log_test("页面导航", test_results.get('navigate_page', {}).get('success', False),
-                    test_results.get('navigate_page', {}).get('value', ''))
+        self.log_test(
+            "页面导航",
+            test_results.get("navigate_page", {}).get("success", False),
+            test_results.get("navigate_page", {}).get("value", ""),
+        )
 
-        self.log_test("页面标题获取", test_results.get('page_title', {}).get('success', False),
-                    test_results.get('page_title', {}).get('value', ''))
+        self.log_test(
+            "页面标题获取",
+            test_results.get("page_title", {}).get("success", False),
+            test_results.get("page_title", {}).get("value", ""),
+        )
 
-        self.log_test("页面截图", test_results.get('screenshot', {}).get('success', False),
-                    "截图保存到 /tmp/zhineng_bridge_test.png")
+        self.log_test(
+            "页面截图",
+            test_results.get("screenshot", {}).get("success", False),
+            "截图保存到 /tmp/zhineng_bridge_test.png",
+        )
 
-        self.log_test("WebSocket 连接", test_results.get('websocket', {}).get('success', False),
-                    f"状态: {test_results.get('websocket', {}).get('value', 'false')}")
+        self.log_test(
+            "WebSocket 连接",
+            test_results.get("websocket", {}).get("success", False),
+            f"状态: {test_results.get('websocket', {}).get('value', 'false')}",
+        )
 
-        if test_results.get('evaluate_script', {}).get('success', False):
+        if test_results.get("evaluate_script", {}).get("success", False):
             try:
-                elements = json.loads(test_results.get('evaluate_script', {}).get('value', '{}'))
-                self.log_test("页面元素检查", True,
-                            f"Logo: {elements.get('hasLogo', 'N/A')}, "
-                            f"工具区: {elements.get('hasToolsSection', 'N/A')}, "
-                            f"工具网格: {elements.get('hasToolsGrid', 'N/A')}, "
-                            f"会话区: {elements.get('hasSessionsSection', 'N/A')}, "
-                            f"会话列表: {elements.get('hasSessionsList', 'N/A')}, "
-                            f"新建按钮: {elements.get('hasNewSessionBtn', 'N/A')}")
+                elements = json.loads(test_results.get("evaluate_script", {}).get("value", "{}"))
+                self.log_test(
+                    "页面元素检查",
+                    True,
+                    f"Logo: {elements.get('hasLogo', 'N/A')}, "
+                    f"工具区: {elements.get('hasToolsSection', 'N/A')}, "
+                    f"工具网格: {elements.get('hasToolsGrid', 'N/A')}, "
+                    f"会话区: {elements.get('hasSessionsSection', 'N/A')}, "
+                    f"会话列表: {elements.get('hasSessionsList', 'N/A')}, "
+                    f"新建按钮: {elements.get('hasNewSessionBtn', 'N/A')}",
+                )
             except json.JSONDecodeError:
                 self.log_test("页面元素检查", False, "无法解析结果")
         else:
-            self.log_test("页面元素检查", False,
-                        test_results.get('evaluate_script', {}).get('error', '测试失败'))
+            self.log_test(
+                "页面元素检查",
+                False,
+                test_results.get("evaluate_script", {}).get("error", "测试失败"),
+            )
 
-        if test_results.get('console', {}).get('success', False):
+        if test_results.get("console", {}).get("success", False):
             try:
-                messages = json.loads(test_results.get('console', {}).get('value', '[]'))
+                messages = json.loads(test_results.get("console", {}).get("value", "[]"))
                 if len(messages) == 0:
                     self.log_test("控制台错误检查", True, "无错误")
                 else:
@@ -280,8 +300,9 @@ runTest().catch(console.error);
             except json.JSONDecodeError:
                 self.log_test("控制台错误检查", False, "无法解析结果")
         else:
-            self.log_test("控制台错误检查", False,
-                        test_results.get('console', {}).get('error', '测试失败'))
+            self.log_test(
+                "控制台错误检查", False, test_results.get("console", {}).get("error", "测试失败")
+            )
 
     def _parse_test_output(self, stdout: str, stderr: str):
         """
@@ -344,7 +365,7 @@ runTest().catch(console.error);
             "passed": self.pass_count,
             "failed": self.fail_count,
             "duration": duration,
-            "results": self.results
+            "results": self.results,
         }
 
     def cleanup(self):
@@ -372,7 +393,9 @@ def print_test_report(results: Dict[str, Any]):
     print("\n" + "=" * 70)
 
 
-def save_test_report(results: Dict[str, Any], output_file: str = "chrome_devtools_e2e_test_results.json"):
+def save_test_report(
+    results: Dict[str, Any], output_file: str = "chrome_devtools_e2e_test_results.json"
+):
     """保存测试结果到 JSON 文件"""
     output_path = Path(output_file)
     with open(output_path, "w", encoding="utf-8") as f:
@@ -385,7 +408,7 @@ async def main():
     """主函数"""
     # 检查 Docker 是否可用
     try:
-        subprocess.run(['docker', '--version'], check=True, capture_output=True)
+        subprocess.run(["docker", "--version"], check=True, capture_output=True)
         print("✅ Docker 已安装")
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("❌ Docker 未安装或不可用")
@@ -394,19 +417,23 @@ async def main():
 
     # 检查 Docker image 是否存在
     try:
-        subprocess.run(['docker', 'inspect', 'chrome-devtools-mcp:latest'],
-                     check=True, capture_output=True)
+        subprocess.run(
+            ["docker", "inspect", "chrome-devtools-mcp:latest"], check=True, capture_output=True
+        )
         print("✅ Docker image: chrome-devtools-mcp:latest 已存在")
     except subprocess.CalledProcessError:
         print("❌ Docker image: chrome-devtools-mcp:latest 不存在")
-        print("请先构建镜像: docker build -f Dockerfile.chrome-devtools -t chrome-devtools-mcp:latest .")
+        print(
+            "请先构建镜像: docker build -f Dockerfile.chrome-devtools -t chrome-devtools-mcp:latest ."
+        )
         return
 
     # 检查 relay-server 是否运行
     try:
         import socket
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('localhost', 8000))
+        result = sock.connect_ex(("localhost", 8000))
         sock.close()
         if result == 0:
             print("✅ Relay server 正在运行 (port 8000)")
@@ -437,6 +464,7 @@ async def main():
 
     # 返回退出码
     import sys
+
     sys.exit(0 if results["failed"] == 0 else 1)
 
 

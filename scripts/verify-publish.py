@@ -5,24 +5,25 @@
 自动验证发布前的各项检查，确保发布质量。
 """
 
-import os
-import sys
-import subprocess
-import json
-import re
-from pathlib import Path
-from typing import List, Tuple, Optional
 import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 
 class Colors:
     """终端颜色"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
 
 
 class ReleaseVerifier:
@@ -68,11 +69,7 @@ class ReleaseVerifier:
         """
         try:
             result = subprocess.run(
-                command,
-                cwd=cwd or self.project_root,
-                capture_output=True,
-                text=True,
-                timeout=60
+                command, cwd=cwd or self.project_root, capture_output=True, text=True, timeout=60
             )
             return result.returncode == 0, result.stdout + result.stderr
         except subprocess.TimeoutExpired:
@@ -105,7 +102,7 @@ class ReleaseVerifier:
         readme_file = self.project_root / "README.md"
         if readme_file.exists():
             content = readme_file.read_text()
-            match = re.search(r'Version[:\s]+([0-9]+\.[0-9]+\.[0-9]+)', content, re.IGNORECASE)
+            match = re.search(r"Version[:\s]+([0-9]+\.[0-9]+\.[0-9]+)", content, re.IGNORECASE)
             if match:
                 readme_version = match.group(1)
                 if readme_version == version:
@@ -128,7 +125,7 @@ class ReleaseVerifier:
             "QUICKSTART.md",
             "USAGE_GUIDE.md",
             "TROUBLESHOOTING.md",
-            "RELEASE_CHECKLIST.md"
+            "RELEASE_CHECKLIST.md",
         ]
 
         all_exist = True
@@ -146,10 +143,9 @@ class ReleaseVerifier:
         self.print_info("运行测试套件...")
 
         # 运行单元测试
-        success, output = self.run_command([
-            sys.executable, "-m", "pytest",
-            "tests/unit/", "-v", "--tb=short"
-        ])
+        success, output = self.run_command(
+            [sys.executable, "-m", "pytest", "tests/unit/", "-v", "--tb=short"]
+        )
 
         if success:
             self.print_success("单元测试通过")
@@ -159,10 +155,9 @@ class ReleaseVerifier:
             return False
 
         # 运行集成测试
-        success, output = self.run_command([
-            sys.executable, "-m", "pytest",
-            "tests/integration/", "-v", "--tb=short"
-        ])
+        success, output = self.run_command(
+            [sys.executable, "-m", "pytest", "tests/integration/", "-v", "--tb=short"]
+        )
 
         if success:
             self.print_success("集成测试通过")
@@ -172,10 +167,9 @@ class ReleaseVerifier:
             return False
 
         # 运行 E2E 测试
-        success, output = self.run_command([
-            sys.executable, "-m", "pytest",
-            "tests/e2e/", "-v", "--tb=short"
-        ])
+        success, output = self.run_command(
+            [sys.executable, "-m", "pytest", "tests/e2e/", "-v", "--tb=short"]
+        )
 
         if success:
             self.print_success("E2E 测试通过")
@@ -190,11 +184,18 @@ class ReleaseVerifier:
         """检查测试覆盖率"""
         self.print_info("检查测试覆盖率...")
 
-        success, output = self.run_command([
-            sys.executable, "-m", "pytest",
-            "tests/", "--cov=.", "--cov-report=term-missing",
-            "--cov-report=json", "--no-header"
-        ])
+        success, output = self.run_command(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "tests/",
+                "--cov=.",
+                "--cov-report=term-missing",
+                "--cov-report=json",
+                "--no-header",
+            ]
+        )
 
         if not success:
             self.print_error("覆盖率检查失败")
@@ -204,7 +205,7 @@ class ReleaseVerifier:
         try:
             with open(self.project_root / "coverage.json") as f:
                 coverage_data = json.load(f)
-                total_coverage = coverage_data['totals']['percent_covered']
+                total_coverage = coverage_data["totals"]["percent_covered"]
 
                 if total_coverage >= 70:
                     self.print_success(f"测试覆盖率: {total_coverage:.1f}% (目标: >=70%)")
@@ -229,7 +230,7 @@ class ReleaseVerifier:
             "examples/basic_usage.py",
             "examples/cursor_config.md",
             "examples/claude_config.md",
-            "examples/README.md"
+            "examples/README.md",
         ]
 
         all_exist = True
@@ -445,27 +446,16 @@ def main():
 示例:
   python3 scripts/verify-publish.py
   python3 scripts/verify-publish.py --project-path /path/to/project
-        """
+        """,
     )
 
     parser.add_argument(
-        "--project-path",
-        type=str,
-        default=".",
-        help="项目根目录路径（默认: 当前目录）"
+        "--project-path", type=str, default=".", help="项目根目录路径（默认: 当前目录）"
     )
 
-    parser.add_argument(
-        "--skip-tests",
-        action="store_true",
-        help="跳过测试检查"
-    )
+    parser.add_argument("--skip-tests", action="store_true", help="跳过测试检查")
 
-    parser.add_argument(
-        "--skip-build",
-        action="store_true",
-        help="跳过构建检查"
-    )
+    parser.add_argument("--skip-build", action="store_true", help="跳过构建检查")
 
     args = parser.parse_args()
 
@@ -495,5 +485,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n{Colors.RED}错误: {e}{Colors.END}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

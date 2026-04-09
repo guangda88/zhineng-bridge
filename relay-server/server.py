@@ -100,7 +100,9 @@ class AIRelayServer:
                     token = msg.get("token", "")
                     ok, err = self._ws_auth.authenticate_connection(conn_id, token)
                     if not ok:
-                        await websocket.send(json.dumps({"type": "error", "message": f"认证失败: {err}"}))
+                        await websocket.send(
+                            json.dumps({"type": "error", "message": f"认证失败: {err}"})
+                        )
                         await websocket.close(4001, "Authentication required")
                         return
                     authenticated = True
@@ -133,12 +135,16 @@ class AIRelayServer:
         if mtype == "register_backend":
             backend_id = msg.get("backend_id", "")
             if not backend_id:
-                await websocket.send(json.dumps({"type": "error", "message": "backend_id required"}))
+                await websocket.send(
+                    json.dumps({"type": "error", "message": "backend_id required"})
+                )
                 return
             if self._backend_secret:
                 secret = msg.get("secret", "")
                 if not hmac.compare_digest(secret, self._backend_secret):
-                    await websocket.send(json.dumps({"type": "error", "message": "后端注册需要有效密钥"}))
+                    await websocket.send(
+                        json.dumps({"type": "error", "message": "后端注册需要有效密钥"})
+                    )
                     return
             self.backends[backend_id] = websocket
             self.backend_meta[backend_id] = {
@@ -151,11 +157,15 @@ class AIRelayServer:
             for cid, bid in list(self.routing.items()):
                 if bid == backend_id:
                     logger.info(f"[路由] 恢复 用户 {cid} → {backend_id}")
-            await websocket.send(json.dumps({
-                "type": "backend_registered",
-                "backend_id": backend_id,
-                "message": f"智桥已注册 {backend_id}",
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "backend_registered",
+                        "backend_id": backend_id,
+                        "message": f"智桥已注册 {backend_id}",
+                    }
+                )
+            )
             logger.info(f"[注册] AI后端 {backend_id} 已注册")
             return
 
@@ -165,13 +175,17 @@ class AIRelayServer:
             entry = self.pending.pop(request_id, None)
             client_id = entry[0] if entry else None
             if client_id and client_id in self.users:
-                await self.users[client_id].send(json.dumps({
-                    "type": "reply",
-                    "text": msg.get("text", ""),
-                    "audio": msg.get("audio"),
-                    "backend": msg.get("backend", ""),
-                    "timestamp": datetime.now().isoformat(),
-                }))
+                await self.users[client_id].send(
+                    json.dumps(
+                        {
+                            "type": "reply",
+                            "text": msg.get("text", ""),
+                            "audio": msg.get("audio"),
+                            "backend": msg.get("backend", ""),
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
+                )
                 logger.info(f"[回复] {request_id[:8]} → 用户 {client_id}")
             else:
                 logger.warning(f"[回复] 找不到请求 {request_id} 对应的用户")
@@ -180,7 +194,11 @@ class AIRelayServer:
         # AI后端主动推送
         if mtype == "push":
             if websocket not in self.backends.values():
-                await websocket.send(json.dumps({"type": "error", "message": "未授权: 只有已注册的AI后端可以推送消息"}))
+                await websocket.send(
+                    json.dumps(
+                        {"type": "error", "message": "未授权: 只有已注册的AI后端可以推送消息"}
+                    )
+                )
                 return
             target_client = msg.get("target_client")
             payload = {
@@ -227,23 +245,31 @@ class AIRelayServer:
                     self.routing[conn_id] = backend_id
                     logger.info(f"[路由] {original_target} 不可用，回退到 {backend_id}")
                 else:
-                    await websocket.send(json.dumps({
-                        "type": "error",
-                        "message": "没有可用的AI后端，请稍后再试",
-                    }))
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "message": "没有可用的AI后端，请稍后再试",
+                            }
+                        )
+                    )
                     return
 
             request_id = str(uuid.uuid4())
             self.pending[request_id] = (conn_id, time.monotonic())
 
-            await backend_ws.send(json.dumps({
-                "type": "chat",
-                "request_id": request_id,
-                "from": conn_id,
-                "text": text,
-                "audio": msg.get("audio"),
-                "timestamp": datetime.now().isoformat(),
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "chat",
+                        "request_id": request_id,
+                        "from": conn_id,
+                        "text": text,
+                        "audio": msg.get("audio"),
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+            )
             logger.info(f"[转发] 用户 {conn_id} → {backend_id}: {text[:50]}")
             return
 
@@ -251,10 +277,14 @@ class AIRelayServer:
         if mtype == "switch_backend":
             target = msg.get("target", "lingyi")
             self.routing[conn_id] = target
-            await websocket.send(json.dumps({
-                "type": "backend_switched",
-                "backend_id": target,
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "backend_switched",
+                        "backend_id": target,
+                    }
+                )
+            )
             logger.info(f"[切换] 用户 {conn_id} → {target}")
             return
 
@@ -262,32 +292,46 @@ class AIRelayServer:
         if mtype == "list_backends":
             backends = []
             for bid, meta in self.backend_meta.items():
-                backends.append({
-                    "id": bid,
-                    "name": meta.get("name", bid),
-                    "description": meta.get("description", ""),
-                    "online": bid in self.backends,
-                })
-            await websocket.send(json.dumps({
-                "type": "backends_list",
-                "backends": backends,
-                "current": self.routing.get(conn_id, ""),
-            }))
+                backends.append(
+                    {
+                        "id": bid,
+                        "name": meta.get("name", bid),
+                        "description": meta.get("description", ""),
+                        "online": bid in self.backends,
+                    }
+                )
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "backends_list",
+                        "backends": backends,
+                        "current": self.routing.get(conn_id, ""),
+                    }
+                )
+            )
             return
 
         # 心跳
         if mtype == "ping":
-            await websocket.send(json.dumps({
-                "type": "pong",
-                "timestamp": datetime.now().isoformat(),
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "pong",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+            )
             return
 
         # 未知类型
-        await websocket.send(json.dumps({
-            "type": "error",
-            "message": f"Unknown message type: {mtype}",
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "error",
+                    "message": f"Unknown message type: {mtype}",
+                }
+            )
+        )
 
     async def _pending_cleanup_loop(self):
         """定期清理过期的 pending 条目，防止内存泄漏。"""
@@ -323,6 +367,7 @@ async def main():
     backend_secret = None
     try:
         from config import settings
+
         if settings.security.enable_auth:
             backend_secret = settings.security.secret_key
     except Exception:

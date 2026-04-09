@@ -9,14 +9,18 @@
 - 整体响应时间
 """
 
-import requests
-import websockets
 import asyncio
 import json
 import time
 
+import requests
+import websockets
+
+
 class PerformanceTester:
-    def __init__(self, base_url: str = "http://localhost:8080", ws_url: str = "ws://localhost:8765"):
+    def __init__(
+        self, base_url: str = "http://localhost:8080", ws_url: str = "ws://localhost:8765"
+    ):
         self.base_url = base_url
         self.ws_url = ws_url
         self.results = []
@@ -25,18 +29,15 @@ class PerformanceTester:
         """打印测试标题"""
         print(f"\n{'=' * 60}")
         print(f"{title}")
-        print('=' * 60)
+        print("=" * 60)
 
     def measure(self, name: str, target_ms: float, actual_ms: float, details: str = ""):
         """测量并记录结果"""
         passed = actual_ms <= target_ms
         status = "✅" if passed else "⚠️"
-        self.results.append({
-            'name': name,
-            'target_ms': target_ms,
-            'actual_ms': actual_ms,
-            'passed': passed
-        })
+        self.results.append(
+            {"name": name, "target_ms": target_ms, "actual_ms": actual_ms, "passed": passed}
+        )
         print(f"{status} {name}: {actual_ms:.2f}ms (目标: <{target_ms}ms)")
         if details:
             print(f"   {details}")
@@ -85,7 +86,10 @@ class PerformanceTester:
 
         # 文件读取测试
         start = time.time()
-        r = requests.get(f"{self.base_url}/api/files/read?path=/home/ai/zhineng-bridge/relay-server/server.py", timeout=10)
+        r = requests.get(
+            f"{self.base_url}/api/files/read?path=/home/ai/zhineng-bridge/relay-server/server.py",
+            timeout=10,
+        )
         read_time = (time.time() - start) * 1000
         self.measure("文件读取", 100.0, read_time, f"大小: {len(r.text)} 字节")
 
@@ -98,14 +102,20 @@ class PerformanceTester:
 
         # 文件列表测试
         start = time.time()
-        r = requests.get(f"{self.base_url}/api/files/list?path=/home/ai/zhineng-bridge/relay-server&limit=20", timeout=10)
+        r = requests.get(
+            f"{self.base_url}/api/files/list?path=/home/ai/zhineng-bridge/relay-server&limit=20",
+            timeout=10,
+        )
         list_time = (time.time() - start) * 1000
         result = r.json()
         self.measure("文件列表", 200.0, list_time, f"列出: {len(result.get('items', []))} 个项目")
 
         # 文件统计测试
         start = time.time()
-        r = requests.get(f"{self.base_url}/api/files/stats?path=/home/ai/zhineng-bridge/relay-server/server.py", timeout=10)
+        r = requests.get(
+            f"{self.base_url}/api/files/stats?path=/home/ai/zhineng-bridge/relay-server/server.py",
+            timeout=10,
+        )
         stats_time = (time.time() - start) * 1000
         self.measure("文件统计", 50.0, stats_time)
 
@@ -115,23 +125,25 @@ class PerformanceTester:
 
         # 订阅测试
         start = time.time()
-        r = requests.post(f"{self.base_url}/api/notifications/subscribe",
+        r = requests.post(
+            f"{self.base_url}/api/notifications/subscribe",
             json={
-                'subscription': {
-                    'endpoint': 'https://fcm.googleapis.com/test',
-                    'keys': {'p256dh': 'test', 'auth': 'test'}
+                "subscription": {
+                    "endpoint": "https://fcm.googleapis.com/test",
+                    "keys": {"p256dh": "test", "auth": "test"},
                 }
             },
-            timeout=5
+            timeout=5,
         )
         subscribe_time = (time.time() - start) * 1000
         self.measure("推送订阅", 200.0, subscribe_time, f"状态: {r.status_code}")
 
         # 取消订阅测试
         start = time.time()
-        r = requests.post(f"{self.base_url}/api/notifications/unsubscribe",
-            json={'subscription_id': 'test'},
-            timeout=5
+        r = requests.post(
+            f"{self.base_url}/api/notifications/unsubscribe",
+            json={"subscription_id": "test"},
+            timeout=5,
         )
         unsubscribe_time = (time.time() - start) * 1000
         self.measure("推送取消订阅", 200.0, unsubscribe_time, f"状态: {r.status_code}")
@@ -150,7 +162,7 @@ class PerformanceTester:
         self.print_header("性能测试总结")
 
         total = len(self.results)
-        passed = sum(1 for r in self.results if r['passed'])
+        passed = sum(1 for r in self.results if r["passed"])
         failed = total - passed
         pass_rate = (passed / total * 100) if total > 0 else 0
 
@@ -162,7 +174,7 @@ class PerformanceTester:
         if failed > 0:
             print(f"\n⚠️  {failed} 个测试未达到目标:")
             for r in self.results:
-                if not r['passed']:
+                if not r["passed"]:
                     print(f"   - {r['name']}: {r['actual_ms']:.2f}ms (目标: <{r['target_ms']}ms)")
         else:
             print("\n🎉 所有性能测试均达到目标！")
@@ -192,9 +204,7 @@ class PerformanceTester:
         # 打印总结
         self.print_summary()
 
+
 if __name__ == "__main__":
-    tester = PerformanceTester(
-        base_url="http://localhost:8080",
-        ws_url="ws://localhost:8765"
-    )
+    tester = PerformanceTester(base_url="http://localhost:8080", ws_url="ws://localhost:8765")
     tester.run_all_tests()

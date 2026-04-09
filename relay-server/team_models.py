@@ -5,14 +5,15 @@
 包含团队、团队成员、共享会话相关的数据模型。
 """
 
-from typing import Optional
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Optional
 
 
 class TeamRole(Enum):
     """团队角色"""
+
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
@@ -21,12 +22,14 @@ class TeamRole(Enum):
 
 class TeamStatus(Enum):
     """团队状态"""
+
     ACTIVE = "active"
     ARCHIVED = "archived"
 
 
 class InviteStatus(Enum):
     """邀请状态"""
+
     PENDING = "pending"
     ACCEPTED = "accepted"
     DECLINED = "declined"
@@ -36,6 +39,7 @@ class InviteStatus(Enum):
 @dataclass
 class Team:
     """团队模型"""
+
     team_id: str
     name: str
     description: Optional[str] = None
@@ -61,6 +65,7 @@ class Team:
 @dataclass
 class TeamMember:
     """团队成员模型"""
+
     membership_id: str
     team_id: str
     user_id: str
@@ -82,6 +87,7 @@ class TeamMember:
 @dataclass
 class TeamInvite:
     """团队邀请模型"""
+
     invite_id: str
     team_id: str
     inviter_id: str
@@ -107,6 +113,7 @@ class TeamInvite:
 @dataclass
 class SharedSession:
     """共享会话模型"""
+
     share_id: str
     session_id: str
     team_id: str

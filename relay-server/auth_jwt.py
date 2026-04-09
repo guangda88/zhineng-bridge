@@ -5,19 +5,19 @@ JWT 认证模块
 提供 JWT 令牌的生成和验证功能，包括重放攻击防护。
 """
 
-import uuid
-import hmac
+import base64
 import hashlib
+import hmac
 import json
 import secrets
-import base64
 import threading
 import time
-from typing import Optional, Dict, List
+import uuid
+from typing import Dict, List, Optional
 
 from cachetools import TTLCache
-
 from logger import get_logger
+
 from config import settings
 
 # ============================================================================
@@ -112,13 +112,13 @@ class JWTAuth:
         jti = str(uuid.uuid4())
 
         payload = {
-            "sub": user_id,          # Subject: 用户 ID
+            "sub": user_id,  # Subject: 用户 ID
             "username": username,
-            "iss": self.ISSUER,      # Issuer: 发行者
-            "iat": now,              # Issued At: 签发时间
-            "nbf": now,              # Not Before: 生效时间
+            "iss": self.ISSUER,  # Issuer: 发行者
+            "iat": now,  # Issued At: 签发时间
+            "nbf": now,  # Not Before: 生效时间
             "exp": now + (expires_in_hours * 3600),  # Expiration: 过期时间
-            "jti": jti,              # JWT ID: 唯一标识符
+            "jti": jti,  # JWT ID: 唯一标识符
             "scopes": scopes,
         }
 
@@ -134,10 +134,7 @@ class JWTAuth:
 
         token = f"{message}.{signature}"
         self.logger.debug(
-            "JWT token generated",
-            user_id=user_id,
-            jti=jti,
-            expires_in=expires_in_hours
+            "JWT token generated", user_id=user_id, jti=jti, expires_in=expires_in_hours
         )
         return token
 
@@ -208,7 +205,7 @@ class JWTAuth:
             self.logger.warning(
                 "JWT validation failed: invalid issuer",
                 expected_issuer=self.ISSUER,
-                actual_issuer=issuer
+                actual_issuer=issuer,
             )
             return None
 
@@ -217,9 +214,7 @@ class JWTAuth:
         if iat:
             if iat > now + self.TIME_LEEWAY:
                 self.logger.warning(
-                    "JWT validation failed: token issued in the future",
-                    iat=iat,
-                    now=now
+                    "JWT validation failed: token issued in the future", iat=iat, now=now
                 )
                 return None
 
@@ -227,21 +222,13 @@ class JWTAuth:
         nbf = payload.get("nbf")
         if nbf:
             if nbf > now + self.TIME_LEEWAY:
-                self.logger.warning(
-                    "JWT validation failed: token not yet valid",
-                    nbf=nbf,
-                    now=now
-                )
+                self.logger.warning("JWT validation failed: token not yet valid", nbf=nbf, now=now)
                 return None
 
         # 5. 验证过期时间 (exp)
         exp = payload.get("exp", 0)
         if exp < now - self.TIME_LEEWAY:
-            self.logger.warning(
-                "JWT validation failed: token expired",
-                exp=exp,
-                now=now
-            )
+            self.logger.warning("JWT validation failed: token expired", exp=exp, now=now)
             return None
 
         # 6. 重放攻击防护 - 检查 JTI 是否已被撤销
@@ -251,20 +238,14 @@ class JWTAuth:
                 if jti in self._revoked_tokens:
                     revoked_at = self._revoked_tokens[jti]
                     self.logger.warning(
-                        "JWT validation failed: revoked token used",
-                        jti=jti,
-                        revoked_at=revoked_at
+                        "JWT validation failed: revoked token used", jti=jti, revoked_at=revoked_at
                     )
                     return None
 
             # 清理过期的撤销记录（超过 24 小时的记录）
             self._cleanup_expired_jti(int(time.time()))
 
-        self.logger.debug(
-            "JWT validated successfully",
-            user_id=payload.get("sub"),
-            jti=jti
-        )
+        self.logger.debug("JWT validated successfully", user_id=payload.get("sub"), jti=jti)
 
         # 写入缓存
         with self._token_cache_lock:
@@ -282,8 +263,7 @@ class JWTAuth:
         # 清理超过 24 小时的记录
         expiry_threshold = now - (24 * 3600)
         expired_jtis = [
-            jti for jti, timestamp in self._revoked_tokens.items()
-            if timestamp < expiry_threshold
+            jti for jti, timestamp in self._revoked_tokens.items() if timestamp < expiry_threshold
         ]
         for jti in expired_jtis:
             del self._revoked_tokens[jti]

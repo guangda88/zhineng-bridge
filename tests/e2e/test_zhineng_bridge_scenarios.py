@@ -5,47 +5,44 @@ zhineng-bridge 场景驱动的 AI 测试
 基于 LingFlow 场景测试框架
 """
 
-import pytest
 import asyncio
-import websockets
 import json
 import sys
-from pathlib import Path
-from typing import List, Dict, Any
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List
+
+import pytest
+import websockets
 
 try:
     sys.path.insert(0, str(Path("/home/ai/LingFlow")))
-    from lingflow.testing import (
-        CodeTestScenario,
-        CapturedToolCall,
-        TestInteractionType
-    )
-    from lingflow.testing.ai_runner import AIScenarioRunner, ScenarioStatus, ScenarioResult
+    from lingflow.testing import CapturedToolCall, CodeTestScenario, TestInteractionType
+    from lingflow.testing.ai_runner import AIScenarioRunner, ScenarioResult, ScenarioStatus
     from lingflow.testing.tool_definition import (
-        ToolDefinition,
+        TestContext,
         ToolCategory,
+        ToolDefinition,
         ToolRequest,
         ToolResponse,
-        TestContext
     )
+
     HAS_LINGFLOW = True
 except ImportError:
     HAS_LINGFLOW = False
 
-requires_lingflow = pytest.mark.skipif(
-    not HAS_LINGFLOW,
-    reason="LingFlow framework not available"
-)
+requires_lingflow = pytest.mark.skipif(not HAS_LINGFLOW, reason="LingFlow framework not available")
 
 
 # ============================================
 # zhineng-bridge 测试工具
 # ============================================
 
+
 @dataclass
 class ZhinengBridgeContext:
     """zhineng-bridge 测试上下文"""
+
     websocket_uri: str = "ws://localhost:8765"
     session_ids: List[str] = field(default_factory=list)
     test_results: Dict[str, Any] = field(default_factory=dict)
@@ -59,7 +56,7 @@ class WebSocketConnectTool(ToolDefinition):
         super().__init__(
             name="websocket_connect",
             description="测试 WebSocket 连接",
-            category=ToolCategory.ANALYSIS
+            category=ToolCategory.ANALYSIS,
         )
 
     async def handle(self, request: ToolRequest, response: ToolResponse, context: TestContext):
@@ -68,19 +65,11 @@ class WebSocketConnectTool(ToolDefinition):
 
         try:
             async with websockets.connect(uri):
-                response.data = {
-                    "status": "connected",
-                    "uri": uri,
-                    "latency": 0.01  # 模拟延迟
-                }
+                response.data = {"status": "connected", "uri": uri, "latency": 0.01}  # 模拟延迟
                 response.success = True
                 response.execution_time = 0.05
         except Exception as e:
-            response.data = {
-                "status": "failed",
-                "error": str(e),
-                "uri": uri
-            }
+            response.data = {"status": "failed", "error": str(e), "uri": uri}
             response.success = False
 
 
@@ -91,7 +80,7 @@ class SessionCreateTool(ToolDefinition):
         super().__init__(
             name="session_create",
             description="创建新的 AI 工具会话",
-            category=ToolCategory.GENERATION
+            category=ToolCategory.GENERATION,
         )
 
     async def handle(self, request: ToolRequest, response: ToolResponse, context: TestContext):
@@ -102,11 +91,7 @@ class SessionCreateTool(ToolDefinition):
 
         try:
             async with websockets.connect(uri) as websocket:
-                message = {
-                    "type": "start_session",
-                    "tool_name": tool_name,
-                    "args": args
-                }
+                message = {"type": "start_session", "tool_name": tool_name, "args": args}
                 await websocket.send(json.dumps(message))
                 ws_response = await websocket.recv()
                 response_data = json.loads(ws_response)
@@ -115,16 +100,12 @@ class SessionCreateTool(ToolDefinition):
                     "status": "created",
                     "tool_name": tool_name,
                     "session_id": response_data.get("session_id"),
-                    "response": response_data
+                    "response": response_data,
                 }
                 response.success = True
                 response.execution_time = 0.1
         except Exception as e:
-            response.data = {
-                "status": "failed",
-                "error": str(e),
-                "tool_name": tool_name
-            }
+            response.data = {"status": "failed", "error": str(e), "tool_name": tool_name}
             response.success = False
 
 
@@ -133,9 +114,7 @@ class SessionListTool(ToolDefinition):
 
     def __init__(self):
         super().__init__(
-            name="session_list",
-            description="获取所有活跃会话列表",
-            category=ToolCategory.ANALYSIS
+            name="session_list", description="获取所有活跃会话列表", category=ToolCategory.ANALYSIS
         )
 
     async def handle(self, request: ToolRequest, response: ToolResponse, context: TestContext):
@@ -144,10 +123,7 @@ class SessionListTool(ToolDefinition):
 
         try:
             async with websockets.connect(uri) as websocket:
-                message = {
-                    "type": "list_sessions",
-                    "data": {}
-                }
+                message = {"type": "list_sessions", "data": {}}
                 await websocket.send(json.dumps(message))
                 ws_response = await websocket.recv()
                 response_data = json.loads(ws_response)
@@ -155,15 +131,12 @@ class SessionListTool(ToolDefinition):
                 response.data = {
                     "status": "listed",
                     "sessions": response_data.get("sessions", []),
-                    "count": response_data.get("count", 0)
+                    "count": response_data.get("count", 0),
                 }
                 response.success = True
                 response.execution_time = 0.05
         except Exception as e:
-            response.data = {
-                "status": "failed",
-                "error": str(e)
-            }
+            response.data = {"status": "failed", "error": str(e)}
             response.success = False
 
 
@@ -174,7 +147,7 @@ class MessageExchangeTool(ToolDefinition):
         super().__init__(
             name="message_exchange",
             description="测试 ping/pong 消息交换",
-            category=ToolCategory.TESTING
+            category=ToolCategory.TESTING,
         )
 
     async def handle(self, request: ToolRequest, response: ToolResponse, context: TestContext):
@@ -191,15 +164,12 @@ class MessageExchangeTool(ToolDefinition):
                 response.data = {
                     "status": "exchanged",
                     "response_type": response_data.get("type"),
-                    "success": response_data.get("type") == "pong"
+                    "success": response_data.get("type") == "pong",
                 }
                 response.success = response.data["success"]
                 response.execution_time = 0.02
         except Exception as e:
-            response.data = {
-                "status": "failed",
-                "error": str(e)
-            }
+            response.data = {"status": "failed", "error": str(e)}
             response.success = False
 
 
@@ -219,16 +189,11 @@ FULL_WORKFLOW_SCENARIO = CodeTestScenario(
 4. 测试消息交换
 """,
     max_turns=5,
-    expected_tools=[
-        "websocket_connect",
-        "session_create",
-        "session_list",
-        "message_exchange"
-    ],
+    expected_tools=["websocket_connect", "session_create", "session_list", "message_exchange"],
     required_tools=["websocket_connect"],
     category=TestInteractionType.CODE_GENERATION,
     tags=["workflow", "comprehensive"],
-    priority=5
+    priority=5,
 )
 
 PERFORMANCE_SCENARIO = CodeTestScenario(
@@ -242,20 +207,17 @@ PERFORMANCE_SCENARIO = CodeTestScenario(
 - 消息交换延迟 < 50ms
 """,
     max_turns=4,
-    expected_tools=[
-        "websocket_connect",
-        "session_create",
-        "message_exchange"
-    ],
+    expected_tools=["websocket_connect", "session_create", "message_exchange"],
     category=TestInteractionType.PERFORMANCE_TEST,
     tags=["performance", "benchmark"],
-    priority=4
+    priority=4,
 )
 
 
 # ============================================
 # 测试类
 # ============================================
+
 
 @requires_lingflow
 @pytest.mark.skip(reason="Production WS server uses WSS, not compatible with ws:// client")
@@ -269,7 +231,7 @@ class TestZhinengBridgeScenarios:
             "websocket_connect": WebSocketConnectTool(),
             "session_create": SessionCreateTool(),
             "session_list": SessionListTool(),
-            "message_exchange": MessageExchangeTool()
+            "message_exchange": MessageExchangeTool(),
         }
 
     @pytest.fixture
@@ -324,13 +286,14 @@ class TestZhinengBridgeScenarios:
         print(f"  超时: {summary['timeout']}")
         print(f"  成功率: {summary['success_rate']:.1%}")
 
-        assert summary['passed'] == len(scenarios)
-        assert summary['success_rate'] == 1.0
+        assert summary["passed"] == len(scenarios)
+        assert summary["success_rate"] == 1.0
 
 
 # ============================================
 # 综合测试报告生成
 # ============================================
+
 
 def generate_test_report(results: List[ScenarioResult]) -> str:
     """生成测试报告"""
@@ -385,7 +348,7 @@ if __name__ == "__main__":
             "websocket_connect": WebSocketConnectTool(),
             "session_create": SessionCreateTool(),
             "session_list": SessionListTool(),
-            "message_exchange": MessageExchangeTool()
+            "message_exchange": MessageExchangeTool(),
         }
 
         # 运行所有场景

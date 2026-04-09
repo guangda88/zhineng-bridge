@@ -9,9 +9,10 @@ import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 from logger import get_logger
+
 from config import settings
 
 logger = get_logger(__name__)
@@ -37,17 +38,14 @@ def validate_path_safety(path: str, param_name: str = "path") -> str:
     # 检查是否包含路径遍历（.. 或 ~）
     path_str = str(path)
     if ".." in path_str or "~" in path_str:
-        raise ValueError(
-            f"Invalid {param_name}: path traversal not allowed. "
-            f"Received: {path}"
-        )
+        raise ValueError(f"Invalid {param_name}: path traversal not allowed. " f"Received: {path}")
 
     # 检查是否为绝对路径且在预期目录下（可选，根据需求）
     # 对于本用例，我们允许相对路径，但会解析为绝对路径
 
     # 检查文件名是否只包含安全字符
     filename = Path(path).name
-    if not re.match(r'^[a-zA-Z0-9._-]+$', filename):
+    if not re.match(r"^[a-zA-Z0-9._-]+$", filename):
         raise ValueError(
             f"Invalid {param_name}: filename contains invalid characters. "
             f"Only alphanumeric, dot, underscore, and hyphen are allowed. "
@@ -227,9 +225,7 @@ IP.2 = ::1
             config_path.unlink()
 
 
-def validate_certificates(
-    cert_path: str, key_path: str
-) -> Tuple[bool, Optional[str]]:
+def validate_certificates(cert_path: str, key_path: str) -> Tuple[bool, Optional[str]]:
     """
     验证 SSL 证书和私钥是否匹配
 
@@ -430,7 +426,9 @@ def print_wss_setup_instructions():
     print("To enable WSS (WebSocket Secure), you need to:")
     print()
     print("1. Generate SSL certificates (for development):")
-    print("   python3 -c \"from relay-server.ssl_manager import setup_development_certificates; setup_development_certificates()\"")
+    print(
+        '   python3 -c "from relay-server.ssl_manager import setup_development_certificates; setup_development_certificates()"'
+    )
     print()
     print("2. Set environment variables:")
     print("   export ZHINENG_BRIDGE_ENABLE_WSS=true")

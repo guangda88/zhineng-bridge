@@ -12,15 +12,15 @@ from pathlib import Path
 # 添加 relay-server 路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from ssl_manager import (
-    generate_self_signed_cert,
-    validate_certificates,
-    get_certificate_info,
-    setup_development_certificates,
-    check_wss_requirements,
-    print_wss_setup_instructions,
-)
 from logger import get_logger
+from ssl_manager import (
+    check_wss_requirements,
+    generate_self_signed_cert,
+    get_certificate_info,
+    print_wss_setup_instructions,
+    setup_development_certificates,
+    validate_certificates,
+)
 
 logger = get_logger(__name__)
 

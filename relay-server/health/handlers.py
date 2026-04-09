@@ -5,17 +5,17 @@ import mimetypes
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
+from file_api import FileAPI
 from health.checks import HealthChecker
 from health.root_page import ROOT_HTML
+from logger import get_logger
+from metrics import get_metrics
+from push_service import PushService
+from rate_limit import rate_limiter
 
 from config import settings
-from rate_limit import rate_limiter
-from metrics import get_metrics
-from logger import get_logger
-from file_api import FileAPI
-from push_service import PushService
 
 logger = get_logger(__name__)
 
@@ -111,12 +111,25 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 "requests_per_hour": rate_limit_stats["requests_per_hour"],
                 "active_clients": rate_limit_stats["active_clients"],
                 **(
-                    {"global_minute_tokens": rate_limit_stats["global_minute_tokens"], "global_hour_tokens": rate_limit_stats["global_hour_tokens"]}
+                    {
+                        "global_minute_tokens": rate_limit_stats["global_minute_tokens"],
+                        "global_hour_tokens": rate_limit_stats["global_hour_tokens"],
+                    }
                     if rate_limit_stats["algorithm"] == "token_bucket"
-                    else {"global_minute_requests": rate_limit_stats["global_minute_requests"], "global_hour_requests": rate_limit_stats["global_hour_requests"]}
+                    else {
+                        "global_minute_requests": rate_limit_stats["global_minute_requests"],
+                        "global_hour_requests": rate_limit_stats["global_hour_requests"],
+                    }
                 ),
             },
-            "other_metrics": {"websocket_connections": 0, "active_sessions": 0, "messages_sent": 0, "messages_received": 0, "errors": 0, "uptime_seconds": 0},
+            "other_metrics": {
+                "websocket_connections": 0,
+                "active_sessions": 0,
+                "messages_sent": 0,
+                "messages_received": 0,
+                "errors": 0,
+                "uptime_seconds": 0,
+            },
         }
         self._set_headers(200)
         self.wfile.write(json.dumps(metrics, indent=2).encode())
@@ -141,7 +154,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         status = {
             "service": "zhineng-bridge",
             "version": "1.0.0",
-            "configuration": {"host": settings.server.host, "port": settings.server.port, "max_connections": settings.server.max_connections, "log_level": settings.server.log_level},
+            "configuration": {
+                "host": settings.server.host,
+                "port": settings.server.port,
+                "max_connections": settings.server.max_connections,
+                "log_level": settings.server.log_level,
+            },
             "features": {
                 "authentication_enabled": settings.security.enable_auth,
                 "rate_limiting_enabled": settings.security.enable_rate_limit,
@@ -279,12 +297,16 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def _handle_file_read(self, query):
         file_path = query.get("path", [None])[0]
         if not file_path:
-            self._send_json_response(400, {"type": "error", "message": "Missing 'path' parameter", "code": 400})
+            self._send_json_response(
+                400, {"type": "error", "message": "Missing 'path' parameter", "code": 400}
+            )
             return
         try:
             validated_path = file_api._validate_path(file_path)
             if not validated_path.is_file():
-                self._send_json_response(404, {"type": "error", "message": f"Not a file: {file_path}", "code": 404})
+                self._send_json_response(
+                    404, {"type": "error", "message": f"Not a file: {file_path}", "code": 404}
+                )
                 return
             file_api._check_file_permissions(validated_path)
 
@@ -300,12 +322,24 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 with open(validated_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
             except UnicodeDecodeError:
-                self._send_json_response(400, {"type": "error", "message": "Cannot read binary file", "code": 400})
+                self._send_json_response(
+                    400, {"type": "error", "message": "Cannot read binary file", "code": 400}
+                )
                 return
 
             stat = validated_path.stat()
             mime_type, _ = mimetypes.guess_type(str(validated_path))
-            data = {"type": "file_content", "path": str(validated_path), "content": content, "metadata": {"size": stat.st_size, "modified": stat.st_mtime, "mime_type": mime_type or "text/plain", "extension": validated_path.suffix}}
+            data = {
+                "type": "file_content",
+                "path": str(validated_path),
+                "content": content,
+                "metadata": {
+                    "size": stat.st_size,
+                    "modified": stat.st_mtime,
+                    "mime_type": mime_type or "text/plain",
+                    "extension": validated_path.suffix,
+                },
+            }
             file_api.cache[cache_key] = {"mtime": stat.st_mtime, "data": data}
             self._send_json_response(200, data)
         except ValueError as e:
@@ -319,13 +353,23 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         limit = int(query.get("limit", [50])[0])
         offset = int(query.get("offset", [0])[0])
         if not query_param:
-            self._send_json_response(400, {"type": "error", "message": "Missing 'query' parameter", "code": 400})
+            self._send_json_response(
+                400, {"type": "error", "message": "Missing 'query' parameter", "code": 400}
+            )
             return
         try:
             import re
+
             validated_path = file_api._validate_path(search_path)
             if not validated_path.exists():
-                self._send_json_response(404, {"type": "error", "message": f"Search path does not exist: {search_path}", "code": 404})
+                self._send_json_response(
+                    404,
+                    {
+                        "type": "error",
+                        "message": f"Search path does not exist: {search_path}",
+                        "code": 404,
+                    },
+                )
                 return
             query_pattern = re.compile(re.escape(query_param), re.IGNORECASE)
             results = []
@@ -335,27 +379,63 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                     if count >= offset and len(results) < limit:
                         try:
                             st = fp.stat()
-                            results.append({"path": str(fp), "name": fp.name, "size": st.st_size, "modified": st.st_mtime, "extension": fp.suffix})
+                            results.append(
+                                {
+                                    "path": str(fp),
+                                    "name": fp.name,
+                                    "size": st.st_size,
+                                    "modified": st.st_mtime,
+                                    "extension": fp.suffix,
+                                }
+                            )
                         except OSError:
                             pass
                     count += 1
-            self._send_json_response(200, {"type": "search_results", "query": query_param, "path": search_path, "results": results, "count": len(results), "total": count, "limit": limit, "offset": offset})
+            self._send_json_response(
+                200,
+                {
+                    "type": "search_results",
+                    "query": query_param,
+                    "path": search_path,
+                    "results": results,
+                    "count": len(results),
+                    "total": count,
+                    "limit": limit,
+                    "offset": offset,
+                },
+            )
         except ValueError as e:
             self._send_json_response(400, {"type": "error", "message": str(e), "code": 400})
 
     def _handle_file_stats(self, query):
         file_path = query.get("path", [None])[0]
         if not file_path:
-            self._send_json_response(400, {"type": "error", "message": "Missing 'path' parameter", "code": 400})
+            self._send_json_response(
+                400, {"type": "error", "message": "Missing 'path' parameter", "code": 400}
+            )
             return
         try:
             validated_path = file_api._validate_path(file_path)
             if not validated_path.exists():
-                self._send_json_response(404, {"type": "error", "message": f"File not found: {file_path}", "code": 404})
+                self._send_json_response(
+                    404, {"type": "error", "message": f"File not found: {file_path}", "code": 404}
+                )
                 return
             st = validated_path.stat()
             mime_type, _ = mimetypes.guess_type(str(validated_path))
-            data = {"type": "file_stats", "path": str(validated_path), "name": validated_path.name, "size": st.st_size, "modified": st.st_mtime, "created": st.st_ctime, "is_file": validated_path.is_file(), "is_dir": validated_path.is_dir(), "extension": validated_path.suffix, "mime_type": mime_type or ("inode/directory" if validated_path.is_dir() else "application/octet-stream")}
+            data = {
+                "type": "file_stats",
+                "path": str(validated_path),
+                "name": validated_path.name,
+                "size": st.st_size,
+                "modified": st.st_mtime,
+                "created": st.st_ctime,
+                "is_file": validated_path.is_file(),
+                "is_dir": validated_path.is_dir(),
+                "extension": validated_path.suffix,
+                "mime_type": mime_type
+                or ("inode/directory" if validated_path.is_dir() else "application/octet-stream"),
+            }
             if validated_path.is_dir():
                 fc, dc = 0, 0
                 for item in validated_path.iterdir():
@@ -376,10 +456,15 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         try:
             validated_path = file_api._validate_path(list_path)
             if not validated_path.exists():
-                self._send_json_response(404, {"type": "error", "message": f"Directory not found: {list_path}", "code": 404})
+                self._send_json_response(
+                    404,
+                    {"type": "error", "message": f"Directory not found: {list_path}", "code": 404},
+                )
                 return
             if not validated_path.is_dir():
-                self._send_json_response(400, {"type": "error", "message": f"Not a directory: {list_path}", "code": 400})
+                self._send_json_response(
+                    400, {"type": "error", "message": f"Not a directory: {list_path}", "code": 400}
+                )
                 return
             files = []
             count = 0
@@ -388,12 +473,34 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
                 if count >= offset and len(files) < limit:
                     try:
                         st = item.stat()
-                        files.append({"path": str(item.relative_to(validated_path)), "name": item.name, "size": st.st_size, "modified": st.st_mtime, "is_file": item.is_file(), "is_dir": item.is_dir(), "extension": item.suffix})
+                        files.append(
+                            {
+                                "path": str(item.relative_to(validated_path)),
+                                "name": item.name,
+                                "size": st.st_size,
+                                "modified": st.st_mtime,
+                                "is_file": item.is_file(),
+                                "is_dir": item.is_dir(),
+                                "extension": item.suffix,
+                            }
+                        )
                     except OSError:
                         pass
                 count += 1
             files.sort(key=lambda x: (not x["is_dir"], x["name"]))
-            self._send_json_response(200, {"type": "file_list", "path": list_path, "recursive": recursive, "files": files, "count": len(files), "total": count, "limit": limit, "offset": offset})
+            self._send_json_response(
+                200,
+                {
+                    "type": "file_list",
+                    "path": list_path,
+                    "recursive": recursive,
+                    "files": files,
+                    "count": len(files),
+                    "total": count,
+                    "limit": limit,
+                    "offset": offset,
+                },
+            )
         except ValueError as e:
             self._send_json_response(400, {"type": "error", "message": str(e), "code": 400})
 
@@ -407,7 +514,9 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(request_body.decode("utf-8"))
             except json.JSONDecodeError:
-                self._send_json_response(400, {"type": "error", "message": "Invalid JSON", "code": 400})
+                self._send_json_response(
+                    400, {"type": "error", "message": "Invalid JSON", "code": 400}
+                )
                 return
 
             import asyncio
@@ -415,6 +524,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             class MockRequest:
                 def __init__(self, body):
                     self._body = body
+
                 async def json(self):
                     return self._body
 

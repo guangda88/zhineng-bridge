@@ -5,13 +5,14 @@ E2E 测试配置文件
 提供自动启动和停止服务器的 fixtures
 """
 
-import pytest
-import subprocess
 import os
 import signal
-import time
 import socket
+import subprocess
+import time
 from typing import Optional
+
+import pytest
 
 
 class ServerManager:
@@ -26,23 +27,25 @@ class ServerManager:
     def is_port_in_use(self, port: int) -> bool:
         """检查端口是否被占用"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('localhost', port)) == 0
+            return s.connect_ex(("localhost", port)) == 0
 
     def kill_process_on_port(self, port: int) -> bool:
         """停止占用端口的进程"""
         try:
             result = subprocess.run(
-                ['lsof', '-ti', f':{port}'],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["lsof", "-ti", f":{port}"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0 and result.stdout.strip():
                 pid = result.stdout.strip()
                 os.kill(int(pid), signal.SIGKILL)
                 time.sleep(0.5)
                 return True
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError, ProcessLookupError, ValueError):
+        except (
+            subprocess.TimeoutExpired,
+            subprocess.SubprocessError,
+            ProcessLookupError,
+            ValueError,
+        ):
             pass
         return False
 
@@ -57,24 +60,24 @@ class ServerManager:
         # 启动服务器
         script_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'relay-server',
-            'start_server.py'
+            "relay-server",
+            "start_server.py",
         )
 
         # Disable rate limiting for E2E tests
         env = os.environ.copy()
-        env['ZHINENG_BRIDGE_SECURITY_ENABLE_RATE_LIMIT'] = 'False'
+        env["ZHINENG_BRIDGE_SECURITY_ENABLE_RATE_LIMIT"] = "False"
 
         process = subprocess.Popen(
-            ['python3', script_path],
+            ["python3", script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid,
-            env=env
+            env=env,
         )
 
         # 保存 PID
-        with open(self.pid_file_relay, 'w') as f:
+        with open(self.pid_file_relay, "w") as f:
             f.write(str(process.pid))
 
         # 等待服务器启动
@@ -106,20 +109,20 @@ class ServerManager:
         # 启动服务器
         script_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            'phase1',
-            'session_manager',
-            'start_manager.py'
+            "phase1",
+            "session_manager",
+            "start_manager.py",
         )
 
         process = subprocess.Popen(
-            ['python3', script_path],
+            ["python3", script_path],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            preexec_fn=os.setsid
+            preexec_fn=os.setsid,
         )
 
         # 保存 PID
-        with open(self.pid_file_session, 'w') as f:
+        with open(self.pid_file_session, "w") as f:
             f.write(str(process.pid))
 
         print(f"✅ session-manager 已启动 (PID: {process.pid})")

@@ -5,10 +5,10 @@
 定义所有自定义异常类型和错误代码映射
 """
 
-
 # ============================================================================
 # 基础异常类
 # ============================================================================
+
 
 class ZhinengBridgeException(Exception):
     """智桥基础异常类"""
@@ -29,17 +29,13 @@ class ZhinengBridgeException(Exception):
 
     def to_dict(self) -> dict:
         """转换为字典格式"""
-        return {
-            "type": "error",
-            "message": self.message,
-            "code": self.code,
-            **self.details
-        }
+        return {"type": "error", "message": self.message, "code": self.code, **self.details}
 
 
 # ============================================================================
 # 验证异常 (4xx)
 # ============================================================================
+
 
 class ValidationError(ZhinengBridgeException):
     """消息验证错误"""
@@ -55,7 +51,7 @@ class InvalidMessageTypeError(ZhinengBridgeException):
         super().__init__(
             f"Unknown message type: {message_type}",
             code=400,
-            details={"message_type": message_type}
+            details={"message_type": message_type},
         )
 
 
@@ -66,10 +62,7 @@ class InvalidToolNameError(ZhinengBridgeException):
         super().__init__(
             f"Invalid tool_name: {tool_name}",
             code=400,
-            details={
-                "tool_name": tool_name,
-                "valid_tools": valid_tools
-            }
+            details={"tool_name": tool_name, "valid_tools": valid_tools},
         )
 
 
@@ -78,9 +71,7 @@ class InvalidSessionIdError(ZhinengBridgeException):
 
     def __init__(self, session_id: str):
         super().__init__(
-            f"Invalid session_id: {session_id}",
-            code=400,
-            details={"session_id": session_id}
+            f"Invalid session_id: {session_id}", code=400, details={"session_id": session_id}
         )
 
 
@@ -96,15 +87,14 @@ class MissingFieldError(ZhinengBridgeException):
 
     def __init__(self, field_name: str):
         super().__init__(
-            f"Missing required field: {field_name}",
-            code=400,
-            details={"field": field_name}
+            f"Missing required field: {field_name}", code=400, details={"field": field_name}
         )
 
 
 # ============================================================================
 # 认证和授权异常 (4xx)
 # ============================================================================
+
 
 class AuthenticationError(ZhinengBridgeException):
     """认证失败"""
@@ -136,14 +126,13 @@ class RateLimitError(ZhinengBridgeException):
 # 资源异常 (4xx/5xx)
 # ============================================================================
 
+
 class SessionNotFoundError(ZhinengBridgeException):
     """会话未找到"""
 
     def __init__(self, session_id: str):
         super().__init__(
-            f"Session not found: {session_id}",
-            code=404,
-            details={"session_id": session_id}
+            f"Session not found: {session_id}", code=404, details={"session_id": session_id}
         )
 
 
@@ -152,9 +141,7 @@ class SessionAlreadyRunningError(ZhinengBridgeException):
 
     def __init__(self, session_id: str):
         super().__init__(
-            f"Session already running: {session_id}",
-            code=409,
-            details={"session_id": session_id}
+            f"Session already running: {session_id}", code=409, details={"session_id": session_id}
         )
 
 
@@ -165,10 +152,7 @@ class MaxConnectionsError(ZhinengBridgeException):
         super().__init__(
             f"Maximum connections exceeded: {current}/{max_connections}",
             code=429,
-            details={
-                "current": current,
-                "max_connections": max_connections
-            }
+            details={"current": current, "max_connections": max_connections},
         )
 
 
@@ -179,16 +163,14 @@ class MaxSessionsError(ZhinengBridgeException):
         super().__init__(
             f"Maximum sessions exceeded: {current}/{max_sessions}",
             code=429,
-            details={
-                "current": current,
-                "max_sessions": max_sessions
-            }
+            details={"current": current, "max_sessions": max_sessions},
         )
 
 
 # ============================================================================
 # 服务器异常 (5xx)
 # ============================================================================
+
 
 class ServerException(ZhinengBridgeException):
     """服务器内部错误"""
@@ -211,11 +193,7 @@ class ToolExecutionError(ZhinengBridgeException):
         details = {"tool_name": tool_name, "error": error}
         if exit_code is not None:
             details["exit_code"] = exit_code
-        super().__init__(
-            f"Tool execution failed: {tool_name}",
-            code=500,
-            details=details
-        )
+        super().__init__(f"Tool execution failed: {tool_name}", code=500, details=details)
 
 
 class ConnectionError(ZhinengBridgeException):
@@ -232,13 +210,14 @@ class TimeoutError(ZhinengBridgeException):
         super().__init__(
             f"Timeout during {operation}: {timeout}s",
             code=504,
-            details={"operation": operation, "timeout": timeout}
+            details={"operation": operation, "timeout": timeout},
         )
 
 
 # ============================================================================
 # 配置异常 (5xx)
 # ============================================================================
+
 
 class ConfigurationError(ZhinengBridgeException):
     """配置错误"""
@@ -263,7 +242,6 @@ ERROR_CODE_MAP = {
     409: "Conflict",
     422: "Unprocessable Entity",
     429: "Too Many Requests",
-
     # 5xx - Server Errors
     500: "Internal Server Error",
     503: "Service Unavailable",
@@ -297,11 +275,7 @@ def exception_to_dict(exception: Exception) -> dict:
     if isinstance(exception, ZhinengBridgeException):
         return exception.to_dict()
     else:
-        return {
-            "type": "error",
-            "message": str(exception),
-            "code": 500
-        }
+        return {"type": "error", "message": str(exception), "code": 500}
 
 
 # ============================================================================

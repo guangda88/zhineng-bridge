@@ -5,19 +5,21 @@
 使用 Pydantic 进行数据验证和序列化
 """
 
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any, Literal
-from datetime import datetime
 import uuid
 import warnings
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional
 
+from pydantic import BaseModel, Field, field_validator
 
 # ============================================================================
 # WebSocket 消息模型
 # ============================================================================
 
+
 class BaseMessage(BaseModel):
     """基础消息模型"""
+
     type: str = Field(..., description="消息类型")
 
     class Config:
@@ -26,17 +28,20 @@ class BaseMessage(BaseModel):
 
 class PingMessage(BaseMessage):
     """Ping 心跳消息"""
+
     type: Literal["ping"] = "ping"
 
 
 class PongMessage(BaseMessage):
     """Pong 心跳响应"""
+
     type: Literal["pong"] = "pong"
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
 class AuthenticateMessage(BaseMessage):
     """认证消息"""
+
     type: Literal["authenticate"] = "authenticate"
     token: str = Field(..., min_length=1, description="认证令牌")
     csrf_token: Optional[str] = Field(None, description="CSRF令牌（如果启用CSRF保护）")
@@ -44,25 +49,24 @@ class AuthenticateMessage(BaseMessage):
 
 class ListSessionsMessage(BaseMessage):
     """列出会话请求"""
+
     type: Literal["list_sessions"] = "list_sessions"
 
 
 class StartSessionMessage(BaseMessage):
     """启动会话请求"""
+
     type: Literal["start_session"] = "start_session"
     tool_name: str = Field(..., min_length=1, max_length=50, description="工具名称")
     args: List[str] = Field(default_factory=list, description="命令参数")
     csrf_token: Optional[str] = Field(None, description="CSRF令牌（敏感操作需要）")
     signature: Optional[str] = Field(None, description="请求签名（高敏感操作需要）")
 
-    @field_validator('tool_name')
+    @field_validator("tool_name")
     @classmethod
     def validate_tool_name(cls, v: str) -> str:
         """验证工具名称"""
-        valid_tools = [
-            'crush', 'claude', 'iflow', 'cursor',
-            'trae', 'droid', 'openclaw', 'copilot'
-        ]
+        valid_tools = ["crush", "claude", "iflow", "cursor", "trae", "droid", "openclaw", "copilot"]
         if v.lower() not in [t.lower() for t in valid_tools]:
             raise ValueError(f"Invalid tool_name: {v}. Valid tools: {', '.join(valid_tools)}")
         return v.lower()
@@ -70,23 +74,26 @@ class StartSessionMessage(BaseMessage):
 
 class StopSessionMessage(BaseMessage):
     """停止会话请求"""
+
     type: Literal["stop_session"] = "stop_session"
-    session_id: str = Field(..., pattern=r'^[a-f0-9-]{36}$', description="会话ID (UUID)")
+    session_id: str = Field(..., pattern=r"^[a-f0-9-]{36}$", description="会话ID (UUID)")
     csrf_token: Optional[str] = Field(None, description="CSRF令牌（敏感操作需要）")
 
 
 class DeleteSessionMessage(BaseMessage):
     """删除会话请求"""
+
     type: Literal["delete_session"] = "delete_session"
-    session_id: str = Field(..., pattern=r'^[a-f0-9-]{36}$', description="会话ID (UUID)")
+    session_id: str = Field(..., pattern=r"^[a-f0-9-]{36}$", description="会话ID (UUID)")
     csrf_token: Optional[str] = Field(None, description="CSRF令牌（敏感操作需要）")
     signature: Optional[str] = Field(None, description="请求签名（高敏感操作需要）")
 
 
 class SendInputMessage(BaseMessage):
     """发送输入到会话请求"""
+
     type: Literal["send_input"] = "send_input"
-    session_id: str = Field(..., pattern=r'^[a-f0-9-]{36}$', description="会话ID (UUID)")
+    session_id: str = Field(..., pattern=r"^[a-f0-9-]{36}$", description="会话ID (UUID)")
     input: str = Field(..., description="要发送的输入")
     csrf_token: Optional[str] = Field(None, description="CSRF令牌（敏感操作需要）")
     signature: Optional[str] = Field(None, description="请求签名（高敏感操作需要）")
@@ -96,8 +103,10 @@ class SendInputMessage(BaseMessage):
 # WebSocket 响应模型
 # ============================================================================
 
+
 class SessionsListResponse(BaseModel):
     """会话列表响应"""
+
     type: Literal["sessions_list"] = "sessions_list"
     sessions: List[Dict[str, Any]] = Field(default_factory=list)
     count: int = Field(default=0, ge=0)
@@ -105,6 +114,7 @@ class SessionsListResponse(BaseModel):
 
 class SessionStartedResponse(BaseModel):
     """会话启动响应"""
+
     type: Literal["session_started"] = "session_started"
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     tool_name: str
@@ -113,6 +123,7 @@ class SessionStartedResponse(BaseModel):
 
 class SessionStoppedResponse(BaseModel):
     """会话停止响应"""
+
     type: Literal["session_stopped"] = "session_stopped"
     session_id: str
     status: Literal["stopped"] = "stopped"
@@ -120,12 +131,14 @@ class SessionStoppedResponse(BaseModel):
 
 class SessionDeletedResponse(BaseModel):
     """会话删除响应"""
+
     type: Literal["session_deleted"] = "session_deleted"
     session_id: str
 
 
 class OutputResponse(BaseModel):
     """输出响应"""
+
     type: Literal["output"] = "output"
     session_id: str
     output: str
@@ -134,6 +147,7 @@ class OutputResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """错误响应"""
+
     type: Literal["error"] = "error"
     message: str = Field(..., min_length=1, max_length=500)
     code: Optional[int] = Field(None, ge=100, le=599, description="错误代码")
@@ -141,6 +155,7 @@ class ErrorResponse(BaseModel):
 
 class AuthSuccessResponse(BaseModel):
     """认证成功响应"""
+
     type: Literal["auth_success"] = "auth_success"
     message: str = "Authentication successful"
     user_id: str
@@ -152,8 +167,10 @@ class AuthSuccessResponse(BaseModel):
 # 会话模型
 # ============================================================================
 
+
 class Session(BaseModel):
     """会话模型"""
+
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     tool_name: str
     status: Literal["created", "running", "stopped", "error"] = "created"
@@ -165,6 +182,7 @@ class Session(BaseModel):
 
 class SessionInfo(BaseModel):
     """会话信息（精简版）"""
+
     session_id: str
     tool_name: str
     status: str
@@ -175,8 +193,10 @@ class SessionInfo(BaseModel):
 # 工具模型
 # ============================================================================
 
+
 class ToolInfo(BaseModel):
     """工具信息"""
+
     name: str
     description: str
     executable: Optional[str] = None
@@ -194,6 +214,7 @@ class ToolInfo(BaseModel):
 
 class ToolRegistry(BaseModel):
     """工具注册表"""
+
     tools: Dict[str, ToolInfo]
 
     def __init_subclass__(cls, **kwargs):
@@ -217,8 +238,10 @@ class ToolRegistry(BaseModel):
 # 服务器配置模型
 # ============================================================================
 
+
 class ServerConfig(BaseModel):
     """服务器配置"""
+
     host: str = Field(default="0.0.0.0", description="监听主机")
     port: int = Field(default=8765, ge=1, le=65535, description="监听端口")
     max_connections: int = Field(default=100, ge=1, le=1000, description="最大连接数")
@@ -231,6 +254,7 @@ class ServerConfig(BaseModel):
 # ============================================================================
 # 验证辅助函数
 # ============================================================================
+
 
 def validate_message(message: str) -> BaseMessage:
     """
@@ -246,6 +270,7 @@ def validate_message(message: str) -> BaseMessage:
         ValidationError: 如果消息格式无效
     """
     import json
+
     data = json.loads(message)
     message_type = data.get("type", "")
 

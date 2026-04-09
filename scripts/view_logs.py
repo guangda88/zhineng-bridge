@@ -16,9 +16,9 @@ class LogViewer:
 
     def __init__(self):
         self.log_files = {
-            'session_manager': '/tmp/session_manager.log',
-            'websocket': '/tmp/websocket_server.log',
-            'health_check': '/tmp/health_check.log'
+            "session_manager": "/tmp/session_manager.log",
+            "websocket": "/tmp/websocket_server.log",
+            "health_check": "/tmp/health_check.log",
         }
         self.processes: Dict[str, subprocess.Popen] = {}
         self.running = True
@@ -27,9 +27,7 @@ class LogViewer:
         """设置日志记录"""
         # 重定向WebSocket服务器输出
         ws_pid = subprocess.run(
-            ['pgrep', '-f', 'python.*start_server.py'],
-            capture_output=True,
-            text=True
+            ["pgrep", "-f", "python.*start_server.py"], capture_output=True, text=True
         ).stdout.strip()
 
         if ws_pid:
@@ -40,7 +38,7 @@ class LogViewer:
             print("⚠️  未找到WebSocket服务器进程")
 
         # 检查Session Manager日志
-        if os.path.exists(self.log_files['session_manager']):
+        if os.path.exists(self.log_files["session_manager"]):
             print(f"✅ Session Manager日志: {self.log_files['session_manager']}")
         else:
             print("⚠️  Session Manager日志文件不存在")
@@ -52,11 +50,9 @@ class LogViewer:
 
         try:
             result = subprocess.run(
-                ['tail', '-n', str(lines), log_file],
-                capture_output=True,
-                text=True
+                ["tail", "-n", str(lines), log_file], capture_output=True, text=True
             )
-            return result.stdout.split('\n')
+            return result.stdout.split("\n")
         except Exception as e:
             return [f"Error reading log: {e}"]
 
@@ -68,18 +64,15 @@ class LogViewer:
         try:
             # 使用tail -f来实时跟踪
             process = subprocess.Popen(
-                ['tail', '-f', log_file],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                ["tail", "-f", log_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             self.processes[log_file] = process
 
-            for line in iter(process.stdout.readline, ''):
+            for line in iter(process.stdout.readline, ""):
                 if not self.running:
                     break
                 if line.strip():
-                    timestamp = datetime.now().strftime('%H:%M:%S')
+                    timestamp = datetime.now().strftime("%H:%M:%S")
                     print(f"[{timestamp}] {prefix} {line.rstrip()}")
 
         except Exception as e:
@@ -118,14 +111,13 @@ class LogViewer:
 
         # 监控多个日志文件
         import threading
+
         threads = []
 
         for name, log_file in self.log_files.items():
             if os.path.exists(log_file):
                 thread = threading.Thread(
-                    target=self.follow_log,
-                    args=(log_file, f"[{name.upper()}]"),
-                    daemon=True
+                    target=self.follow_log, args=(log_file, f"[{name.upper()}]"), daemon=True
                 )
                 thread.start()
                 threads.append(thread)

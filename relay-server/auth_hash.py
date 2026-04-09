@@ -11,7 +11,8 @@ import secrets
 
 try:
     from config import settings
-    PBKDF2_ITERATIONS = getattr(settings.security, 'pbkdf2_iterations', 210000)
+
+    PBKDF2_ITERATIONS = getattr(settings.security, "pbkdf2_iterations", 210000)
 except Exception:
     PBKDF2_ITERATIONS = 210000
 

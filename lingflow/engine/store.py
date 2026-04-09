@@ -9,7 +9,7 @@ import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from lingflow.engine.flow import Flow, FlowNode, FlowEdge, FlowStatus, NodeStatus
+from lingflow.engine.flow import Flow, FlowEdge, FlowNode, FlowStatus, NodeStatus
 
 
 class FlowStore:
@@ -131,9 +131,7 @@ class FlowStore:
     def load_run(self, flow_id: str) -> Optional[Flow]:
         conn = self._get_conn()
         try:
-            row = conn.execute(
-                "SELECT * FROM flow_runs WHERE flow_id = ?", (flow_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM flow_runs WHERE flow_id = ?", (flow_id,)).fetchone()
             if not row:
                 return None
 
@@ -147,7 +145,9 @@ class FlowStore:
                 status=FlowStatus(row["status"]),
                 created_at=datetime.fromisoformat(row["created_at"]),
                 started_at=datetime.fromisoformat(row["started_at"]) if row["started_at"] else None,
-                finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
+                finished_at=(
+                    datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None
+                ),
                 metadata=json.loads(row["metadata"]),
                 results=json.loads(row["results"]),
             )
@@ -161,8 +161,12 @@ class FlowStore:
                     config=json.loads(nrow["config"]),
                     status=NodeStatus(nrow["status"]),
                     error=nrow["error"],
-                    started_at=datetime.fromisoformat(nrow["started_at"]) if nrow["started_at"] else None,
-                    finished_at=datetime.fromisoformat(nrow["finished_at"]) if nrow["finished_at"] else None,
+                    started_at=(
+                        datetime.fromisoformat(nrow["started_at"]) if nrow["started_at"] else None
+                    ),
+                    finished_at=(
+                        datetime.fromisoformat(nrow["finished_at"]) if nrow["finished_at"] else None
+                    ),
                     outputs=json.loads(nrow["outputs"]),
                 )
                 flow.nodes[node.node_id] = node
@@ -170,11 +174,13 @@ class FlowStore:
             for erow in conn.execute(
                 "SELECT * FROM flow_edges WHERE flow_id = ?", (flow_id,)
             ).fetchall():
-                flow.edges.append(FlowEdge(
-                    from_node=erow["from_node"],
-                    to_node=erow["to_node"],
-                    condition=erow["condition"],
-                ))
+                flow.edges.append(
+                    FlowEdge(
+                        from_node=erow["from_node"],
+                        to_node=erow["to_node"],
+                        condition=erow["condition"],
+                    )
+                )
 
             return flow
         finally:
@@ -214,9 +220,7 @@ class FlowStore:
     def delete_run(self, flow_id: str) -> bool:
         conn = self._get_conn()
         try:
-            cursor = conn.execute(
-                "DELETE FROM flow_runs WHERE flow_id = ?", (flow_id,)
-            )
+            cursor = conn.execute("DELETE FROM flow_runs WHERE flow_id = ?", (flow_id,))
             conn.execute("DELETE FROM flow_nodes WHERE flow_id = ?", (flow_id,))
             conn.execute("DELETE FROM flow_edges WHERE flow_id = ?", (flow_id,))
             conn.commit()
@@ -248,9 +252,7 @@ class FlowStore:
                     (status.value,),
                 ).fetchone()
             else:
-                row = conn.execute(
-                    "SELECT COUNT(*) as cnt FROM flow_runs"
-                ).fetchone()
+                row = conn.execute("SELECT COUNT(*) as cnt FROM flow_runs").fetchone()
             return row["cnt"] if row else 0
         finally:
             conn.close()

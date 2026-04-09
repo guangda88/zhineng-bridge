@@ -6,17 +6,18 @@ TOTP 双因素认证模块
 兼容 Google Authenticator、Authy 等验证器应用。
 """
 
+import base64
 import hashlib
 import hmac
 import secrets
 import struct
 import time
-import base64
-from typing import Optional
 from io import BytesIO
+from typing import Optional
 
 try:
     import qrcode
+
     HAS_QRCODE = True
 except ImportError:
     HAS_QRCODE = False
@@ -61,8 +62,8 @@ class TOTPAuth:
         msg = struct.pack(">Q", counter)
         mac = hmac.new(key, msg, hashlib.sha1).digest()
         offset = mac[-1] & 0x0F
-        code = struct.unpack(">I", mac[offset:offset + 4])[0] & 0x7FFFFFFF
-        return str(code % (10 ** digits)).zfill(digits)
+        code = struct.unpack(">I", mac[offset : offset + 4])[0] & 0x7FFFFFFF
+        return str(code % (10**digits)).zfill(digits)
 
     def verify_totp(
         self,
@@ -96,15 +97,18 @@ class TOTPAuth:
     ) -> str:
         """生成 otpauth:// URI，供验证器应用扫描"""
         import urllib.parse
+
         issuer = issuer or self.issuer
         label = urllib.parse.quote(f"{issuer}:{username}")
-        params = urllib.parse.urlencode({
-            "secret": secret,
-            "issuer": issuer,
-            "algorithm": self.ALGORITHM,
-            "digits": self.DIGITS,
-            "period": self.PERIOD,
-        })
+        params = urllib.parse.urlencode(
+            {
+                "secret": secret,
+                "issuer": issuer,
+                "algorithm": self.ALGORITHM,
+                "digits": self.DIGITS,
+                "period": self.PERIOD,
+            }
+        )
         return f"otpauth://totp/{label}?{params}"
 
     def get_qr_code_data_uri(

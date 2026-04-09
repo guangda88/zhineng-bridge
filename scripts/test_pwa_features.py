@@ -8,8 +8,9 @@ PWA 功能测试脚本
 3. Service Worker 注册
 """
 
-import requests
 import sys
+
+import requests
 
 
 class PWATester:
@@ -45,11 +46,7 @@ class PWATester:
         if message:
             print(f"       {message}")
 
-        self.test_results.append({
-            'test': test_name,
-            'passed': passed,
-            'message': message
-        })
+        self.test_results.append({"test": test_name, "passed": passed, "message": message})
 
     def test_file_api_read(self):
         """测试文件读取 API"""
@@ -60,38 +57,32 @@ class PWATester:
             test_file = "/home/ai/zhineng-bridge/relay-server/file_api.py"
 
             response = requests.get(
-                f"{self.base_url}/api/files/read",
-                params={'path': test_file},
-                timeout=5
+                f"{self.base_url}/api/files/read", params={"path": test_file}, timeout=5
             )
 
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('type') == 'file_content':
+                if data.get("type") == "file_content":
                     self.print_result(
                         "读取文件 API 响应正确",
                         True,
-                        f"文件大小: {data.get('metadata', {}).get('size')} 字节"
+                        f"文件大小: {data.get('metadata', {}).get('size')} 字节",
                     )
 
                     # 检查内容
-                    if data.get('content'):
+                    if data.get("content"):
                         self.print_result(
-                            "文件内容返回正确",
-                            True,
-                            f"内容长度: {len(data.get('content'))} 字符"
+                            "文件内容返回正确", True, f"内容长度: {len(data.get('content'))} 字符"
                         )
                     else:
                         self.print_result("文件内容为空", False)
 
                 else:
-                    self.print_result("响应类型错误", False, data.get('type'))
+                    self.print_result("响应类型错误", False, data.get("type"))
             else:
                 self.print_result(
-                    "读取文件失败",
-                    False,
-                    f"HTTP {response.status_code}: {response.text}"
+                    "读取文件失败", False, f"HTTP {response.status_code}: {response.text}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -105,42 +96,36 @@ class PWATester:
             response = requests.get(
                 f"{self.base_url}/api/files/search",
                 params={
-                    'query': 'file',
-                    'path': '/home/ai/zhineng-bridge/relay-server',
-                    'limit': 10
+                    "query": "file",
+                    "path": "/home/ai/zhineng-bridge/relay-server",
+                    "limit": 10,
                 },
-                timeout=5
+                timeout=5,
             )
 
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('type') == 'search_results':
-                    count = data.get('count', 0)
-                    total = data.get('total', 0)
+                if data.get("type") == "search_results":
+                    count = data.get("count", 0)
+                    total = data.get("total", 0)
 
                     self.print_result(
-                        "文件搜索 API 响应正确",
-                        True,
-                        f"找到 {count} 个文件 (共 {total} 个)"
+                        "文件搜索 API 响应正确", True, f"找到 {count} 个文件 (共 {total} 个)"
                     )
 
                     if count > 0:
                         # 显示第一个结果
-                        first_result = data.get('results', [])[0]
+                        first_result = data.get("results", [])[0]
                         self.print_result(
-                            "搜索结果格式正确",
-                            True,
-                            f"示例: {first_result.get('name')}"
+                            "搜索结果格式正确", True, f"示例: {first_result.get('name')}"
                         )
 
                 else:
-                    self.print_result("响应类型错误", False, data.get('type'))
+                    self.print_result("响应类型错误", False, data.get("type"))
             else:
                 self.print_result(
-                    "文件搜索失败",
-                    False,
-                    f"HTTP {response.status_code}: {response.text}"
+                    "文件搜索失败", False, f"HTTP {response.status_code}: {response.text}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -153,23 +138,21 @@ class PWATester:
         try:
             response = requests.get(
                 f"{self.base_url}/api/files/stats",
-                params={'path': '/home/ai/zhineng-bridge/relay-server/file_api.py'},
-                timeout=5
+                params={"path": "/home/ai/zhineng-bridge/relay-server/file_api.py"},
+                timeout=5,
             )
 
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('type') == 'file_stats':
+                if data.get("type") == "file_stats":
                     # 元数据字段在根级别，不在 'metadata' 键下
                     self.print_result(
-                        "文件统计 API 响应正确",
-                        True,
-                        f"大小: {data.get('size')} 字节"
+                        "文件统计 API 响应正确", True, f"大小: {data.get('size')} 字节"
                     )
 
                     # 检查所有必需字段（在根级别）
-                    required_fields = ['size', 'modified', 'is_file']
+                    required_fields = ["size", "modified", "is_file"]
                     all_fields_present = all(field in data for field in required_fields)
 
                     if all_fields_present:
@@ -179,12 +162,10 @@ class PWATester:
                         self.print_result("缺少元数据字段", False, f"缺少: {missing}")
 
                 else:
-                    self.print_result("响应类型错误", False, data.get('type'))
+                    self.print_result("响应类型错误", False, data.get("type"))
             else:
                 self.print_result(
-                    "文件统计失败",
-                    False,
-                    f"HTTP {response.status_code}: {response.text}"
+                    "文件统计失败", False, f"HTTP {response.status_code}: {response.text}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -197,49 +178,41 @@ class PWATester:
         try:
             response = requests.get(
                 f"{self.base_url}/api/files/list",
-                params={
-                    'path': '/home/ai/zhineng-bridge/relay-server',
-                    'limit': 10,
-                    'offset': 0
-                },
-                timeout=5
+                params={"path": "/home/ai/zhineng-bridge/relay-server", "limit": 10, "offset": 0},
+                timeout=5,
             )
 
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('type') == 'file_list':
-                    count = data.get('count', 0)
-                    total = data.get('total', 0)
+                if data.get("type") == "file_list":
+                    count = data.get("count", 0)
+                    total = data.get("total", 0)
 
                     self.print_result(
-                        "文件列表 API 响应正确",
-                        True,
-                        f"列出 {count} 个项目 (共 {total} 个)"
+                        "文件列表 API 响应正确", True, f"列出 {count} 个项目 (共 {total} 个)"
                     )
 
                     if count > 0:
                         # 检查第一个项目的格式
-                        first_item = data.get('files', [])[0]
-                        has_name = 'name' in first_item
-                        has_is_file = 'is_file' in first_item
+                        first_item = data.get("files", [])[0]
+                        has_name = "name" in first_item
+                        has_is_file = "is_file" in first_item
 
                         if has_name and has_is_file:
                             self.print_result(
                                 "列表项格式正确",
                                 True,
-                                f"示例: {first_item.get('name')} ({'文件' if first_item.get('is_file') else '目录'})"
+                                f"示例: {first_item.get('name')} ({'文件' if first_item.get('is_file') else '目录'})",
                             )
                         else:
                             self.print_result("列表项缺少必需字段", False)
 
                 else:
-                    self.print_result("响应类型错误", False, data.get('type'))
+                    self.print_result("响应类型错误", False, data.get("type"))
             else:
                 self.print_result(
-                    "文件列表失败",
-                    False,
-                    f"HTTP {response.status_code}: {response.text}"
+                    "文件列表失败", False, f"HTTP {response.status_code}: {response.text}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -256,53 +229,41 @@ class PWATester:
                     "endpoint": "https://fcm.googleapis.com/test-endpoint",
                     "keys": {
                         "p256dh": "test_p256dh_key_123456789012345678901234567890123456789012345678901234567890",
-                        "auth": "test_auth_key_123456"
+                        "auth": "test_auth_key_123456",
                     },
-                    "user_agent": "Mozilla/5.0 Test User Agent"
+                    "user_agent": "Mozilla/5.0 Test User Agent",
                 }
             }
 
             response = requests.post(
-                f"{self.base_url}/api/notifications/subscribe",
-                json=subscription_data,
-                timeout=5
+                f"{self.base_url}/api/notifications/subscribe", json=subscription_data, timeout=5
             )
 
             if response.status_code == 201:
                 data = response.json()
 
-                if data.get('type') == 'subscription_registered':
-                    subscription_id = data.get('subscription_id')
+                if data.get("type") == "subscription_registered":
+                    subscription_id = data.get("subscription_id")
 
-                    self.print_result(
-                        "推送订阅 API 响应正确",
-                        True,
-                        f"订阅 ID: {subscription_id}"
-                    )
+                    self.print_result("推送订阅 API 响应正确", True, f"订阅 ID: {subscription_id}")
 
                     # 测试取消订阅
                     response = requests.post(
                         f"{self.base_url}/api/notifications/unsubscribe",
-                        json={'subscription_id': subscription_id},
-                        timeout=5
+                        json={"subscription_id": subscription_id},
+                        timeout=5,
                     )
 
                     if response.status_code == 200:
                         self.print_result("推送取消订阅 API 正常", True)
                     else:
-                        self.print_result(
-                            "取消订阅失败",
-                            False,
-                            f"HTTP {response.status_code}"
-                        )
+                        self.print_result("取消订阅失败", False, f"HTTP {response.status_code}")
 
                 else:
-                    self.print_result("订阅响应类型错误", False, data.get('type'))
+                    self.print_result("订阅响应类型错误", False, data.get("type"))
             else:
                 self.print_result(
-                    "推送订阅失败",
-                    False,
-                    f"HTTP {response.status_code}: {response.text}"
+                    "推送订阅失败", False, f"HTTP {response.status_code}: {response.text}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -315,28 +276,16 @@ class PWATester:
         # 测试路径遍历攻击防护
         try:
             response = requests.get(
-                f"{self.base_url}/api/files/read",
-                params={'path': '../../../etc/passwd'},
-                timeout=5
+                f"{self.base_url}/api/files/read", params={"path": "../../../etc/passwd"}, timeout=5
             )
 
             if response.status_code == 400:
-                self.print_result(
-                    "路径遍历攻击防护正常",
-                    True,
-                    "成功拒绝非法路径访问"
-                )
+                self.print_result("路径遍历攻击防护正常", True, "成功拒绝非法路径访问")
             elif response.status_code == 403:
-                self.print_result(
-                    "路径遍历攻击防护正常",
-                    True,
-                    "成功拒绝权限不足的访问"
-                )
+                self.print_result("路径遍历攻击防护正常", True, "成功拒绝权限不足的访问")
             else:
                 self.print_result(
-                    "路径遍历攻击防护可能存在漏洞",
-                    False,
-                    f"HTTP {response.status_code}"
+                    "路径遍历攻击防护可能存在漏洞", False, f"HTTP {response.status_code}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -345,28 +294,16 @@ class PWATester:
         # 测试黑名单目录防护
         try:
             response = requests.get(
-                f"{self.base_url}/api/files/read",
-                params={'path': '/etc/passwd'},
-                timeout=5
+                f"{self.base_url}/api/files/read", params={"path": "/etc/passwd"}, timeout=5
             )
 
             if response.status_code == 400:
-                self.print_result(
-                    "黑名单目录防护正常",
-                    True,
-                    "成功拒绝黑名单目录访问"
-                )
+                self.print_result("黑名单目录防护正常", True, "成功拒绝黑名单目录访问")
             elif response.status_code == 403:
-                self.print_result(
-                    "黑名单目录防护正常",
-                    True,
-                    "成功拒绝权限不足的访问"
-                )
+                self.print_result("黑名单目录防护正常", True, "成功拒绝权限不足的访问")
             else:
                 self.print_result(
-                    "黑名单目录防护可能存在漏洞",
-                    False,
-                    f"HTTP {response.status_code}"
+                    "黑名单目录防护可能存在漏洞", False, f"HTTP {response.status_code}"
                 )
 
         except requests.exceptions.RequestException as e:
@@ -382,16 +319,12 @@ class PWATester:
             if response.status_code == 200:
                 data = response.json()
 
-                if data.get('status') == 'healthy':
-                    self.print_result(
-                        "健康检查端点正常",
-                        True,
-                        f"服务版本: {data.get('version')}"
-                    )
+                if data.get("status") == "healthy":
+                    self.print_result("健康检查端点正常", True, f"服务版本: {data.get('version')}")
 
                     # 检查 PWA 相关功能是否可用
-                    features = data.get('features', {})
-                    oauth2_enabled = features.get('oauth2', False)
+                    features = data.get("features", {})
+                    oauth2_enabled = features.get("oauth2", False)
 
                     # OAuth2 在本阶段未配置，标记为警告而非失败
                     if oauth2_enabled:
@@ -400,17 +333,13 @@ class PWATester:
                         self.print_result(
                             "OAuth2 功能状态",
                             True,  # 标记为通过，因为这是预期行为
-                            "未启用 (预期状态 - 将在后续阶段配置)"
+                            "未启用 (预期状态 - 将在后续阶段配置)",
                         )
 
                 else:
-                    self.print_result("健康状态异常", False, data.get('status'))
+                    self.print_result("健康状态异常", False, data.get("status"))
             else:
-                self.print_result(
-                    "健康检查失败",
-                    False,
-                    f"HTTP {response.status_code}"
-                )
+                self.print_result("健康检查失败", False, f"HTTP {response.status_code}")
 
         except requests.exceptions.RequestException as e:
             self.print_result("健康检查请求异常", False, str(e))
@@ -440,7 +369,7 @@ class PWATester:
         print("=" * 70)
 
         total = len(self.test_results)
-        passed = sum(1 for r in self.test_results if r['passed'])
+        passed = sum(1 for r in self.test_results if r["passed"])
         failed = total - passed
         pass_rate = (passed / total * 100) if total > 0 else 0
 
@@ -458,9 +387,9 @@ class PWATester:
             # 列出失败的测试
             print("\n  失败的测试:")
             for result in self.test_results:
-                if not result['passed']:
+                if not result["passed"]:
                     print(f"    ❌ {result['test']}")
-                    if result.get('message'):
+                    if result.get("message"):
                         print(f"       {result['message']}")
 
         print("=" * 70 + "\n")
@@ -478,10 +407,10 @@ def main():
     tester.run_all_tests()
 
     # 返回退出码
-    passed = sum(1 for r in tester.test_results if r['passed'])
+    passed = sum(1 for r in tester.test_results if r["passed"])
     total = len(tester.test_results)
     sys.exit(0 if passed == total else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

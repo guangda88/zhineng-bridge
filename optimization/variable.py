@@ -30,9 +30,9 @@ if __name__ == "__main__":
     print("创建 WebSocket 搜索空间...")
     ws_space = create_websocket_search_space()
     print(f"WebSocket 搜索空间: {len(ws_space.parameters)} 个变量")
-    
+
     print("\n创建性能搜索空间...")
     perf_space = create_performance_search_space()
     print(f"性能搜索空间: {len(perf_space.parameters)} 个变量")
-    
+
     print("\n✅ 所有搜索空间创建成功！")

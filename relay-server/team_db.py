@@ -5,14 +5,22 @@
 提供团队、成员、邀请、共享会话的数据库操作。
 """
 
-import uuid
 import json
-from typing import Optional, List
+import uuid
 from datetime import datetime, timedelta
+from typing import List, Optional
 
-from logger import get_logger
 from auth_db import UserDatabase
-from team_models import Team, TeamMember, TeamInvite, SharedSession, TeamRole, TeamStatus, InviteStatus
+from logger import get_logger
+from team_models import (
+    InviteStatus,
+    SharedSession,
+    Team,
+    TeamInvite,
+    TeamMember,
+    TeamRole,
+    TeamStatus,
+)
 
 
 class TeamDatabase:
@@ -85,11 +93,21 @@ class TeamDatabase:
                 )
             """)
 
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_invites_team ON team_invites(team_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_invites_token ON team_invites(token)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_shared_sessions_team ON shared_sessions(team_id)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_invites_team ON team_invites(team_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_team_invites_token ON team_invites(token)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_shared_sessions_team ON shared_sessions(team_id)"
+            )
 
             conn.commit()
             self.logger.info("Team database tables initialized")
@@ -105,24 +123,34 @@ class TeamDatabase:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO teams (team_id, name, description, owner_id, status, settings, created_at, updated_at)
                 VALUES (?, ?, ?, ?, 'active', '{}', ?, ?)
-            """, (team_id, name, description, owner_id, now.isoformat(), now.isoformat()))
+            """,
+                (team_id, name, description, owner_id, now.isoformat(), now.isoformat()),
+            )
 
             membership_id = str(uuid.uuid4())
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO team_members (membership_id, team_id, user_id, role, joined_at, invited_by)
                 VALUES (?, ?, ?, 'owner', ?, NULL)
-            """, (membership_id, team_id, owner_id, now.isoformat()))
+            """,
+                (membership_id, team_id, owner_id, now.isoformat()),
+            )
 
             conn.commit()
 
         self.logger.info("Team created", team_id=team_id, name=name, owner_id=owner_id)
         return Team(
-            team_id=team_id, name=name, description=description,
-            owner_id=owner_id, status=TeamStatus.ACTIVE,
-            created_at=now, updated_at=now,
+            team_id=team_id,
+            name=name,
+            description=description,
+            owner_id=owner_id,
+            status=TeamStatus.ACTIVE,
+            created_at=now,
+            updated_at=now,
         )
 
     def get_team(self, team_id: str) -> Optional[Team]:
@@ -181,68 +209,88 @@ class TeamDatabase:
     def list_user_teams(self, user_id: str) -> List[Team]:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT t.* FROM teams t
                 JOIN team_members tm ON t.team_id = tm.team_id
                 WHERE tm.user_id = ? AND t.status = 'active'
                 ORDER BY t.updated_at DESC
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             rows = cursor.fetchall()
 
         teams = []
         for row in rows:
-            teams.append(Team(
-                team_id=row["team_id"],
-                name=row["name"],
-                description=row["description"],
-                owner_id=row["owner_id"],
-                status=TeamStatus(row["status"]),
-                settings=json.loads(row["settings"]) if row["settings"] else {},
-                created_at=datetime.fromisoformat(row["created_at"]),
-                updated_at=datetime.fromisoformat(row["updated_at"]),
-            ))
+            teams.append(
+                Team(
+                    team_id=row["team_id"],
+                    name=row["name"],
+                    description=row["description"],
+                    owner_id=row["owner_id"],
+                    status=TeamStatus(row["status"]),
+                    settings=json.loads(row["settings"]) if row["settings"] else {},
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                    updated_at=datetime.fromisoformat(row["updated_at"]),
+                )
+            )
         return teams
 
     # ========================================================================
     # Members
     # ========================================================================
 
-    def add_member(self, team_id: str, user_id: str, role: TeamRole = TeamRole.MEMBER, invited_by: str = None) -> TeamMember:
+    def add_member(
+        self, team_id: str, user_id: str, role: TeamRole = TeamRole.MEMBER, invited_by: str = None
+    ) -> TeamMember:
         membership_id = str(uuid.uuid4())
         now = datetime.now()
 
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO team_members (membership_id, team_id, user_id, role, joined_at, invited_by)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (membership_id, team_id, user_id, role.value, now.isoformat(), invited_by))
+            """,
+                (membership_id, team_id, user_id, role.value, now.isoformat(), invited_by),
+            )
             conn.commit()
 
         return TeamMember(
-            membership_id=membership_id, team_id=team_id,
-            user_id=user_id, role=role, joined_at=now, invited_by=invited_by,
+            membership_id=membership_id,
+            team_id=team_id,
+            user_id=user_id,
+            role=role,
+            joined_at=now,
+            invited_by=invited_by,
         )
 
     def remove_member(self, team_id: str, user_id: str) -> bool:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM team_members WHERE team_id = ? AND user_id = ?", (team_id, user_id))
+            cursor.execute(
+                "DELETE FROM team_members WHERE team_id = ? AND user_id = ?", (team_id, user_id)
+            )
             conn.commit()
             return cursor.rowcount > 0
 
     def update_member_role(self, team_id: str, user_id: str, role: TeamRole) -> bool:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ?",
-                           (role.value, team_id, user_id))
+            cursor.execute(
+                "UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ?",
+                (role.value, team_id, user_id),
+            )
             conn.commit()
             return cursor.rowcount > 0
 
     def get_team_members(self, team_id: str) -> List[TeamMember]:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM team_members WHERE team_id = ? ORDER BY joined_at", (team_id,))
+            cursor.execute(
+                "SELECT * FROM team_members WHERE team_id = ? ORDER BY joined_at", (team_id,)
+            )
             rows = cursor.fetchall()
 
         return [
@@ -260,8 +308,10 @@ class TeamDatabase:
     def get_member_role(self, team_id: str, user_id: str) -> Optional[TeamRole]:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT role FROM team_members WHERE team_id = ? AND user_id = ?",
-                           (team_id, user_id))
+            cursor.execute(
+                "SELECT role FROM team_members WHERE team_id = ? AND user_id = ?",
+                (team_id, user_id),
+            )
             row = cursor.fetchone()
             if not row:
                 return None
@@ -271,9 +321,11 @@ class TeamDatabase:
     # Invites
     # ========================================================================
 
-    def create_invite(self, team_id: str, inviter_id: str, invitee_email: str,
-                      expires_hours: int = 72) -> TeamInvite:
+    def create_invite(
+        self, team_id: str, inviter_id: str, invitee_email: str, expires_hours: int = 72
+    ) -> TeamInvite:
         import secrets
+
         invite_id = str(uuid.uuid4())
         token = secrets.token_urlsafe(32)
         now = datetime.now()
@@ -281,16 +333,32 @@ class TeamDatabase:
 
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO team_invites (invite_id, team_id, inviter_id, invitee_email, token, status, expires_at, created_at)
                 VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
-            """, (invite_id, team_id, inviter_id, invitee_email, token, expires_at.isoformat(), now.isoformat()))
+            """,
+                (
+                    invite_id,
+                    team_id,
+                    inviter_id,
+                    invitee_email,
+                    token,
+                    expires_at.isoformat(),
+                    now.isoformat(),
+                ),
+            )
             conn.commit()
 
         return TeamInvite(
-            invite_id=invite_id, team_id=team_id, inviter_id=inviter_id,
-            invitee_email=invitee_email, token=token, status=InviteStatus.PENDING,
-            expires_at=expires_at, created_at=now,
+            invite_id=invite_id,
+            team_id=team_id,
+            inviter_id=inviter_id,
+            invitee_email=invitee_email,
+            token=token,
+            status=InviteStatus.PENDING,
+            expires_at=expires_at,
+            created_at=now,
         )
 
     def get_invite_by_token(self, token: str) -> Optional[TeamInvite]:
@@ -322,20 +390,27 @@ class TeamDatabase:
         if invite.expires_at and datetime.now() > invite.expires_at:
             with self._pool.get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("UPDATE team_invites SET status = 'expired' WHERE token = ?", (token,))
+                cursor.execute(
+                    "UPDATE team_invites SET status = 'expired' WHERE token = ?", (token,)
+                )
                 conn.commit()
             return None
 
         now = datetime.now()
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE team_invites SET status = 'accepted', accepted_at = ? WHERE token = ?",
-                           (now.isoformat(), token))
+            cursor.execute(
+                "UPDATE team_invites SET status = 'accepted', accepted_at = ? WHERE token = ?",
+                (now.isoformat(), token),
+            )
             membership_id = str(uuid.uuid4())
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR IGNORE INTO team_members (membership_id, team_id, user_id, role, joined_at, invited_by)
                 VALUES (?, ?, ?, 'member', ?, ?)
-            """, (membership_id, invite.team_id, user_id, now.isoformat(), invite.inviter_id))
+            """,
+                (membership_id, invite.team_id, user_id, now.isoformat(), invite.inviter_id),
+            )
             conn.commit()
 
         invite.status = InviteStatus.ACCEPTED
@@ -345,7 +420,9 @@ class TeamDatabase:
     def list_team_invites(self, team_id: str) -> List[TeamInvite]:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM team_invites WHERE team_id = ? ORDER BY created_at DESC", (team_id,))
+            cursor.execute(
+                "SELECT * FROM team_invites WHERE team_id = ? ORDER BY created_at DESC", (team_id,)
+            )
             rows = cursor.fetchall()
 
         return [
@@ -358,7 +435,9 @@ class TeamDatabase:
                 status=InviteStatus(row["status"]),
                 expires_at=datetime.fromisoformat(row["expires_at"]),
                 created_at=datetime.fromisoformat(row["created_at"]),
-                accepted_at=datetime.fromisoformat(row["accepted_at"]) if row["accepted_at"] else None,
+                accepted_at=(
+                    datetime.fromisoformat(row["accepted_at"]) if row["accepted_at"] else None
+                ),
             )
             for row in rows
         ]
@@ -366,10 +445,13 @@ class TeamDatabase:
     def cleanup_expired_invites(self) -> int:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE team_invites SET status = 'expired'
                 WHERE status = 'pending' AND expires_at < ?
-            """, (datetime.now().isoformat(),))
+            """,
+                (datetime.now().isoformat(),),
+            )
             conn.commit()
             return cursor.rowcount
 
@@ -377,27 +459,39 @@ class TeamDatabase:
     # Shared Sessions
     # ========================================================================
 
-    def share_session(self, session_id: str, team_id: str, shared_by: str, title: str = None) -> SharedSession:
+    def share_session(
+        self, session_id: str, team_id: str, shared_by: str, title: str = None
+    ) -> SharedSession:
         share_id = str(uuid.uuid4())
         now = datetime.now()
 
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO shared_sessions (share_id, session_id, team_id, shared_by, title, is_active, created_at)
                 VALUES (?, ?, ?, ?, ?, TRUE, ?)
-            """, (share_id, session_id, team_id, shared_by, title, now.isoformat()))
+            """,
+                (share_id, session_id, team_id, shared_by, title, now.isoformat()),
+            )
             conn.commit()
 
         return SharedSession(
-            share_id=share_id, session_id=session_id, team_id=team_id,
-            shared_by=shared_by, title=title, is_active=True, created_at=now,
+            share_id=share_id,
+            session_id=session_id,
+            team_id=team_id,
+            shared_by=shared_by,
+            title=title,
+            is_active=True,
+            created_at=now,
         )
 
     def unshare_session(self, share_id: str) -> bool:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE shared_sessions SET is_active = FALSE WHERE share_id = ?", (share_id,))
+            cursor.execute(
+                "UPDATE shared_sessions SET is_active = FALSE WHERE share_id = ?", (share_id,)
+            )
             conn.commit()
             return cursor.rowcount > 0
 

@@ -4,9 +4,11 @@
 """
 
 import asyncio
-import websockets
 import json
 import sys
+
+import websockets
+
 
 async def test_websocket():
     """测试 WebSocket 连接和会话创建"""
@@ -39,11 +41,7 @@ async def test_websocket():
 
             # 测试会话创建
             print("\n4. 创建新会话...")
-            message = {
-                "type": "start_session",
-                "tool_name": "crush",
-                "args": ["--help"]
-            }
+            message = {"type": "start_session", "tool_name": "crush", "args": ["--help"]}
             await ws.send(json.dumps(message))
             print(f"   📤 发送: {json.dumps(message)}")
 
@@ -52,8 +50,8 @@ async def test_websocket():
             data = json.loads(response)
             print(f"   📥 收到: {json.dumps(data)}")
 
-            if data.get('type') == 'session_started':
-                session_id = data.get('session_id')
+            if data.get("type") == "session_started":
+                session_id = data.get("session_id")
                 print(f"   ✅ 会话创建成功: {session_id}")
 
                 # 等待输出
@@ -61,7 +59,7 @@ async def test_websocket():
                 try:
                     output = await asyncio.wait_for(ws.recv(), timeout=5)
                     output_data = json.loads(output)
-                    if output_data.get('type') == 'output':
+                    if output_data.get("type") == "output":
                         print(f"   ✅ 收到输出: {output_data.get('output', '')[:100]}...")
                 except asyncio.TimeoutError:
                     print("   ⚠️ 等待输出超时（会话可能还在运行）")
@@ -84,8 +82,10 @@ async def test_websocket():
         print("❌ 测试失败")
         print("=" * 60)
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def check_frontend_files():
     """检查前端文件"""
@@ -102,7 +102,7 @@ def check_frontend_files():
         "web/ui/js/sessions.js",
         "web/ui/js/client.js",
         "web/ui/js/improvements.js",
-        "web/ui/js/app.js"
+        "web/ui/js/app.js",
     ]
 
     base_path = "/home/ai/zhineng-bridge"
@@ -119,45 +119,46 @@ def check_frontend_files():
     print("\n检查关键函数...")
 
     sessions_file = os.path.join(base_path, "web/ui/js/sessions.js")
-    with open(sessions_file, 'r') as f:
+    with open(sessions_file, "r") as f:
         content = f.read()
-        if 'function newSession' in content:
+        if "function newSession" in content:
             print("   ✅ newSession 函数存在")
         else:
             print("   ❌ newSession 函数不存在")
 
-        if 'pendingSessionStart' in content:
+        if "pendingSessionStart" in content:
             print("   ✅ pendingSessionStart 设置存在")
         else:
             print("   ❌ pendingSessionStart 设置不存在")
 
     client_file = os.path.join(base_path, "web/ui/js/client.js")
-    with open(client_file, 'r') as f:
+    with open(client_file, "r") as f:
         content = f.read()
-        if 'function handleMessage' in content:
+        if "function handleMessage" in content:
             print("   ✅ handleMessage 函数存在")
         else:
             print("   ❌ handleMessage 函数不存在")
 
-        if 'window.handleMessage' in content:
+        if "window.handleMessage" in content:
             print("   ✅ handleMessage 已导出到 window")
         else:
             print("   ❌ handleMessage 未导出到 window")
 
     app_file = os.path.join(base_path, "web/ui/js/app.js")
-    with open(app_file, 'r') as f:
+    with open(app_file, "r") as f:
         content = f.read()
-        if 'function connectWebSocket' in content:
+        if "function connectWebSocket" in content:
             print("   ⚠️ app.js 中存在 connectWebSocket（应该被删除）")
         else:
             print("   ✅ app.js 中不存在 connectWebSocket")
 
-        if 'function handleMessage' in content:
+        if "function handleMessage" in content:
             print("   ⚠️ app.js 中存在 handleMessage（应该被删除）")
         else:
             print("   ✅ app.js 中不存在 handleMessage")
 
     print("\n" + "=" * 60)
+
 
 def main():
     """主函数"""
@@ -184,6 +185,7 @@ def main():
     print("   查看是否有 JavaScript 错误")
 
     return 0 if success else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

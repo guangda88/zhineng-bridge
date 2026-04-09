@@ -21,6 +21,7 @@ from server import AIRelayServer
 
 def _find_free_port():
     import socket
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
@@ -98,12 +99,16 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as ws:
-            await ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "test-ai",
-                "name": "Test AI",
-                "description": "A test backend",
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "test-ai",
+                        "name": "Test AI",
+                        "description": "A test backend",
+                    }
+                )
+            )
             resp = json.loads(await ws.recv())
             assert resp["type"] == "backend_registered"
             assert resp["backend_id"] == "test-ai"
@@ -126,11 +131,15 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "lingyi",
-                "name": "灵依",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "lingyi",
+                        "name": "灵依",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
@@ -159,18 +168,26 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "chat-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "chat-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
-                await user_ws.send(json.dumps({
-                    "type": "chat",
-                    "target": "chat-ai",
-                    "text": "Hello!",
-                }))
+                await user_ws.send(
+                    json.dumps(
+                        {
+                            "type": "chat",
+                            "target": "chat-ai",
+                            "text": "Hello!",
+                        }
+                    )
+                )
 
                 backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
                 assert backend_msg["type"] == "chat"
@@ -184,27 +201,39 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "reply-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "reply-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
-                await user_ws.send(json.dumps({
-                    "type": "chat",
-                    "target": "reply-ai",
-                    "text": "Ping",
-                }))
+                await user_ws.send(
+                    json.dumps(
+                        {
+                            "type": "chat",
+                            "target": "reply-ai",
+                            "text": "Ping",
+                        }
+                    )
+                )
 
                 backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
                 request_id = backend_msg["request_id"]
 
-                await backend_ws.send(json.dumps({
-                    "type": "reply",
-                    "request_id": request_id,
-                    "text": "Pong",
-                }))
+                await backend_ws.send(
+                    json.dumps(
+                        {
+                            "type": "reply",
+                            "request_id": request_id,
+                            "text": "Pong",
+                        }
+                    )
+                )
 
                 user_reply = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
                 assert user_reply["type"] == "reply"
@@ -227,10 +256,14 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "empty-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "empty-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
@@ -256,10 +289,14 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "push-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "push-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user1:
@@ -270,12 +307,16 @@ class TestWebSocketProtocol:
                     for _ in range(2):
                         await asyncio.wait_for(backend_ws.recv(), timeout=2)
 
-                    await backend_ws.send(json.dumps({
-                        "type": "push",
-                        "category": "alert",
-                        "text": "broadcast msg",
-                        "backend": "push-ai",
-                    }))
+                    await backend_ws.send(
+                        json.dumps(
+                            {
+                                "type": "push",
+                                "category": "alert",
+                                "text": "broadcast msg",
+                                "backend": "push-ai",
+                            }
+                        )
+                    )
 
                     msg1 = json.loads(await asyncio.wait_for(user1.recv(), timeout=2))
                     assert msg1["type"] == "push"
@@ -291,10 +332,14 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "target-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "target-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
@@ -305,12 +350,16 @@ class TestWebSocketProtocol:
                 assert len(conn_ids) >= 1
                 target_id = conn_ids[0]
 
-                await backend_ws.send(json.dumps({
-                    "type": "push",
-                    "target_client": target_id,
-                    "category": "info",
-                    "text": "targeted msg",
-                }))
+                await backend_ws.send(
+                    json.dumps(
+                        {
+                            "type": "push",
+                            "target_client": target_id,
+                            "category": "info",
+                            "text": "targeted msg",
+                        }
+                    )
+                )
 
                 msg = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
                 assert msg["type"] == "push"
@@ -322,10 +371,14 @@ class TestWebSocketProtocol:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "temp-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "temp-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
             assert "temp-ai" in server.backends
 
@@ -400,10 +453,14 @@ class TestWebSocketStress:
 
         for i in range(10):
             async with websockets.connect(uri) as ws:
-                await ws.send(json.dumps({
-                    "type": "register_backend",
-                    "backend_id": f"rapid-{i}",
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "register_backend",
+                            "backend_id": f"rapid-{i}",
+                        }
+                    )
+                )
                 resp = json.loads(await ws.recv())
                 assert resp["type"] == "backend_registered"
 
@@ -417,19 +474,27 @@ class TestWebSocketStress:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "flood-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "flood-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async def send_chat(msg_id):
                 async with websockets.connect(uri) as user_ws:
-                    await user_ws.send(json.dumps({
-                        "type": "chat",
-                        "target": "flood-ai",
-                        "text": f"msg-{msg_id}",
-                    }))
+                    await user_ws.send(
+                        json.dumps(
+                            {
+                                "type": "chat",
+                                "target": "flood-ai",
+                                "text": f"msg-{msg_id}",
+                            }
+                        )
+                    )
                     return msg_id
 
             tasks = [asyncio.create_task(send_chat(i)) for i in range(20)]

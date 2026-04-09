@@ -11,9 +11,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "phase1" / "session_manager"))
 
 from http.server import HTTPServer
+
 from health.handlers import HealthCheckHandler
-from config import settings
 from metrics import start_metrics_updater
+
+from config import settings
 
 
 def main():

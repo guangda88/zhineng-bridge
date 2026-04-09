@@ -5,10 +5,11 @@
 使用 pydantic-settings 进行配置管理
 """
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator, field_validator
-from typing import Optional, List
 from pathlib import Path
+from typing import List, Optional
+
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ServerSettings(BaseSettings):
@@ -59,7 +60,7 @@ class ServerSettings(BaseSettings):
     enable_compression: bool = True
     buffer_size: int = 100000
 
-    @field_validator('base_dir', 'temp_dir')
+    @field_validator("base_dir", "temp_dir")
     @classmethod
     def validate_path(cls, v: str) -> str:
         """验证路径安全，防止路径遍历攻击"""
@@ -79,12 +80,12 @@ class ServerSettings(BaseSettings):
 
         return str(path)
 
-    @model_validator(mode='after')
-    def validate_cert_paths(self) -> 'ServerSettings':
+    @model_validator(mode="after")
+    def validate_cert_paths(self) -> "ServerSettings":
         """验证证书文件路径（仅在启用 WSS 时）"""
         # 只有在启用 WSS 时才验证证书文件
         if self.enable_wss:
-            for field_name, value in [('cert_file', self.cert_file), ('key_file', self.key_file)]:
+            for field_name, value in [("cert_file", self.cert_file), ("key_file", self.key_file)]:
                 if value is None:
                     raise ValueError(f"{field_name} is required when WSS is enabled")
 
@@ -103,7 +104,9 @@ class ServerSettings(BaseSettings):
                     try:
                         path.relative_to(home_dir)
                     except ValueError:
-                        raise ValueError(f"{field_name} must be within project or home directory: {value}")
+                        raise ValueError(
+                            f"{field_name} must be within project or home directory: {value}"
+                        )
 
         return self
 
@@ -156,13 +159,14 @@ class SecuritySettings(BaseSettings):
     secret_key: Optional[str] = None
     encryption_key: Optional[str] = None
 
-    @model_validator(mode='after')
-    def validate_secret_key(self) -> 'SecuritySettings':
+    @model_validator(mode="after")
+    def validate_secret_key(self) -> "SecuritySettings":
         """验证 secret_key 配置"""
         if self.enable_auth and not self.secret_key:
             # 如果启用了认证但没有提供 secret_key，生成一个警告
             # 实际值将在运行时由 TokenAuth/JWTAuth 生成
             import logging
+
             logger = logging.getLogger(__name__)
             logger.warning(
                 "Authentication enabled but no secret_key provided. "
@@ -228,8 +232,10 @@ class Settings:
             Path(directory).mkdir(parents=True, exist_ok=True)
 
     SENSITIVE_FIELDS = {
-        "secret_key", "encryption_key",
-        "github_oauth_client_secret", "google_oauth_client_secret",
+        "secret_key",
+        "encryption_key",
+        "github_oauth_client_secret",
+        "google_oauth_client_secret",
         "pg_password",
     }
 

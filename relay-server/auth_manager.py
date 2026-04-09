@@ -8,16 +8,15 @@
 import hashlib
 import sqlite3
 import threading
-from typing import Optional, Dict, Tuple
 from datetime import datetime, timedelta
+from typing import Dict, Optional, Tuple
 
-from cachetools import TTLCache
-
-from logger import get_logger
-from auth_models import User, TokenInfo, UserRole
-from auth_jwt import JWTAuth
 from auth_db import UserDatabase
+from auth_jwt import JWTAuth
+from auth_models import TokenInfo, User, UserRole
 from auth_totp import TOTPManager
+from cachetools import TTLCache
+from logger import get_logger
 
 # ============================================================================
 # 缓存配置
@@ -112,6 +111,7 @@ class AuthenticationManager:
         user = self.db.verify_user(username, password)
         if not user:
             from exceptions import AuthenticationError
+
             raise AuthenticationError("Invalid username or password")
 
         # 生成 JWT token
@@ -166,7 +166,7 @@ class AuthenticationManager:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT * FROM users WHERE oauth_provider = ? AND oauth_id = ?",
-                (provider, oauth_id)
+                (provider, oauth_id),
             )
             row = cursor.fetchone()
         finally:
@@ -196,7 +196,7 @@ class AuthenticationManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     "UPDATE users SET oauth_provider = ?, oauth_id = ? WHERE user_id = ?",
-                    (provider, oauth_id, user.user_id)
+                    (provider, oauth_id, user.user_id),
                 )
                 conn.commit()
 
@@ -356,8 +356,7 @@ class AuthenticationManager:
         with self._sessions_lock:
             # 找出所有过期的会话
             expired_tokens = [
-                token for token, token_info in self._sessions.items()
-                if token_info.is_expired()
+                token for token, token_info in self._sessions.items() if token_info.is_expired()
             ]
 
             # 删除过期会话

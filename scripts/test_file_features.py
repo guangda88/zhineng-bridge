@@ -9,8 +9,10 @@
 - 安全功能验证
 """
 
-import requests
 import time
+
+import requests
+
 
 class FileFeatureTester:
     def __init__(self, base_url: str = "http://localhost:8080"):
@@ -21,7 +23,7 @@ class FileFeatureTester:
         """打印测试标题"""
         print(f"\n{'=' * 60}")
         print(f"{title}")
-        print('=' * 60)
+        print("=" * 60)
 
     def test_search_accuracy(self):
         """测试文件搜索准确性"""
@@ -29,9 +31,17 @@ class FileFeatureTester:
 
         test_cases = [
             {"query": "server", "expected_count": "> 0", "description": "搜索包含 'server' 的文件"},
-            {"query": "session", "expected_count": "> 0", "description": "搜索包含 'session' 的文件"},
+            {
+                "query": "session",
+                "expected_count": "> 0",
+                "description": "搜索包含 'session' 的文件",
+            },
             {"query": ".py", "expected_count": "> 0", "description": "搜索 Python 文件"},
-            {"query": "nonexistent_file_xyz", "expected_count": "0", "description": "搜索不存在的文件"},
+            {
+                "query": "nonexistent_file_xyz",
+                "expected_count": "0",
+                "description": "搜索不存在的文件",
+            },
             {"query": "client.js", "expected_count": ">= 1", "description": "搜索特定文件"},
         ]
 
@@ -44,14 +54,14 @@ class FileFeatureTester:
                 response = requests.get(
                     f"{self.base_url}/api/files/search",
                     params={"query": case["query"], "limit": 20},
-                    timeout=10
+                    timeout=10,
                 )
                 elapsed = (time.time() - start) * 1000
 
                 if response.status_code == 200:
                     data = response.json()
-                    count = data.get('count', 0)
-                    files = data.get('files', [])
+                    count = data.get("count", 0)
+                    files = data.get("files", [])
 
                     print(f"  结果: 找到 {count} 个文件 (耗时 {elapsed:.2f}ms)")
 
@@ -108,9 +118,7 @@ class FileFeatureTester:
             try:
                 start = time.time()
                 response = requests.get(
-                    f"{self.base_url}/api/files/read",
-                    params={"path": file_path},
-                    timeout=10
+                    f"{self.base_url}/api/files/read", params={"path": file_path}, timeout=10
                 )
                 elapsed = (time.time() - start) * 1000
 
@@ -148,21 +156,17 @@ class FileFeatureTester:
             # 首先获取文件统计
             try:
                 response = requests.get(
-                    f"{self.base_url}/api/files/stats",
-                    params={"path": file_path},
-                    timeout=10
+                    f"{self.base_url}/api/files/stats", params={"path": file_path}, timeout=10
                 )
                 if response.status_code == 200:
                     stats = response.json()
-                    size = stats.get('size', 0)
+                    size = stats.get("size", 0)
                     print(f"  文件大小: {size} 字节 ({size/1024:.2f} KB)")
 
                     # 读取文件内容
                     start = time.time()
                     read_response = requests.get(
-                        f"{self.base_url}/api/files/read",
-                        params={"path": file_path},
-                        timeout=30
+                        f"{self.base_url}/api/files/read", params={"path": file_path}, timeout=30
                     )
                     elapsed = (time.time() - start) * 1000
 
@@ -198,9 +202,7 @@ class FileFeatureTester:
             print(f"  测试路径: {path}")
             try:
                 response = requests.get(
-                    f"{self.base_url}/api/files/read",
-                    params={"path": path},
-                    timeout=5
+                    f"{self.base_url}/api/files/read", params={"path": path}, timeout=5
                 )
                 if response.status_code == 403 or response.status_code == 400:
                     print("    ✅ 成功拒绝访问")
@@ -227,7 +229,7 @@ class FileFeatureTester:
                 response = requests.get(
                     f"{self.base_url}/api/files/list",
                     params={"path": dir_path, "limit": 10},
-                    timeout=5
+                    timeout=5,
                 )
                 if response.status_code == 403 or response.status_code == 400:
                     print("    ✅ 成功拒绝访问")
@@ -250,9 +252,7 @@ class FileFeatureTester:
             print(f"  测试文件: {file_path}")
             try:
                 response = requests.get(
-                    f"{self.base_url}/api/files/read",
-                    params={"path": file_path},
-                    timeout=5
+                    f"{self.base_url}/api/files/read", params={"path": file_path}, timeout=5
                 )
                 if response.status_code == 403 or response.status_code == 404:
                     print("    ✅ 成功拒绝访问")
@@ -279,9 +279,7 @@ class FileFeatureTester:
             try:
                 start = time.time()
                 response = requests.get(
-                    f"{self.base_url}/api/files/stats",
-                    params={"path": file_path},
-                    timeout=10
+                    f"{self.base_url}/api/files/stats", params={"path": file_path}, timeout=10
                 )
                 elapsed = (time.time() - start) * 1000
 
@@ -290,7 +288,15 @@ class FileFeatureTester:
                     print(f"  ✅ 获取成功 (耗时: {elapsed:.2f}ms)")
 
                     # 验证必需字段
-                    required_fields = ['type', 'path', 'name', 'size', 'modified', 'is_file', 'is_dir']
+                    required_fields = [
+                        "type",
+                        "path",
+                        "name",
+                        "size",
+                        "modified",
+                        "is_file",
+                        "is_dir",
+                    ]
                     missing_fields = [f for f in required_fields if f not in stats]
 
                     if not missing_fields:
@@ -356,6 +362,7 @@ class FileFeatureTester:
 
         # 打印总结
         self.print_summary()
+
 
 if __name__ == "__main__":
     tester = FileFeatureTester(base_url="http://localhost:8080")

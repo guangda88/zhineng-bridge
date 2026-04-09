@@ -14,9 +14,9 @@ PUBLIC_IP = "100.66.1.8"
 HTTP_PORT = "8080"
 WS_PORT = "8765"
 
-print("="*60)
+print("=" * 60)
 print("  智桥 (Zhineng-bridge) 公网访问配置")
-print("="*60)
+print("=" * 60)
 print(f"公网IP: {PUBLIC_IP}")
 print(f"HTTP端口: {HTTP_PORT}")
 print(f"WebSocket端口: {WS_PORT}")
@@ -27,7 +27,7 @@ print("1️⃣  更新前端WebSocket配置...")
 client_js = PROJECT_ROOT / "web/ui/js/client.js"
 
 if client_js.exists():
-    with open(client_js, 'r', encoding='utf-8') as f:
+    with open(client_js, "r", encoding="utf-8") as f:
         content = f.read()
 
     # 检查是否已经配置
@@ -40,7 +40,7 @@ if client_js.exists():
 
         if old_line in content:
             content = content.replace(old_line, new_line)
-            with open(client_js, 'w', encoding='utf-8') as f:
+            with open(client_js, "w", encoding="utf-8") as f:
                 f.write(content)
             print(f"✅ 已更新前端配置，公网IP: {PUBLIC_IP}")
         else:
@@ -81,7 +81,7 @@ Android Chrome: 菜单 → 安装应用
 """
 
 config_file.parent.mkdir(parents=True, exist_ok=True)
-with open(config_file, 'w', encoding='utf-8') as f:
+with open(config_file, "w", encoding="utf-8") as f:
     f.write(config_content)
 print(f"✅ 配置文件已创建: {config_file}")
 
@@ -165,7 +165,7 @@ A: 使用Chrome或Safari，清除浏览器缓存重试
 最后更新: 2026-03-29
 """
 
-with open(access_file, 'w', encoding='utf-8') as f:
+with open(access_file, "w", encoding="utf-8") as f:
     f.write(access_content)
 print(f"✅ 快捷访问文件已创建: {access_file}")
 
@@ -283,14 +283,14 @@ if __name__ == "__main__":
 '''
 
 test_script.parent.mkdir(parents=True, exist_ok=True)
-with open(test_script, 'w', encoding='utf-8') as f:
+with open(test_script, "w", encoding="utf-8") as f:
     f.write(test_content)
 test_script.chmod(0o755)
 print(f"✅ 测试脚本已创建: {test_script}")
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("  ✅ 公网访问配置完成！")
-print("="*60)
+print("=" * 60)
 print("\n🌐 公网访问地址:")
 print(f"   http://{PUBLIC_IP}:{HTTP_PORT}/web/ui/index.html")
 print("\n📱 移动端访问:")
@@ -299,4 +299,4 @@ print("\n🧪 测试命令:")
 print("   python3 scripts/test_public_ip.py")
 print("\n📋 使用说明:")
 print("   cat PUBLIC_ACCESS.txt")
-print("\n" + "="*60)
+print("\n" + "=" * 60)

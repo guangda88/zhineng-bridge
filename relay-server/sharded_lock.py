@@ -7,11 +7,12 @@
 """
 
 import asyncio
-from typing import Dict, Optional, Callable, TypeVar
 from functools import wraps
+from typing import Callable, Dict, Optional, TypeVar
+
 from logger import get_logger
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 logger = get_logger(__name__)
 
@@ -39,14 +40,9 @@ class ShardedLockManager:
             shard_count: 分片数量，默认16个分片
         """
         self._shard_count = shard_count
-        self._locks: tuple[asyncio.Lock, ...] = tuple(
-            asyncio.Lock() for _ in range(shard_count)
-        )
+        self._locks: tuple[asyncio.Lock, ...] = tuple(asyncio.Lock() for _ in range(shard_count))
         self.logger = get_logger(__name__)
-        self.logger.info(
-            "ShardedLockManager initialized",
-            shard_count=shard_count
-        )
+        self.logger.info("ShardedLockManager initialized", shard_count=shard_count)
 
     def _get_shard_index(self, key: str) -> int:
         """根据键获取分片索引
@@ -124,10 +120,7 @@ class ShardedLockManager:
         Returns:
             包含各分片锁定状态的字典
         """
-        return {
-            f"shard_{i}": int(lock.locked())
-            for i, lock in enumerate(self._locks)
-        }
+        return {f"shard_{i}": int(lock.locked()) for i, lock in enumerate(self._locks)}
 
     @property
     def shard_count(self) -> int:
@@ -157,8 +150,7 @@ class ShardedLockManager:
 
 
 def with_sharded_lock(
-    lock_manager: ShardedLockManager,
-    key_param: str = "key"
+    lock_manager: ShardedLockManager, key_param: str = "key"
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """装饰器：为函数添加分片锁
 
@@ -177,6 +169,7 @@ def with_sharded_lock(
             # 函数执行时会自动获取client_id对应的锁
             return await _do_process(client_id, data)
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> T:
@@ -188,7 +181,9 @@ def with_sharded_lock(
 
             async with lock_manager.lock(str(key)):
                 return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -212,9 +207,7 @@ class ShardedDataStore:
         """
         self._lock_manager = ShardedLockManager(shard_count)
         self._shard_count = shard_count
-        self._data: tuple[Dict[str, object], ...] = tuple(
-            {} for _ in range(shard_count)
-        )
+        self._data: tuple[Dict[str, object], ...] = tuple({} for _ in range(shard_count))
         self.logger = get_logger(__name__)
 
     async def get(self, key: str, default: Optional[T] = None) -> Optional[T]:

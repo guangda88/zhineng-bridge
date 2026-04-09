@@ -151,30 +151,42 @@ class TestChatRoutingPerformance:
         uri = f"ws://127.0.0.1:{port}"
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "perf-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "perf-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async with websockets.connect(uri) as user_ws:
                 times = []
                 for i in range(20):
                     start = time.monotonic()
-                    await user_ws.send(json.dumps({
-                        "type": "chat",
-                        "target": "perf-ai",
-                        "text": f"perf-{i}",
-                    }))
+                    await user_ws.send(
+                        json.dumps(
+                            {
+                                "type": "chat",
+                                "target": "perf-ai",
+                                "text": f"perf-{i}",
+                            }
+                        )
+                    )
 
                     backend_msg = json.loads(await asyncio.wait_for(backend_ws.recv(), timeout=2))
                     request_id = backend_msg["request_id"]
 
-                    await backend_ws.send(json.dumps({
-                        "type": "reply",
-                        "request_id": request_id,
-                        "text": f"reply-{i}",
-                    }))
+                    await backend_ws.send(
+                        json.dumps(
+                            {
+                                "type": "reply",
+                                "request_id": request_id,
+                                "text": f"reply-{i}",
+                            }
+                        )
+                    )
 
                     user_reply = json.loads(await asyncio.wait_for(user_ws.recv(), timeout=2))
                     elapsed = time.monotonic() - start
@@ -198,10 +210,14 @@ class TestBackendRegistrationPerformance:
         for i in range(10):
             start = time.monotonic()
             async with websockets.connect(uri) as ws:
-                await ws.send(json.dumps({
-                    "type": "register_backend",
-                    "backend_id": f"bench-{i}",
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "register_backend",
+                            "backend_id": f"bench-{i}",
+                        }
+                    )
+                )
                 resp = json.loads(await ws.recv())
                 elapsed = time.monotonic() - start
                 assert resp["type"] == "backend_registered"
@@ -247,19 +263,27 @@ class TestConcurrentPerformance:
         num_users = 10
 
         async with websockets.connect(uri) as backend_ws:
-            await backend_ws.send(json.dumps({
-                "type": "register_backend",
-                "backend_id": "conc-ai",
-            }))
+            await backend_ws.send(
+                json.dumps(
+                    {
+                        "type": "register_backend",
+                        "backend_id": "conc-ai",
+                    }
+                )
+            )
             await backend_ws.recv()
 
             async def user_chat(uid):
                 async with websockets.connect(uri) as ws:
-                    await ws.send(json.dumps({
-                        "type": "chat",
-                        "target": "conc-ai",
-                        "text": f"user-{uid}",
-                    }))
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "type": "chat",
+                                "target": "conc-ai",
+                                "text": f"user-{uid}",
+                            }
+                        )
+                    )
                     return uid
 
             start = time.monotonic()
@@ -307,10 +331,14 @@ class TestStressPerformance:
         start = time.monotonic()
         for i in range(num):
             async with websockets.connect(uri) as ws:
-                await ws.send(json.dumps({
-                    "type": "register_backend",
-                    "backend_id": f"stress-{i}",
-                }))
+                await ws.send(
+                    json.dumps(
+                        {
+                            "type": "register_backend",
+                            "backend_id": f"stress-{i}",
+                        }
+                    )
+                )
                 resp = json.loads(await ws.recv())
                 assert resp["type"] == "backend_registered"
         elapsed = time.monotonic() - start

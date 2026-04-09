@@ -5,11 +5,12 @@
 import os
 import sys
 import tempfile
+
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "relay-server"))
 
-from plugin_system import PluginManager, PluginInterface, PluginState, PluginInfo
+from plugin_system import PluginInfo, PluginInterface, PluginManager, PluginState
 
 
 class _DummyPlugin(PluginInterface):
@@ -48,7 +49,7 @@ class _DummyPlugin(PluginInterface):
 def _write_plugin_file(plugin_dir, filename, content):
     os.makedirs(plugin_dir, exist_ok=True)
     path = os.path.join(plugin_dir, filename)
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         f.write(content)
     return path
 
@@ -112,7 +113,7 @@ class TestPluginManagerLifecycle:
     def test_load_plugin(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -124,7 +125,7 @@ class TestPlug(PluginInterface):
     def on_load(self, ctx):
         self.register_hook("on_message_received", lambda m: m)
         self.register_command("hello", lambda: "world")
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "test_plug.py", code)
             info = pm.load_plugin("test_plug")
             assert info is not None
@@ -134,7 +135,7 @@ class TestPlug(PluginInterface):
     def test_load_all(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -142,9 +143,9 @@ from plugin_system import PluginInterface
 class PlugA(PluginInterface):
     plugin_id = "plug_a"
     name = "A"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "plug_a.py", code)
-            code_b = '''
+            code_b = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -152,7 +153,7 @@ from plugin_system import PluginInterface
 class PlugB(PluginInterface):
     plugin_id = "plug_b"
     name = "B"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "plug_b.py", code_b)
             result = pm.load_all()
             assert len(result) == 2
@@ -160,7 +161,7 @@ class PlugB(PluginInterface):
     def test_load_duplicate_returns_existing(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -168,7 +169,7 @@ from plugin_system import PluginInterface
 class DupPlug(PluginInterface):
     plugin_id = "dup"
     name = "Dup"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "dup.py", code)
             info1 = pm.load_plugin("dup")
             info2 = pm.load_plugin("dup")
@@ -192,7 +193,7 @@ class DupPlug(PluginInterface):
     def test_unload_plugin(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -200,7 +201,7 @@ from plugin_system import PluginInterface
 class UnloadPlug(PluginInterface):
     plugin_id = "unload_me"
     name = "Unload"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "unload_me.py", code)
             pm.load_plugin("unload_me")
             assert pm.unload_plugin("unload_me") is True
@@ -216,7 +217,7 @@ class TestPluginManagerEnableDisable:
     def test_enable_plugin(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -224,7 +225,7 @@ from plugin_system import PluginInterface
 class EnPlug(PluginInterface):
     plugin_id = "en"
     name = "En"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "en.py", code)
             pm.load_plugin("en")
             assert pm.enable_plugin("en") is True
@@ -234,7 +235,7 @@ class EnPlug(PluginInterface):
     def test_disable_plugin(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -242,7 +243,7 @@ from plugin_system import PluginInterface
 class DisPlug(PluginInterface):
     plugin_id = "dis_plug"
     name = "Dis"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "dis_plug.py", code)
             pm.load_plugin("dis_plug")
             pm.enable_plugin("dis_plug")
@@ -265,7 +266,7 @@ class TestPluginManagerHooks:
     def test_trigger_hook(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -277,7 +278,7 @@ class HookPlug(PluginInterface):
         self.register_hook("on_message_received", self._h)
     def _h(self, msg):
         return msg.get("type")
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "hooker.py", code)
             pm.load_plugin("hooker")
             pm.enable_plugin("hooker")
@@ -287,7 +288,7 @@ class HookPlug(PluginInterface):
     def test_trigger_hook_disabled_skips(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -297,7 +298,7 @@ class SkipPlug(PluginInterface):
     name = "Skipper"
     def on_load(self, ctx):
         self.register_hook("on_message_received", lambda m: "should_not_appear")
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "skipper.py", code)
             pm.load_plugin("skipper")
             # not enabled — should be skipped
@@ -307,7 +308,7 @@ class SkipPlug(PluginInterface):
     def test_trigger_hook_error_handled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -319,7 +320,7 @@ class ErrPlug(PluginInterface):
         self.register_hook("on_message_received", self._boom)
     def _boom(self, m):
         raise RuntimeError("boom")
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "errplug.py", code)
             pm.load_plugin("errplug")
             pm.enable_plugin("errplug")
@@ -336,7 +337,7 @@ class TestPluginManagerCommands:
     def test_execute_command(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -348,7 +349,7 @@ class CmdPlug(PluginInterface):
         self.register_command("greet", self._greet)
     def _greet(self, name="world"):
         return f"hello {name}"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "cmdplug.py", code)
             pm.load_plugin("cmdplug")
             pm.enable_plugin("cmdplug")
@@ -364,7 +365,7 @@ class CmdPlug(PluginInterface):
     def test_execute_command_disabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -374,7 +375,7 @@ class DisCmdPlug(PluginInterface):
     name = "DisCmd"
     def on_load(self, ctx):
         self.register_command("foo", lambda: "bar")
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "discmd.py", code)
             pm.load_plugin("discmd")
             # not enabled
@@ -384,7 +385,7 @@ class DisCmdPlug(PluginInterface):
     def test_list_commands(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -395,7 +396,7 @@ class LcPlug(PluginInterface):
     def on_load(self, ctx):
         self.register_command("a", lambda: 1)
         self.register_command("b", lambda: 2)
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "lcplug.py", code)
             pm.load_plugin("lcplug")
             cmds = pm.list_commands()
@@ -408,7 +409,7 @@ class TestPluginManagerQuery:
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
             assert pm.list_plugins() == []
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -416,7 +417,7 @@ from plugin_system import PluginInterface
 class QPlug(PluginInterface):
     plugin_id = "qplug"
     name = "Q"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "qplug.py", code)
             pm.load_plugin("qplug")
             assert len(pm.list_plugins()) == 1
@@ -424,7 +425,7 @@ class QPlug(PluginInterface):
     def test_get_plugin_info(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -436,7 +437,7 @@ class GIPlug(PluginInterface):
     description = "test desc"
     author = "tester"
     category = "testing"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "giplug.py", code)
             pm.load_plugin("giplug")
             info = pm.get_plugin_info("giplug")
@@ -455,7 +456,7 @@ class GIPlug(PluginInterface):
     def test_get_plugin_instance(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             pm = PluginManager(base_dir=tmpdir)
-            code = '''
+            code = """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'relay-server'))
 from plugin_system import PluginInterface
@@ -463,7 +464,7 @@ from plugin_system import PluginInterface
 class InstPlug(PluginInterface):
     plugin_id = "instplug"
     name = "Inst"
-'''
+"""
             _write_plugin_file(pm.plugin_dir, "instplug.py", code)
             pm.load_plugin("instplug")
             plugin = pm.get_plugin("instplug")

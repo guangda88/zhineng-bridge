@@ -10,10 +10,11 @@ from pathlib import Path
 # 添加 LingMinOpt 路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "LingMinOpt"))
 
-from lingminopt import MinimalOptimizer, SearchSpace
+import json
 import subprocess
 import time
-import json
+
+from lingminopt import MinimalOptimizer, SearchSpace
 
 
 def create_search_space():
@@ -64,7 +65,7 @@ def evaluate_mcp_performance(params):
         },
         "logging": {
             "level": params["log_level"],
-        }
+        },
     }
 
     config_file = Path(__file__).parent.parent / "config" / "test_config.json"
@@ -79,7 +80,7 @@ def evaluate_mcp_performance(params):
         ["npm", "run", "build"],
         cwd=str(Path(__file__).parent.parent),
         capture_output=True,
-        text=True
+        text=True,
     )
     build_time = time.time() - build_start
 
@@ -113,21 +114,16 @@ def evaluate_mcp_performance(params):
 
     # 日志开销评分（error/warn 开销小，debug 开销大）
     log_level = params["log_level"]
-    log_overhead = {
-        "error": 0.0,
-        "warn": 0.1,
-        "info": 0.2,
-        "debug": 0.4
-    }[log_level]
+    log_overhead = {"error": 0.0, "warn": 0.1, "info": 0.2, "debug": 0.4}[log_level]
     log_score = 1.0 - log_overhead
 
     # 综合评分（权重）
     score = (
-        response_time_score * 0.4 +
-        throughput_score * 0.3 +
-        cache_score * 0.15 +
-        buffer_score * 0.1 +
-        log_score * 0.05
+        response_time_score * 0.4
+        + throughput_score * 0.3
+        + cache_score * 0.15
+        + buffer_score * 0.1
+        + log_score * 0.05
     )
 
     print("\n📊 评分详情:")
@@ -156,11 +152,7 @@ def main():
     optimizer = MinimalOptimizer(
         evaluator=evaluate_mcp_performance,
         search_space=search_space,
-        config={
-            "max_iterations": 50,
-            "strategy": "grid_search",
-            "verbose": True
-        }
+        config={"max_iterations": 50, "strategy": "grid_search", "verbose": True},
     )
 
     # 3. 运行优化
@@ -185,7 +177,7 @@ def main():
         "best_params": result.best_params,
         "optimization_time": elapsed_time,
         "iterations": len(result.history),
-        "search_space_size": search_space.size()
+        "search_space_size": search_space.size(),
     }
 
     results_file = Path(__file__).parent / "optimization_results.json"

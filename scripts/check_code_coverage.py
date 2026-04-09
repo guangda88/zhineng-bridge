@@ -11,15 +11,16 @@
 import ast
 import os
 import sys
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List
-from dataclasses import dataclass, field
-from collections import defaultdict
 
 
 @dataclass
 class FileStats:
     """文件统计信息"""
+
     path: str
     classes: int = 0
     classes_with_docstring: int = 0
@@ -34,6 +35,7 @@ class FileStats:
 @dataclass
 class ModuleStats:
     """模块统计信息"""
+
     name: str
     files: List[FileStats] = field(default_factory=list)
 
@@ -83,7 +85,7 @@ class CodeChecker(ast.NodeVisitor):
 
     def check(self) -> FileStats:
         """检查文件"""
-        with open(self.filepath, 'r', encoding='utf-8') as f:
+        with open(self.filepath, "r", encoding="utf-8") as f:
             try:
                 source = f.read()
                 self.stats.lines = len(source.splitlines())
@@ -97,10 +99,12 @@ class CodeChecker(ast.NodeVisitor):
         """访问类定义"""
         self.stats.classes += 1
         # 检查类 docstring
-        if (node.body and
-            isinstance(node.body[0], ast.Expr) and
-            isinstance(node.body[0].value, ast.Constant) and
-            isinstance(node.body[0].value.value, str)):
+        if (
+            node.body
+            and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+            and isinstance(node.body[0].value.value, str)
+        ):
             self.stats.classes_with_docstring += 1
         self.generic_visit(node)
 
@@ -109,10 +113,12 @@ class CodeChecker(ast.NodeVisitor):
         self.stats.functions += 1
 
         # 检查函数 docstring
-        if (node.body and
-            isinstance(node.body[0], ast.Expr) and
-            isinstance(node.body[0].value, ast.Constant) and
-            isinstance(node.body[0].value.value, str)):
+        if (
+            node.body
+            and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+            and isinstance(node.body[0].value.value, str)
+        ):
             self.stats.functions_with_docstring += 1
 
         # 检查返回值注解
@@ -121,9 +127,7 @@ class CodeChecker(ast.NodeVisitor):
 
         # 检查参数注解
         has_param_annotations = any(
-            arg.annotation is not None
-            for arg in node.args.args
-            if arg.arg not in ('self', 'cls')
+            arg.annotation is not None for arg in node.args.args if arg.arg not in ("self", "cls")
         )
         if has_param_annotations:
             self.stats.functions_with_param_annotations += 1
@@ -146,17 +150,26 @@ def scan_directory(directory: str) -> Dict[str, ModuleStats]:
 
     for root, dirs, files in os.walk(directory):
         # 跳过测试目录、__pycache__ 等
-        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('__pycache__', 'node_modules', 'venv', 'env', 'dist', 'build')]
+        dirs[:] = [
+            d
+            for d in dirs
+            if not d.startswith(".")
+            and d not in ("__pycache__", "node_modules", "venv", "env", "dist", "build")
+        ]
 
         for filename in files:
-            if not filename.endswith('.py'):
+            if not filename.endswith(".py"):
                 continue
 
             filepath = os.path.join(root, filename)
             rel_path = os.path.relpath(filepath, directory)
 
             # 跳过 __init__.py 和测试文件
-            if filename == '__init__.py' or filename.startswith('test_') or filename.startswith('_test'):
+            if (
+                filename == "__init__.py"
+                or filename.startswith("test_")
+                or filename.startswith("_test")
+            ):
                 continue
 
             checker = CodeChecker(filepath)
@@ -180,10 +193,18 @@ def print_report(modules: Dict[str, ModuleStats]):
     # 汇总统计
     total_classes = sum(m.total_classes for m in modules.values())
     total_functions = sum(m.total_functions for m in modules.values())
-    total_with_docstring = sum(sum(f.functions_with_docstring for f in m.files) for m in modules.values())
-    total_with_hints = sum(sum(f.functions_with_type_hints for f in m.files) for m in modules.values())
-    total_with_return = sum(sum(f.functions_with_return_annotation for f in m.files) for m in modules.values())
-    total_with_params = sum(sum(f.functions_with_param_annotations for f in m.files) for m in modules.values())
+    total_with_docstring = sum(
+        sum(f.functions_with_docstring for f in m.files) for m in modules.values()
+    )
+    total_with_hints = sum(
+        sum(f.functions_with_type_hints for f in m.files) for m in modules.values()
+    )
+    total_with_return = sum(
+        sum(f.functions_with_return_annotation for f in m.files) for m in modules.values()
+    )
+    total_with_params = sum(
+        sum(f.functions_with_param_annotations for f in m.files) for m in modules.values()
+    )
 
     print("\n【汇总统计】")
     print(f"  总类数:     {total_classes}")
@@ -203,7 +224,9 @@ def print_report(modules: Dict[str, ModuleStats]):
 
     # 按模块统计
     print("\n【模块详情】")
-    print(f"{'模块':<20} {'函数':>6} {'Docstring':>12} {'类型注解':>12} {'返回值':>10} {'参数':>10}")
+    print(
+        f"{'模块':<20} {'函数':>6} {'Docstring':>12} {'类型注解':>12} {'返回值':>10} {'参数':>10}"
+    )
     print("-" * 80)
 
     for module_name, stats in sorted(modules.items()):
@@ -215,7 +238,9 @@ def print_report(modules: Dict[str, ModuleStats]):
         with_return = sum(f.functions_with_return_annotation for f in stats.files)
         with_params = sum(f.functions_with_param_annotations for f in stats.files)
 
-        print(f"{module_name:<20} {total_funcs:>6} {with_doc/total_funcs*100:>11.1f}% {with_hints/total_funcs*100:>11.1f}% {with_return/total_funcs*100:>9.1f}% {with_params/total_funcs*100:>9.1f}%")
+        print(
+            f"{module_name:<20} {total_funcs:>6} {with_doc/total_funcs*100:>11.1f}% {with_hints/total_funcs*100:>11.1f}% {with_return/total_funcs*100:>9.1f}% {with_params/total_funcs*100:>9.1f}%"
+        )
 
     # 文件详情
     print("\n【文件详情】")
@@ -224,7 +249,9 @@ def print_report(modules: Dict[str, ModuleStats]):
         all_files.extend(stats.files)
 
     # 按覆盖率排序
-    all_files.sort(key=lambda f: f.functions_with_type_hints / f.functions if f.functions > 0 else 0)
+    all_files.sort(
+        key=lambda f: f.functions_with_type_hints / f.functions if f.functions > 0 else 0
+    )
 
     print(f"{'文件':<50} {'函数':>6} {'Docstring':>12} {'类型注解':>12}")
     print("-" * 80)

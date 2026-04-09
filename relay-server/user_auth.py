@@ -17,52 +17,52 @@
 # 从数据模型模块导入
 # ============================================================================
 
+from auth_db import (
+    USER_CACHE_MAXSIZE,
+    USER_CACHE_TTL,
+    SQLiteConnectionPool,
+    UserDatabase,
+)
+from auth_hash import (
+    PBKDF2_ITERATIONS,
+    PasswordHasher,
+)
+from auth_jwt import (
+    JWTAuth,
+)
+from auth_manager import (
+    TOKEN_CACHE_MAXSIZE,
+    TOKEN_CACHE_TTL,
+    AuthenticationManager,
+)
 from auth_models import (
     AuthType,
-    UserRole,
-    Permission,
-    User,
-    TokenInfo,
     OAuth2Token,
+    Permission,
+    TokenInfo,
+    User,
+    UserRole,
 )
 
 # ============================================================================
 # 从密码哈希模块导入
 # ============================================================================
 
-from auth_hash import (
-    PasswordHasher,
-    PBKDF2_ITERATIONS,
-)
 
 # ============================================================================
 # 从 JWT 认证模块导入
 # ============================================================================
 
-from auth_jwt import (
-    JWTAuth,
-)
 
 # ============================================================================
 # 从数据库模块导入
 # ============================================================================
 
-from auth_db import (
-    SQLiteConnectionPool,
-    UserDatabase,
-    USER_CACHE_TTL,
-    USER_CACHE_MAXSIZE,
-)
 
 # ============================================================================
 # 从认证管理器模块导入
 # ============================================================================
 
-from auth_manager import (
-    AuthenticationManager,
-    TOKEN_CACHE_TTL,
-    TOKEN_CACHE_MAXSIZE,
-)
 
 # ============================================================================
 # 从密码重置模块导入

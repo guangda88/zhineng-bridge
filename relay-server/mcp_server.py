@@ -35,8 +35,8 @@ def _headers() -> dict[str, str]:
 
 
 def _request(method: str, path: str, data: dict | None = None, params: dict | None = None) -> Any:
-    import urllib.request
     import urllib.parse
+    import urllib.request
 
     url = BASE_URL + path
     if params:
@@ -88,7 +88,9 @@ def tool_file_read(path: str) -> dict:
 @mcp.tool(name="file_list", description="列出文件（灵列）")
 def tool_file_list(path: str = ".", recursive: bool = False) -> dict:
     """列出目录内容。"""
-    return _request("GET", "/api/files/list", params={"path": path, "recursive": str(recursive).lower()})
+    return _request(
+        "GET", "/api/files/list", params={"path": path, "recursive": str(recursive).lower()}
+    )
 
 
 @mcp.tool(name="file_search", description="搜索文件（灵搜）")
@@ -127,9 +129,14 @@ def tool_team_get_sessions(team_id: str) -> dict:
 @mcp.tool(name="share_session", description="共享会话（灵传）")
 def tool_share_session(team_id: str, session_id: str, title: str = "") -> dict:
     """将会话共享到团队。"""
-    return _request("POST", f"/api/teams/{team_id}/sessions/share", {
-        "session_id": session_id, "title": title,
-    })
+    return _request(
+        "POST",
+        f"/api/teams/{team_id}/sessions/share",
+        {
+            "session_id": session_id,
+            "title": title,
+        },
+    )
 
 
 # ── 插件+健康（2个工具） ──

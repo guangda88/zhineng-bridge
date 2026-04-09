@@ -3,17 +3,19 @@
 测试公网访问 100.66.1.8
 """
 
-import sys
-import socket
 import asyncio
-import websockets
 import json
+import socket
+import sys
 from datetime import datetime
+
+import websockets
 
 # 公网配置
 PUBLIC_IP = "100.66.1.8"
 HTTP_PORT = 8080
 WS_PORT = 8765
+
 
 async def test_websocket():
     """测试WebSocket连接"""
@@ -42,6 +44,7 @@ async def test_websocket():
     except Exception as e:
         print(f"❌ WebSocket连接失败: {e}")
         return False
+
 
 def test_ports():
     """测试端口连通性"""
@@ -72,10 +75,11 @@ def test_ports():
 
     return all(results)
 
+
 async def main():
-    print("="*60)
+    print("=" * 60)
     print("  智桥公网访问测试")
-    print("="*60)
+    print("=" * 60)
     print(f"公网IP: {PUBLIC_IP}")
     print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
@@ -87,9 +91,9 @@ async def main():
     ws_ok = await test_websocket()
 
     # 汇总
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  测试结果")
-    print("="*60)
+    print("=" * 60)
     print(f"端口测试: {'✅ 通过' if ports_ok else '❌ 失败'}")
     print(f"WebSocket测试: {'✅ 通过' if ws_ok else '❌ 失败'}")
 
@@ -100,6 +104,7 @@ async def main():
     else:
         print("\n❌ 部分测试失败，请检查服务状态")
         return False
+
 
 if __name__ == "__main__":
     try:

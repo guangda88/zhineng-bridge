@@ -47,11 +47,7 @@ class ChromeDevToolsMCPTester:
         if details:
             print(f"   {details}")
 
-        self.results.append({
-            "test_name": test_name,
-            "passed": passed,
-            "details": details
-        })
+        self.results.append({"test_name": test_name, "passed": passed, "details": details})
 
         self.test_count += 1
         if passed:
@@ -71,11 +67,7 @@ class ChromeDevToolsMCPTester:
         # 实际实现中会使用 HTTP/WebSocket 连接
         await asyncio.sleep(0.1)
 
-        self.log_test(
-            "服务器连接",
-            True,
-            "MCP 服务器连接成功"
-        )
+        self.log_test("服务器连接", True, "MCP 服务器连接成功")
 
         return True
 
@@ -90,11 +82,7 @@ class ChromeDevToolsMCPTester:
         # 模拟浏览器启动
         await asyncio.sleep(0.5)
 
-        self.log_test(
-            "浏览器启动",
-            True,
-            "Chrome 浏览器实例已启动"
-        )
+        self.log_test("浏览器启动", True, "Chrome 浏览器实例已启动")
 
         return True
 
@@ -110,11 +98,7 @@ class ChromeDevToolsMCPTester:
         # 模拟页面导航
         await asyncio.sleep(0.3)
 
-        self.log_test(
-            "页面导航",
-            True,
-            f"成功导航到 {test_url}"
-        )
+        self.log_test("页面导航", True, f"成功导航到 {test_url}")
 
         return True
 
@@ -129,11 +113,7 @@ class ChromeDevToolsMCPTester:
         # 模拟截图操作
         await asyncio.sleep(0.4)
 
-        self.log_test(
-            "截图功能",
-            True,
-            "成功截取页面截图"
-        )
+        self.log_test("截图功能", True, "成功截取页面截图")
 
         return True
 
@@ -149,11 +129,7 @@ class ChromeDevToolsMCPTester:
         # 模拟脚本执行
         await asyncio.sleep(0.2)
 
-        self.log_test(
-            "脚本执行",
-            True,
-            "成功执行脚本，返回结果"
-        )
+        self.log_test("脚本执行", True, "成功执行脚本，返回结果")
 
         return True
 
@@ -168,11 +144,7 @@ class ChromeDevToolsMCPTester:
         # 模拟网络监控
         await asyncio.sleep(0.3)
 
-        self.log_test(
-            "网络监控",
-            True,
-            "成功捕获网络请求"
-        )
+        self.log_test("网络监控", True, "成功捕获网络请求")
 
         return True
 
@@ -187,11 +159,7 @@ class ChromeDevToolsMCPTester:
         # 模拟获取控制台消息
         await asyncio.sleep(0.2)
 
-        self.log_test(
-            "控制台消息",
-            True,
-            "成功获取控制台消息"
-        )
+        self.log_test("控制台消息", True, "成功获取控制台消息")
 
         return True
 
@@ -206,11 +174,7 @@ class ChromeDevToolsMCPTester:
         # 模拟性能跟踪
         await asyncio.sleep(0.5)
 
-        self.log_test(
-            "性能跟踪",
-            True,
-            "成功记录性能跟踪"
-        )
+        self.log_test("性能跟踪", True, "成功记录性能跟踪")
 
         return True
 
@@ -226,11 +190,7 @@ class ChromeDevToolsMCPTester:
         # 模拟元素查询
         await asyncio.sleep(0.2)
 
-        self.log_test(
-            "页面元素",
-            True,
-            "成功查询页面元素"
-        )
+        self.log_test("页面元素", True, "成功查询页面元素")
 
         return True
 
@@ -245,11 +205,7 @@ class ChromeDevToolsMCPTester:
         # 模拟浏览器关闭
         await asyncio.sleep(0.3)
 
-        self.log_test(
-            "浏览器关闭",
-            True,
-            "成功关闭浏览器实例"
-        )
+        self.log_test("浏览器关闭", True, "成功关闭浏览器实例")
 
         return True
 
@@ -305,7 +261,7 @@ class ChromeDevToolsMCPTester:
             "passed": self.pass_count,
             "failed": self.fail_count,
             "duration": duration,
-            "results": self.results
+            "results": self.results,
         }
 
 
@@ -329,7 +285,9 @@ def print_test_report(results: Dict[str, Any]):
     print("\n" + "=" * 70)
 
 
-def save_test_report(results: Dict[str, Any], output_file: str = "chrome_devtools_test_results.json"):
+def save_test_report(
+    results: Dict[str, Any], output_file: str = "chrome_devtools_test_results.json"
+):
     """
     保存测试结果到 JSON 文件
 

@@ -5,22 +5,22 @@
 提供数据库连接池和用户数据库操作。
 """
 
-import sqlite3
-import uuid
-import threading
 import json
 import secrets
-from typing import Optional, List
-from datetime import datetime, timedelta
+import sqlite3
+import threading
+import uuid
 from contextlib import contextmanager
-from queue import Queue, Empty
+from datetime import datetime, timedelta
+from queue import Empty, Queue
+from typing import List, Optional
 
-from cachetools import TTLCache
-
-from logger import get_logger
-from config import settings
-from auth_models import User, UserRole
 from auth_hash import PasswordHasher
+from auth_models import User, UserRole
+from cachetools import TTLCache
+from logger import get_logger
+
+from config import settings
 
 # ============================================================================
 # 缓存配置
@@ -92,7 +92,7 @@ class SQLiteConnectionPool:
 
         try:
             # 尝试从线程本地存储获取连接
-            if hasattr(self._local, 'connection') and self._local.connection is not None:
+            if hasattr(self._local, "connection") and self._local.connection is not None:
                 yield self._local.connection
                 return
 
@@ -113,7 +113,7 @@ class SQLiteConnectionPool:
 
         finally:
             # 将连接放回池中（如果不是线程本地连接）
-            if conn is not None and not hasattr(self._local, 'connection'):
+            if conn is not None and not hasattr(self._local, "connection"):
                 try:
                     self._pool.put_nowait(conn)
                 except Exception:
@@ -286,10 +286,16 @@ class UserDatabase:
                     cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {coldef}")
 
             # 创建索引
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user ON oauth_tokens(user_id)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user ON oauth_tokens(user_id)"
+            )
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_password_reset_expires ON password_reset_tokens(expires_at)"
+            )
 
             conn.commit()
             self.logger.info("User database initialized", db_path=self.db_path)
@@ -330,22 +336,25 @@ class UserDatabase:
                 user_id = str(uuid.uuid4())
                 now = datetime.now().isoformat()
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO users (
                         user_id, username, email, password_hash,
                         role, permissions, is_active, created_at, updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    user_id,
-                    username,
-                    email,
-                    password_hash,
-                    role.value,
-                    json.dumps(permissions),
-                    True,
-                    now,
-                    now,
-                ))
+                """,
+                    (
+                        user_id,
+                        username,
+                        email,
+                        password_hash,
+                        role.value,
+                        json.dumps(permissions),
+                        True,
+                        now,
+                        now,
+                    ),
+                )
 
                 conn.commit()
                 self.logger.info("User created", user_id=user_id, username=username)
@@ -440,8 +449,7 @@ class UserDatabase:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM users WHERE username = ? AND is_active = TRUE",
-                (username,)
+                "SELECT * FROM users WHERE username = ? AND is_active = TRUE", (username,)
             )
             row = cursor.fetchone()
 
@@ -467,7 +475,19 @@ class UserDatabase:
         Returns:
             是否成功
         """
-        allowed_fields = {"username", "email", "role", "permissions", "is_active", "oauth_provider", "oauth_id", "password_hash", "totp_secret", "totp_enabled", "totp_backup_codes"}
+        allowed_fields = {
+            "username",
+            "email",
+            "role",
+            "permissions",
+            "is_active",
+            "oauth_provider",
+            "oauth_id",
+            "password_hash",
+            "totp_secret",
+            "totp_enabled",
+            "totp_backup_codes",
+        }
         update_fields = {k: v for k, v in kwargs.items() if k in allowed_fields}
 
         if not update_fields:
@@ -550,8 +570,7 @@ class UserDatabase:
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                (limit, offset)
+                "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)
             )
             rows = cursor.fetchall()
             return [self._row_to_user(row) for row in rows]
@@ -578,10 +597,13 @@ class UserDatabase:
         try:
             with self._pool.get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO sessions (session_id, user_id, token, expires_at, created_at)
                     VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """, (session_id, user_id, token, expires_at.isoformat()))
+                """,
+                    (session_id, user_id, token, expires_at.isoformat()),
+                )
                 conn.commit()
                 self.logger.debug("Token stored", session_id=session_id, user_id=user_id)
                 return True
@@ -601,10 +623,13 @@ class UserDatabase:
         """
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT session_id, user_id, token, expires_at, created_at
                 FROM sessions WHERE token = ?
-            """, (token,))
+            """,
+                (token,),
+            )
             row = cursor.fetchone()
             if row:
                 return {
@@ -683,10 +708,13 @@ class UserDatabase:
         """
         with self._pool.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT session_id, user_id, token, expires_at, created_at
                 FROM sessions WHERE user_id = ? AND expires_at > CURRENT_TIMESTAMP
-            """, (user_id,))
+            """,
+                (user_id,),
+            )
             rows = cursor.fetchall()
             return [
                 {
