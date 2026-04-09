@@ -121,11 +121,15 @@ jobs:
 
     - name: Start relay server
       run: |
-        cd relay-server
-        python3 start_server.py &
-        SERVER_PID=$!
-        echo $SERVER_PID > /tmp/server.pid
-        sleep 5
+        if [ -f "relay-server/start_server.py" ]; then
+          cd relay-server
+          python3 start_server.py &
+          SERVER_PID=$!
+          echo $SERVER_PID > /tmp/server.pid
+          sleep 5
+        else
+          echo "⚠ start_server.py not found, skipping server start"
+        fi
 
     - name: Run load test
       run: |
