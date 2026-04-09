@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>调试页面</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        #output { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>JavaScript 调试</h1>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = msg;
+            output.appendChild(div);
+            console.log(`[${type}] ${msg}`);
+        }
+
+        // 等待DOM加载
+        document.addEventListener('DOMContentLoaded', () => {
+            log('=== DOMContentLoaded 事件触发 ===', 'info');
+
+            // 检查按钮是否存在
+            const newSessionBtn = document.getElementById('newSessionBtn');
+            const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
+
+            if (newSessionBtn) {
+                log('✅ newSessionBtn 存在', 'success');
+            } else {
+                log('❌ newSessionBtn 不存在', 'error');
+            }
+
+            if (refreshSessionsBtn) {
+                log('✅ refreshSessionsBtn 存在', 'success');
+            } else {
+                log('❌ refreshSessionsBtn 不存在', 'error');
+            }
+
+            // 检查导航项
+            const navItems = document.querySelectorAll('.nav-item');
+            log(`找到 ${navItems.length} 个导航项`, 'info');
+            navItems.forEach((item, index) => {
+                log(`  导航 ${index}: ${item.textContent} (href: ${item.getAttribute('href')})`, 'info');
+            });
+
+            // 检查页面
+            const pages = document.querySelectorAll('.page');
+            log(`找到 ${pages.length} 个页面`, 'info');
+            pages.forEach((page, index) => {
+                log(`  页面 ${index}: ${page.id} (active: ${page.classList.contains('active')})`, 'info');
+            });
+
+            // 测试点击导航
+            log('测试导航点击...', 'info');
+            navItems.forEach((item, index) => {
+                const page = item.getAttribute('href').substring(1);
+                log(`点击导航 ${index} (${page})...`, 'info');
+
+                // 模拟点击
+                item.click();
+
+                // 检查页面切换
+                const activePage = document.querySelector('.page.active');
+                if (activePage) {
+                    log(`  当前活动页面: ${activePage.id}`, 'info');
+                } else {
+                    log('  没有活动页面！', 'error');
+                }
+
+                // 检查导航项状态
+                navItems.forEach(nav => {
+                    if (nav.classList.contains('active')) {
+                        log(`  活动导航: ${nav.textContent}`, 'info');
+                    }
+                });
+            });
+
+            // 测试按钮点击
+            log('测试按钮点击...', 'info');
+            if (newSessionBtn) {
+                log('点击 newSessionBtn...', 'info');
+                newSessionBtn.click();
+                log('  点击完成', 'info');
+            }
+
+            if (refreshSessionsBtn) {
+                log('点击 refreshSessionsBtn...', 'info');
+                refreshSessionsBtn.click();
+                log('  点击完成', 'info');
+            }
+
+            log('=== 调试完成 ===', 'info');
+        });
+    </script>
+</body>
+</html>

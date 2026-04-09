@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完整调试页面</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/improvements.css">
+    <style>
+        #debug-output {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 400px;
+            max-height: 100vh;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            padding: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 99999;
+        }
+        #debug-output .log { margin: 5px 0; }
+        #debug-output .success { color: #0f0; }
+        #debug-output .error { color: #f00; }
+        #debug-output .warn { color: #ff0; }
+    </style>
+</head>
+<body>
+    <div id="debug-output"></div>
+
+    <div class="app">
+        <!-- 头部导航 -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🌉</span>
+                    <span class="logo-text">智桥</span>
+                </div>
+                <nav class="nav">
+                    <a href="#tools" class="nav-item active">工具</a>
+                    <a href="#sessions" class="nav-item">会话</a>
+                    <a href="#settings" class="nav-item">设置</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main">
+            <!-- 工具选择页面 -->
+            <section id="tools" class="page active">
+                <h2 class="page-title">选择工具</h2>
+                <div class="tools-grid" id="toolsGrid"></div>
+            </section>
+
+            <!-- 会话管理页面 -->
+            <section id="sessions" class="page">
+                <h2 class="page-title">会话管理</h2>
+                <div class="sessions-header">
+                    <button class="btn btn-primary" id="newSessionBtn">新建会话</button>
+                    <button class="btn btn-secondary" id="refreshSessionsBtn">刷新</button>
+                </div>
+                <div class="sessions-list" id="sessionsList"></div>
+            </section>
+
+            <!-- 设置页面 -->
+            <section id="settings" class="page">
+                <h2 class="page-title">设置</h2>
+                <div class="settings-list" id="settingsList"></div>
+            </section>
+        </main>
+
+        <!-- 底部状态栏 -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">未连接</span>
+                </div>
+                <div class="footer-nav">
+                    <a href="#tools" class="footer-nav-item" data-page="tools">工具</a>
+                    <a href="#sessions" class="footer-nav-item" data-page="sessions">会话</a>
+                    <a href="#settings" class="footer-nav-item" data-page="settings">设置</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const debugOutput = document.getElementById('debug-output');
+
+        function debugLog(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            debugOutput.appendChild(div);
+            console.log(`[${type}] ${msg}`);
+        }
+
+        debugLog('=== 开始调试 ===', 'success');
+
+        // 模拟app.js
+        const TOOLS = [
+            { id: 'crush', name: 'Crush', icon: '💎', description: 'Test tool', status: 'available', color: '#FFE66D' }
+        ];
+
+        let SESSIONS = [];
+
+        const APP_STATE = {
+            currentPage: 'tools',
+            selectedTool: null,
+            selectedSession: null,
+            isConnected: false
+        };
+
+        function renderTools() {
+            const toolsGrid = document.getElementById('toolsGrid');
+            if (!toolsGrid) {
+                debugLog('❌ toolsGrid 元素不存在', 'error');
+                return;
+            }
+            toolsGrid.innerHTML = '';
+            TOOLS.forEach(tool => {
+                const card = document.createElement('div');
+                card.className = 'tool-card';
+                card.innerHTML = `
+                    <div class="tool-icon" style="color: ${tool.color}">${tool.icon}</div>
+                    <div class="tool-name">${tool.name}</div>
+                    <div class="tool-description">${tool.description}</div>
+                `;
+                card.addEventListener('click', () => {
+                    debugLog(`点击工具: ${tool.name}`, 'success');
+                    APP_STATE.selectedTool = tool;
+                    navigateToPage('sessions');
+                });
+                toolsGrid.appendChild(card);
+            });
+            debugLog(`✅ 渲染了 ${TOOLS.length} 个工具`, 'success');
+        }
+
+        function renderSessions() {
+            const sessionsList = document.getElementById('sessionsList');
+            if (!sessionsList) {
+                debugLog('❌ sessionsList 元素不存在', 'error');
+                return;
+            }
+            if (SESSIONS.length === 0) {
+                sessionsList.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无会话</div></div>';
+            }
+            debugLog(`✅ 渲染了 ${SESSIONS.length} 个会话`, 'success');
+        }
+
+        function navigateToPage(page) {
+            debugLog(`导航到页面: ${page}`, 'info');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(page).classList.add('active');
+            document.querySelectorAll('.nav-item, .footer-nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === `#${page}` || item.getAttribute('data-page') === page) {
+                    item.classList.add('active');
+                }
+            });
+            APP_STATE.currentPage = page;
+        }
+
+        function newSession() {
+            debugLog('newSession 被调用', 'success');
+            if (!APP_STATE.selectedTool) {
+                debugLog('❌ 请先选择一个工具', 'error');
+                return;
+            }
+            debugLog(`创建会话: ${APP_STATE.selectedTool.name}`, 'success');
+            SESSIONS.push({
+                session_id: 'test-' + Date.now(),
+                tool_name: APP_STATE.selectedTool.id,
+                status: 'running',
+                created_at: new Date().toISOString()
+            });
+            renderSessions();
+        }
+
+        function refreshSessions() {
+            debugLog('refreshSessions 被调用', 'success');
+            debugLog('会话列表已刷新', 'success');
+        }
+
+        function setupNavigation() {
+            debugLog('设置导航...', 'info');
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = item.getAttribute('href').substring(1);
+                    debugLog(`点击导航: ${page}`, 'info');
+                    navigateToPage(page);
+                });
+            });
+            debugLog('✅ 导航设置完成', 'success');
+        }
+
+        function setupButtonEvents() {
+            debugLog('设置按钮事件...', 'info');
+
+            const newSessionBtn = document.getElementById('newSessionBtn');
+            debugLog(`newSessionBtn: ${newSessionBtn ? '存在' : '不存在'}`, newSessionBtn ? 'success' : 'error');
+            if (newSessionBtn) {
+                newSessionBtn.addEventListener('click', (e) => {
+                    debugLog('👆 点击新建会话按钮', 'info');
+                    e.stopPropagation();
+                    newSession();
+                });
+                debugLog('✅ 新建会话按钮已绑定', 'success');
+            }
+
+            const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
+            debugLog(`refreshSessionsBtn: ${refreshSessionsBtn ? '存在' : '不存在'}`, refreshSessionsBtn ? 'success' : 'error');
+            if (refreshSessionsBtn) {
+                refreshSessionsBtn.addEventListener('click', (e) => {
+                    debugLog('👆 点击刷新按钮', 'info');
+                    e.stopPropagation();
+                    refreshSessions();
+                });
+                debugLog('✅ 刷新按钮已绑定', 'success');
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            debugLog('DOMContentLoaded 触发', 'success');
+
+            // 检查元素
+            const toolsGrid = document.getElementById('toolsGrid');
+            const sessionsList = document.getElementById('sessionsList');
+            const settingsList = document.getElementById('settingsList');
+            const navItems = document.querySelectorAll('.nav-item');
+            const footerNavItems = document.querySelectorAll('.footer-nav-item');
+
+            debugLog(`元素检查: toolsGrid=${toolsGrid ? '✅' : '❌'} sessionsList=${sessionsList ? '✅' : '❌'} settingsList=${settingsList ? '✅' : '❌'}`, toolsGrid && sessionsList && settingsList ? 'success' : 'error');
+            debugLog(`导航检查: navItems=${navItems.length} footerNavItems=${footerNavItems.length}`, 'info');
+
+            renderTools();
+            renderSessions();
+            setupNavigation();
+            setupButtonEvents();
+
+            debugLog('=== 初始化完成 ===', 'success');
+        });
+
+        debugLog('脚本加载完成', 'success');
+    </script>
+</body>
+</html>

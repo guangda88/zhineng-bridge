@@ -1,0 +1,466 @@
+openapi: 3.0.3
+info:
+  title: Zhineng-bridge API
+  description: |
+    智桥（Zhineng-bridge）是一个跨平台实时同步和通信 SDK，连接多个 AI 编码工具和 IDE。
+
+    ## Features
+
+    * **WebSocket Communication**: Real-time bidirectional communication
+    * **Multi-Tool Support**: Supports 8 mainstream AI coding tools
+    * **Session Management**: Create, manage, and stop AI tool sessions
+    * **Security**: Authentication, rate limiting, and input validation
+    * **Monitoring**: Health checks and metrics endpoints
+    * **Interactive Documentation**: Swagger UI for easy API exploration
+
+    ## Authentication
+
+    By default, authentication is disabled. When enabled, clients must send an `authenticate` message as the first message.
+
+    ## WebSocket URL
+
+    * **Development**: `ws://localhost:8765`
+    * **Production**: `wss://your-domain.com:8765` (with TLS)
+
+    ## Code Examples
+
+    See [CODE_EXAMPLES.md](./CODE_EXAMPLES.md) for code examples in multiple languages:
+    - JavaScript/TypeScript
+    - Python
+    - Go
+    - Java
+    - C#
+    - Rust
+
+    ## Documentation
+
+    * **Interactive Docs**: [Swagger UI](/docs)
+    * **OpenAPI Spec**: [openapi.yaml](/openapi.yaml)
+    * **Code Examples**: [CODE_EXAMPLES.md](./CODE_EXAMPLES.md)
+
+  version: 1.0.0
+  contact:
+    name: Zhineng-bridge Team
+    url: https://github.com/guangda88/zhineng-bridge
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: ws://localhost:8765
+    description: Development server (WebSocket)
+  - url: wss://localhost:8765
+    description: Production server (WebSocket Secure)
+  - url: http://localhost:8000
+    description: Health check server (HTTP)
+
+tags:
+  - name: WebSocket Messages
+    description: WebSocket message types and formats
+  - name: HTTP Endpoints
+    description: HTTP API endpoints for health and monitoring
+  - name: Authentication
+    description: Authentication and authorization
+  - name: Sessions
+    description: Session management
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check if the service is healthy
+      operationId: healthCheck
+      tags:
+        - HTTP Endpoints
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  service:
+                    type: string
+                    example: zhineng-bridge
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  components:
+                    type: object
+                    additionalProperties: true
+
+  /metrics:
+    get:
+      summary: Service metrics
+      description: Get current service metrics and statistics
+      operationId: getMetrics
+      tags:
+        - HTTP Endpoints
+      responses:
+        '200':
+          description: Metrics data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                    example: zhineng-bridge
+                  rate_limiting:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                      algorithm:
+                        type: string
+                      requests_per_minute:
+                        type: integer
+                      requests_per_hour:
+                        type: integer
+                      active_clients:
+                        type: integer
+                  other_metrics:
+                    type: object
+                    properties:
+                      websocket_connections:
+                        type: integer
+                      active_sessions:
+                        type: integer
+                      messages_sent:
+                        type: integer
+                      messages_received:
+                        type: integer
+                      errors:
+                        type: integer
+                      uptime_seconds:
+                        type: integer
+
+  /status:
+    get:
+      summary: Service status
+      description: Get current service status and configuration
+      operationId: getStatus
+      tags:
+        - HTTP Endpoints
+      responses:
+        '200':
+          description: Service status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:
+                    type: string
+                  version:
+                    type: string
+                  configuration:
+                    type: object
+                  features:
+                    type: object
+
+  /docs:
+    get:
+      summary: Interactive API documentation
+      description: Access the Swagger UI for interactive API documentation
+      operationId: getDocs
+      tags:
+        - HTTP Endpoints
+      responses:
+        '200':
+          description: HTML page with Swagger UI
+          content:
+            text/html:
+              schema:
+                type: string
+                example: '<!DOCTYPE html>...'
+
+  /openapi.yaml:
+    get:
+      summary: OpenAPI specification
+      description: Get the OpenAPI 3.0.3 specification in YAML format
+      operationId: getOpenApiSpec
+      tags:
+        - HTTP Endpoints
+      responses:
+        '200':
+          description: OpenAPI specification
+          content:
+            text/yaml:
+              schema:
+                type: string
+                example: 'openapi: 3.0.3\ninfo:\n  title: ...'
+
+components:
+  schemas:
+    BaseMessage:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: Message type
+          enum:
+            - ping
+            - pong
+            - authenticate
+            - list_sessions
+            - start_session
+            - stop_session
+            - delete_session
+            - sessions_list
+            - session_started
+            - session_stopped
+            - session_deleted
+            - output
+            - error
+            - auth_success
+
+    PingMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: ping
+
+    PongMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: pong
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-03-25T10:00:00Z"
+
+    AuthenticateMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      required:
+        - token
+      properties:
+        type:
+          const: authenticate
+        token:
+          type: string
+          description: Authentication token
+          example: "user_id:timestamp:signature"
+
+    ListSessionsMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: list_sessions
+
+    StartSessionMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      required:
+        - tool_name
+      properties:
+        type:
+          const: start_session
+        tool_name:
+          type: string
+          enum:
+            - crush
+            - claude
+            - iflow
+            - cursor
+            - trae
+            - factroydroid
+            - openclaw
+            - copilot
+          description: AI tool name
+          example: crush
+        args:
+          type: array
+          items:
+            type: string
+          description: Command arguments
+          example: ["--help"]
+
+    StopSessionMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      required:
+        - session_id
+      properties:
+        type:
+          const: stop_session
+        session_id:
+          type: string
+          format: uuid
+          description: Session ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    DeleteSessionMessage:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      required:
+        - session_id
+      properties:
+        type:
+          const: delete_session
+        session_id:
+          type: string
+          format: uuid
+          description: Session ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    SessionsListResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: sessions_list
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              session_id:
+                type: string
+                format: uuid
+              tool_name:
+                type: string
+              status:
+                type: string
+                enum: [created, running, stopped, error]
+              created_at:
+                type: string
+                format: date-time
+        count:
+          type: integer
+          minimum: 0
+          example: 0
+
+    SessionStartedResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: session_started
+        session_id:
+          type: string
+          format: uuid
+        tool_name:
+          type: string
+        status:
+          type: string
+          enum: [created, running, stopped]
+          example: running
+
+    SessionStoppedResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: session_stopped
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          const: stopped
+
+    SessionDeletedResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: session_deleted
+        session_id:
+          type: string
+          format: uuid
+
+    OutputResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: output
+        session_id:
+          type: string
+          format: uuid
+        output:
+          type: string
+          description: Session output
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      required:
+        - message
+      properties:
+        type:
+          const: error
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Error message
+        code:
+          type: integer
+          minimum: 100
+          maximum: 599
+          description: HTTP-style error code
+          enum:
+            - 400  # Bad Request
+            - 401  # Unauthorized
+            - 403  # Forbidden
+            - 404  # Not Found
+            - 409  # Conflict
+            - 422  # Unprocessable Entity
+            - 429  # Too Many Requests
+            - 500  # Internal Server Error
+            - 503  # Service Unavailable
+            - 504  # Gateway Timeout
+
+    AuthSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/BaseMessage'
+      type: object
+      properties:
+        type:
+          const: auth_success
+        message:
+          type: string
+          const: "Authentication successful"
+        user_id:
+          type: string
+          description: User ID
+        username:
+          type: string
+          description: Username
+
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication using HMAC-SHA256 signed tokens

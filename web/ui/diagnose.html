@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会话创建诊断</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        #console-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log {
+            margin: 2px 0;
+        }
+        .log.info { color: #4ecdc4; }
+        .log.success { color: #48bb78; }
+        .log.error { color: #f56565; }
+        .log.warning { color: #f6e05e; }
+        #status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .connected { background: #c6f6d5; color: #22543d; }
+        .disconnected { background: #fed7d7; color: #742a2a; }
+        .info-list {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .info-list li {
+            margin: 5px 0;
+        }
+        .info-list li span {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>会话创建诊断工具</h1>
+
+    <div id="status" class="disconnected">WebSocket 未连接</div>
+
+    <div class="container">
+        <div class="box">
+            <h2>控制面板</h2>
+            <div>
+                <button class="btn-primary" onclick="diagnose()">开始诊断</button>
+                <button class="btn-success" onclick="testSessionCreation()">测试创建会话</button>
+                <button class="btn-primary" onclick="clearConsole()">清除日志</button>
+            </div>
+
+            <h3 style="margin-top: 20px;">诊断信息</h3>
+            <ul class="info-list" id="diagnosis-info">
+                <li>等待诊断...</li>
+            </ul>
+
+            <h3 style="margin-top: 20px;">全局变量</h3>
+            <ul class="info-list" id="global-vars">
+                <li>等待检查...</li>
+            </ul>
+        </div>
+
+        <div class="box">
+            <h2>控制台输出</h2>
+            <div id="console-output"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let allLogs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const output = document.getElementById('console-output');
+            const line = document.createElement('div');
+            line.className = `log ${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+
+            // 保存到数组
+            allLogs.push({ timestamp, message, type });
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function clearConsole() {
+            const output = document.getElementById('console-output');
+            output.innerHTML = '';
+            allLogs = [];
+            log('控制台已清除', 'info');
+        }
+
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            if (connected) {
+                status.textContent = 'WebSocket 已连接';
+                status.className = 'connected';
+            } else {
+                status.textContent = 'WebSocket 未连接';
+                status.className = 'disconnected';
+            }
+        }
+
+        function diagnose() {
+            log('开始诊断...', 'info');
+
+            // 检查全局变量
+            const globalInfo = document.getElementById('global-vars');
+            globalInfo.innerHTML = '';
+
+            const vars = [
+                { name: 'window.APP_STATE', exists: typeof window.APP_STATE !== 'undefined' },
+                { name: 'window.SESSIONS', exists: typeof window.SESSIONS !== 'undefined' },
+                { name: 'window.TOOLS', exists: typeof window.TOOLS !== 'undefined' },
+                { name: 'window.ws', exists: typeof window.ws !== 'undefined' },
+                { name: 'window.newSession', exists: typeof window.newSession === 'function' },
+                { name: 'window.connectWebSocket', exists: typeof window.connectWebSocket === 'function' },
+                { name: 'window.handleMessage', exists: typeof window.handleMessage === 'function' },
+                { name: 'window.handleSessionStarted', exists: typeof window.handleSessionStarted === 'function' },
+                { name: 'window.refreshSessions', exists: typeof window.refreshSessions === 'function' },
+                { name: 'window.renderSessions', exists: typeof window.renderSessions === 'function' },
+            ];
+
+            vars.forEach(v => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${v.name}</span>: ${v.exists ? '✅ 存在' : '❌ 不存在'}`;
+                globalInfo.appendChild(li);
+                log(`${v.name}: ${v.exists ? '✅' : '❌'}`, v.exists ? 'success' : 'error');
+            });
+
+            // 诊断信息
+            const diagnosisInfo = document.getElementById('diagnosis-info');
+            diagnosisInfo.innerHTML = '';
+
+            const issues = [];
+            const ok = [];
+
+            if (typeof window.APP_STATE !== 'undefined') {
+                ok.push('APP_STATE 存在');
+                log(`APP_STATE: ${JSON.stringify(window.APP_STATE)}`, 'info');
+            } else {
+                issues.push('APP_STATE 不存在');
+            }
+
+            if (typeof window.ws !== 'undefined' && window.ws !== null) {
+                const wsState = ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][window.ws.readyState];
+                ok.push(`WebSocket 状态: ${wsState} (${window.ws.readyState})`);
+                log(`WebSocket 状态: ${wsState}`, window.ws.readyState === 1 ? 'success' : 'warning');
+            } else {
+                issues.push('WebSocket 未初始化');
+            }
+
+            if (typeof window.newSession === 'function') {
+                ok.push('newSession 函数存在');
+            } else {
+                issues.push('newSession 函数不存在');
+            }
+
+            if (typeof window.connectWebSocket === 'function') {
+                ok.push('connectWebSocket 函数存在');
+            } else {
+                issues.push('connectWebSocket 函数不存在');
+            }
+
+            issues.forEach(issue => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span style="color: red;">⚠️ ${issue}</span>`;
+                diagnosisInfo.appendChild(li);
+                log(`⚠️ ${issue}`, 'warning');
+            });
+
+            ok.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span style="color: green;">✅ ${item}</span>`;
+                diagnosisInfo.appendChild(li);
+                log(`✅ ${item}`, 'success');
+            });
+
+            log(`诊断完成: ${ok.length} 项正常, ${issues.length} 项问题`, issues.length > 0 ? 'warning' : 'success');
+        }
+
+        function testSessionCreation() {
+            log('测试会话创建...', 'info');
+
+            if (typeof window.newSession !== 'function') {
+                log('❌ newSession 函数不存在，无法测试', 'error');
+                return;
+            }
+
+            // 检查 APP_STATE
+            if (typeof window.APP_STATE === 'undefined') {
+                log('❌ APP_STATE 不存在，初始化中...', 'warning');
+                window.APP_STATE = {
+                    currentPage: 'tools',
+                    selectedTool: null,
+                    selectedSession: null,
+                    isConnected: false
+                };
+                log('✅ APP_STATE 已初始化', 'success');
+            }
+
+            // 设置选中的工具
+            window.APP_STATE.selectedTool = {
+                id: 'crush',
+                name: 'Crush',
+                icon: '💎',
+                description: 'Charmbracelet Crush',
+                status: 'available',
+                color: '#FFE66D'
+            };
+            log(`选中的工具: ${window.APP_STATE.selectedTool.name}`, 'info');
+
+            // 检查 WebSocket
+            if (typeof window.ws !== 'undefined' && window.ws !== null && window.ws.readyState === WebSocket.OPEN) {
+                log('✅ WebSocket 已连接', 'success');
+            } else {
+                log('⚠️ WebSocket 未连接，尝试连接...', 'warning');
+
+                // 创建连接
+                window.ws = new WebSocket('ws://10.113.22.99:8765');
+
+                window.ws.onopen = () => {
+                    log('✅ WebSocket 连接成功', 'success');
+                    updateStatus(true);
+                    setTimeout(() => {
+                        log('调用 newSession()...', 'info');
+                        try {
+                            window.newSession();
+                            log('✅ newSession() 调用成功', 'success');
+                        } catch (error) {
+                            log(`❌ newSession() 调用失败: ${error.message}`, 'error');
+                            console.error(error);
+                        }
+                    }, 500);
+                };
+
+                window.ws.onclose = (event) => {
+                    log(`❌ WebSocket 关闭: code=${event.code}`, 'error');
+                    updateStatus(false);
+                };
+
+                window.ws.onerror = (error) => {
+                    log(`❌ WebSocket 错误: ${error}`, 'error');
+                };
+
+                window.ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📨 收到消息: ${JSON.stringify(data)}`, 'info');
+
+                        // 处理 session_started 消息
+                        if (data.type === 'session_started') {
+                            log(`✅ 会话已启动: ${data.session_id}`, 'success');
+
+                            // 检查是否有 pendingSessionStart
+                            if (window.APP_STATE.pendingSessionStart) {
+                                log(`✅ pendingSessionStart 存在: ${JSON.stringify(window.APP_STATE.pendingSessionStart)}`, 'success');
+                            } else {
+                                log(`⚠️ pendingSessionStart 不存在`, 'warning');
+                            }
+                        }
+                    } catch (error) {
+                        log(`❌ 消息解析失败: ${error.message}`, 'error');
+                    }
+                };
+
+                return;
+            }
+
+            // WebSocket 已连接，直接调用 newSession
+            log('调用 newSession()...', 'info');
+            try {
+                window.newSession();
+                log('✅ newSession() 调用成功', 'success');
+
+                // 等待响应
+                setTimeout(() => {
+                    if (window.APP_STATE.pendingSessionStart) {
+                        log(`✅ pendingSessionStart 已设置: ${JSON.stringify(window.APP_STATE.pendingSessionStart)}`, 'success');
+                    } else {
+                        log(`❌ pendingSessionStart 未设置`, 'error');
+                    }
+                }, 100);
+            } catch (error) {
+                log(`❌ newSession() 调用失败: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // 页面加载时自动诊断
+        window.onload = () => {
+            log('页面已加载', 'info');
+            setTimeout(() => {
+                diagnose();
+            }, 500);
+        };
+
+        // 重写 console.log 来捕获日志
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            log(args.join(' '), 'info');
+        };
+
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            log(args.join(' '), 'error');
+        };
+
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            log(args.join(' '), 'warning');
+        };
+    </script>
+</body>
+</html>

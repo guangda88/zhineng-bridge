@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  zhineng-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zhineng-bridge
+    ports:
+      - "8000:8000"   # HTTP Server
+      - "8765:8765"   # WebSocket Relay Server
+    environment:
+      # Server Configuration
+      - ZHINENG_BRIDGE_HOST=0.0.0.0
+      - ZHINENG_BRIDGE_PORT=8765
+      - ZHINENG_BRIDGE_MAX_CONNECTIONS=100
+      - ZHINENG_BRIDGE_SESSION_TIMEOUT=3600
+      - ZHINENG_BRIDGE_MAX_SESSIONS=100
+      - ZHINENG_BRIDGE_PING_INTERVAL=10
+      - ZHINENG_BRIDGE_PING_TIMEOUT=5
+
+      # Logging Configuration
+      - ZHINENG_BRIDGE_LOG_LEVEL=INFO
+      - ZHINENG_BRIDGE_LOG_FORMAT=json
+      - ZHINENG_BRIDGE_LOG_FILE=/var/log/zhineng-bridge/relay-server.log
+
+      # Security Configuration
+      - ZHINENG_BRIDGE_SECURITY_ENABLE_AUTH=false
+      - ZHINENG_BRIDGE_SECURITY_ENABLE_RATE_LIMIT=true
+      - ZHINENG_BRIDGE_SECURITY_RATE_LIMIT_PER_MINUTE=60
+      - ZHINENG_BRIDGE_SECURITY_RATE_LIMIT_PER_HOUR=1000
+
+      # Monitoring Configuration
+      - ZHINENG_BRIDGE_MONITORING_ENABLE_HEALTH_CHECK=true
+      - ZHINENG_BRIDGE_MONITORING_ENABLE_PERFORMANCE_MONITORING=true
+
+      # Python Environment
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Log volume
+      - zhineng-bridge-logs:/var/log/zhineng-bridge
+      # Config volume (optional)
+      - ./relay-server:/app/relay-server:ro
+      # SSL Certificates volume (for WSS, optional)
+      # - ./certs:/app/certs:ro
+    networks:
+      - zhineng-bridge-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Optional: Redis for message queue (future)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: zhineng-bridge-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - zhineng-bridge-net
+  #   restart: unless-stopped
+
+  # Optional: PostgreSQL for production database
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: zhineng-bridge-postgres
+  #   environment:
+  #     - POSTGRES_DB=zhineng_bridge
+  #     - POSTGRES_USER=zhineng
+  #     - POSTGRES_PASSWORD=zhineng_password
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   networks:
+  #     - zhineng-bridge-net
+  #   restart: unless-stopped
+
+  # Optional: Prometheus for monitoring
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: zhineng-bridge-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus-data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #   networks:
+  #     - zhineng-bridge-net
+  #   restart: unless-stopped
+
+  # Optional: Grafana for visualization
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: zhineng-bridge-grafana
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #   networks:
+  #     - zhineng-bridge-net
+  #   restart: unless-stopped
+
+volumes:
+  zhineng-bridge-logs:
+    driver: local
+  # redis-data:
+  #   driver: local
+  # postgres-data:
+  #   driver: local
+  # prometheus-data:
+  #   driver: local
+  # grafana-data:
+  #   driver: local
+
+networks:
+  zhineng-bridge-net:
+    driver: bridge

@@ -1,0 +1,38 @@
+{
+  "total_tests": 6,
+  "passed": 6,
+  "failed": 0,
+  "duration": 3.2288007736206055,
+  "results": [
+    {
+      "test_name": "页面导航",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "test_name": "页面标题获取",
+      "passed": true,
+      "details": "智桥 - 跨平台实时同步和通信SDK"
+    },
+    {
+      "test_name": "页面截图",
+      "passed": true,
+      "details": "截图保存到 /tmp/zhineng_bridge_test.png"
+    },
+    {
+      "test_name": "WebSocket 连接",
+      "passed": true,
+      "details": "状态: true"
+    },
+    {
+      "test_name": "页面元素检查",
+      "passed": true,
+      "details": "Logo: True, 工具区: True, 工具网格: True, 会话区: True, 会话列表: True, 新建按钮: True"
+    },
+    {
+      "test_name": "控制台错误检查",
+      "passed": true,
+      "details": "无错误"
+    }
+  ]
+}

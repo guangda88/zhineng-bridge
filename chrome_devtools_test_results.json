@@ -1,0 +1,58 @@
+{
+  "total_tests": 10,
+  "passed": 10,
+  "failed": 0,
+  "duration": 3.005628824234009,
+  "results": [
+    {
+      "test_name": "服务器连接",
+      "passed": true,
+      "details": "MCP 服务器连接成功"
+    },
+    {
+      "test_name": "浏览器启动",
+      "passed": true,
+      "details": "Chrome 浏览器实例已启动"
+    },
+    {
+      "test_name": "页面导航",
+      "passed": true,
+      "details": "成功导航到 https://example.com"
+    },
+    {
+      "test_name": "截图功能",
+      "passed": true,
+      "details": "成功截取页面截图"
+    },
+    {
+      "test_name": "脚本执行",
+      "passed": true,
+      "details": "成功执行脚本，返回结果"
+    },
+    {
+      "test_name": "网络监控",
+      "passed": true,
+      "details": "成功捕获网络请求"
+    },
+    {
+      "test_name": "控制台消息",
+      "passed": true,
+      "details": "成功获取控制台消息"
+    },
+    {
+      "test_name": "性能跟踪",
+      "passed": true,
+      "details": "成功记录性能跟踪"
+    },
+    {
+      "test_name": "页面元素",
+      "passed": true,
+      "details": "成功查询页面元素"
+    },
+    {
+      "test_name": "浏览器关闭",
+      "passed": true,
+      "details": "成功关闭浏览器实例"
+    }
+  ]
+}

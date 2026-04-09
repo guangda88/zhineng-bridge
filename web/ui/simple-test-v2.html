@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单测试</title>
+</head>
+<body>
+    <h1>简单会话创建测试</h1>
+    <div id="output"></div>
+
+    <!-- 加载原始的 JavaScript 文件 -->
+    <script>
+        window.SESSIONS = [];
+        window.APP_STATE = {
+            currentPage: 'tools',
+            selectedTool: {
+                id: 'crush',
+                name: 'Crush'
+            },
+            selectedSession: null,
+            isConnected: false
+        };
+
+        function showNotification(msg, type) {
+            console.log(`[${type}] ${msg}`);
+            const div = document.createElement('div');
+            div.textContent = `[${type}] ${msg}`;
+            document.getElementById('output').appendChild(div);
+        }
+
+        function renderSessions() {
+            console.log('renderSessions 被调用');
+            showNotification(`会话数: ${window.SESSIONS.length}`, 'info');
+        }
+
+        function navigateToPage(page) {
+            console.log(`navigateToPage(${page}) 被调用`);
+        }
+    </script>
+
+    <script src="js/settings.js?v=<?php echo time(); ?>"></script>
+    <script src="js/tools.js?v=<?php echo time(); ?>"></script>
+    <script src="js/sessions.js?v=<?php echo time(); ?>"></script>
+    <script src="js/client.js?v=<?php echo time(); ?>"></script>
+    <script src="js/improvements.js?v=<?php echo time(); ?>"></script>
+
+    <script>
+        console.log('所有脚本已加载');
+        showNotification('所有脚本已加载', 'info');
+
+        // 检查关键函数
+        const functions = [
+            'newSession',
+            'connectWebSocket',
+            'handleMessage',
+            'handleSessionStarted',
+            'refreshSessions'
+        ];
+
+        functions.forEach(fn => {
+            if (typeof window[fn] === 'function') {
+                showNotification(`✅ ${fn} 函数存在`, 'success');
+            } else {
+                showNotification(`❌ ${fn} 函数不存在`, 'error');
+            }
+        });
+
+        // 测试连接 WebSocket
+        setTimeout(() => {
+            showNotification('尝试连接 WebSocket...', 'info');
+
+            window.ws = new WebSocket('ws://10.113.22.99:8765');
+
+            window.ws.onopen = () => {
+                showNotification('✅ WebSocket 已连接', 'success');
+                window.APP_STATE.isConnected = true;
+
+                // 测试调用 newSession
+                setTimeout(() => {
+                    showNotification('调用 newSession()...', 'info');
+                    try {
+                        window.newSession();
+                        showNotification('✅ newSession() 调用成功', 'success');
+                    } catch (error) {
+                        showNotification(`❌ newSession() 失败: ${error.message}`, 'error');
+                        console.error(error);
+                    }
+                }, 1000);
+            };
+
+            window.ws.onclose = (event) => {
+                showNotification(`❌ WebSocket 关闭: ${event.code}`, 'error');
+            };
+
+            window.ws.onerror = (error) => {
+                showNotification(`❌ WebSocket 错误`, 'error');
+            };
+
+            window.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    showNotification(`📨 收到: ${data.type}`, 'info');
+                    console.log('收到消息:', data);
+
+                    if (data.type === 'session_started') {
+                        showNotification(`✅ 会话已启动: ${data.session_id}`, 'success');
+
+                        if (window.APP_STATE.pendingSessionStart) {
+                            showNotification(`✅ pendingSessionStart 存在`, 'success');
+                        } else {
+                            showNotification(`⚠️ pendingSessionStart 不存在`, 'warning');
+                        }
+                    }
+                } catch (error) {
+                    showNotification(`❌ 消息解析失败`, 'error');
+                }
+            };
+        }, 500);
+    </script>
+</body>
+</html>
