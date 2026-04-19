@@ -61,6 +61,7 @@ async def relay_server():
         pass
 
 
+@pytest.mark.benchmark
 class TestConnectionPerformance:
     """连接性能测试"""
 
@@ -99,6 +100,7 @@ class TestConnectionPerformance:
         print(f"\n连接建立 平均: {avg*1000:.1f}ms")
 
 
+@pytest.mark.benchmark
 class TestPingPongPerformance:
     """Ping/Pong 性能测试"""
 
@@ -142,6 +144,7 @@ class TestPingPongPerformance:
         assert rate > 100, f"吞吐量 {rate:.0f} < 100 msg/s"
 
 
+@pytest.mark.benchmark
 class TestChatRoutingPerformance:
     """消息路由性能测试"""
 
@@ -198,6 +201,7 @@ class TestChatRoutingPerformance:
         assert avg < 0.2, f"chat往返平均耗时 {avg*1000:.1f}ms > 200ms"
 
 
+@pytest.mark.benchmark
 class TestBackendRegistrationPerformance:
     """后端注册性能测试"""
 
@@ -228,6 +232,7 @@ class TestBackendRegistrationPerformance:
         assert avg < 0.2, f"后端注册平均耗时 {avg*1000:.1f}ms > 200ms"
 
 
+@pytest.mark.benchmark
 class TestConcurrentPerformance:
     """并发性能测试"""
 
@@ -300,6 +305,7 @@ class TestConcurrentPerformance:
         assert len(received) == num_users
 
 
+@pytest.mark.benchmark
 class TestStressPerformance:
     """压力性能测试"""
 

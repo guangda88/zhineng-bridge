@@ -69,6 +69,7 @@ async def relay_server():
 
 
 @pytest.mark.skipif(not HAS_WEBSOCKETS, reason="websockets not installed")
+@pytest.mark.e2e
 class TestRelayE2E:
     """端到端 WebSocket 测试"""
 

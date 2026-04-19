@@ -155,6 +155,11 @@ def tool_health_check(verbose: bool = False) -> dict:
 
 
 def main():
+    try:
+        from lingmessage.registry import register_fastmcp_server
+        register_fastmcp_server("zhibridge", "智桥", mcp, "跨平台桥接")
+    except Exception:
+        pass
     mcp.run()
 
 

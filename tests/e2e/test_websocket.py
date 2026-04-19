@@ -57,6 +57,7 @@ async def relay_server():
         pass
 
 
+@pytest.mark.e2e
 class TestWebSocketProtocol:
     """WebSocket 协议测试 — 验证 AIRelayServer 真实消息类型"""
 
@@ -424,6 +425,7 @@ class TestWebSocketProtocol:
         assert len(results) == 10
 
 
+@pytest.mark.e2e
 class TestWebSocketStress:
     """WebSocket 压力测试"""
 

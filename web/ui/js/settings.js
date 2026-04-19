@@ -85,6 +85,14 @@ const SETTINGS = [
         options: ['zh-CN', 'en-US'],
         default: 'zh-CN',
         value: 'zh-CN'
+    },
+    {
+        id: 'push_notifications',
+        name: '推送通知',
+        description: '启用浏览器推送通知',
+        type: 'switch',
+        default: false,
+        value: false
     }
 ];
 
@@ -182,15 +190,40 @@ function createSettingItem(setting) {
 }
 
 // 更新设置
-function updateSetting(settingId, value) {
+async function updateSetting(settingId, value) {
     const setting = SETTINGS.find(s => s.id === settingId);
     if (setting) {
         setting.value = value;
         console.log(`⚙️  更新设置: ${setting.name} = ${value}`);
-        
+
+        // 特殊处理推送通知
+        if (settingId === 'push_notifications' && value === true) {
+            if (typeof window.pushManager !== 'undefined') {
+                const granted = await window.pushManager.requestPermission();
+                if (!granted) {
+                    showNotification('请允许推送通知', 'warning');
+                    setting.value = false;
+                    renderSettings();
+                    return;
+                }
+                const success = await window.pushManager.init();
+                if (!success) {
+                    showNotification('推送通知初始化失败', 'error');
+                    setting.value = false;
+                    renderSettings();
+                    return;
+                }
+            } else {
+                showNotification('推送管理器未加载', 'error');
+                setting.value = false;
+                renderSettings();
+                return;
+            }
+        }
+
         // 保存到本地存储
         saveSettings();
-        
+
         // 显示通知
         showNotification(`已更新: ${setting.name}`, 'success');
     }
@@ -226,23 +259,26 @@ function loadSettings() {
 }
 
 // 重置设置
-function resetSettings() {
+async function resetSettings() {
     if (confirm('确定要重置所有设置吗？')) {
         SETTINGS.forEach(setting => {
             setting.value = setting.default;
         });
-        
+
         saveSettings();
         renderSettings();
-        
+
         showNotification('设置已重置', 'info');
     }
 }
 
-// 应用主题
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    console.log(`🎨 应用主题: ${theme}`);
+// 测试推送通知
+async function testPushNotification() {
+    if (typeof window.pushManager !== 'undefined') {
+        window.pushManager.testNotification();
+    } else {
+        showNotification('推送管理器未加载', 'error');
+    }
 }
 
 // 导出函数
@@ -253,3 +289,4 @@ window.saveSettings = saveSettings;
 window.loadSettings = loadSettings;
 window.resetSettings = resetSettings;
 window.applyTheme = applyTheme;
+window.testPushNotification = testPushNotification;

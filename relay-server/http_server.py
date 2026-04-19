@@ -120,6 +120,9 @@ class HTTPServer:
         self.app.router.add_get("/api/plugins/{plugin_id}/commands", self.get_plugin_commands)
         self.app.router.add_post("/api/plugins/discover", self.discover_plugins)
 
+        # 推送通知 API
+        setup_push_routes(self.app, self.push_service)
+
         # 健康检查
         self.app.router.add_get("/health", self.health_check)
 
@@ -345,7 +348,7 @@ class HTTPServer:
         POST /api/users/register
         {
             "username": "user",
-            "password": "password",
+            "password": "***",
             "email": "user@example.com"
         }
         """
@@ -407,7 +410,7 @@ class HTTPServer:
         POST /api/users/login
         {
             "username": "user",
-            "password": "password"
+            "password": "***"
         }
         """
         try:

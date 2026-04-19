@@ -52,7 +52,7 @@ class PushNotificationManager {
                 this.subscription = await this.registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: this.urlBase64ToUint8Array(
-                        'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEcPnq4OWfR7_o7sLAReiWbrO8pb3SvFjRKGs7OxZ_SeL2epzDVxvgi7sQBnghTzGYyV9fFo1VfzggHCc2u71xhg'
+                        'hG8tjTUlo7Hasad26_7Pba1yiZgV4Y4THQXGTJR7kxS2B263QohgC6MVw-FrkE_10dcsarosgLqok5gogfsb1w'
                     )
                 });
 

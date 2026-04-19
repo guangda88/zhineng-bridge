@@ -31,12 +31,19 @@ try:
 except Exception:
     _ws_auth = None
 
+try:
+    from agent_bus import AgentRegistry, MessageBus
+except Exception:
+    _bus_available = False
+else:
+    _bus_available = True
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("zhineng-bridge")
 
 
 class AIRelayServer:
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765, backend_secret: str = None):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8766, backend_secret: str = None):
         self.host = host
         self.port = port
         self.server = None
@@ -57,6 +64,12 @@ class AIRelayServer:
         self._pending_ttl = 300  # 5 分钟
         self._cleanup_task: asyncio.Task | None = None
 
+        # AI代理消息总线
+        self.agent_registry: AgentRegistry | None = None
+        self.message_bus: MessageBus | None = None
+        # 已注册的代理: conn_id → agent_id
+        self._agent_connections: dict[str, str] = {}
+
     async def start(self):
         ssl_kwargs = {}
         cert_dir = Path.home() / ".lingyi"
@@ -72,6 +85,14 @@ class AIRelayServer:
 
         logger.info(f"智桥 AI Relay 启动: {proto}://{self.host}:{self.port}")
         self._cleanup_task = asyncio.create_task(self._pending_cleanup_loop())
+
+        # 初始化消息总线
+        if _bus_available:
+            self.agent_registry = AgentRegistry()
+            self.message_bus = MessageBus(self.agent_registry)
+            await self.message_bus.start()
+            logger.info("智桥 Agent 消息总线已启用")
+
         self.server = await websockets.serve(
             self._handle_connection,
             self.host,
@@ -116,6 +137,13 @@ class AIRelayServer:
         finally:
             if self._ws_auth:
                 self._ws_auth.disconnect(conn_id)
+
+            # 清理代理注册
+            agent_id = self._agent_connections.pop(conn_id, None)
+            if agent_id and self.agent_registry:
+                self.agent_registry.unregister(agent_id)
+                logger.info(f"[断开] 代理 {agent_id} 从消息总线注销")
+
             if conn_id in self.users:
                 del self.users[conn_id]
                 if conn_id in self.routing:
@@ -323,6 +351,12 @@ class AIRelayServer:
             )
             return
 
+        # ===================== Agent 消息总线 =====================
+        result = await self._dispatch_bus(conn_id, websocket, mtype, msg)
+        if result is not None:
+            await websocket.send(json.dumps(result))
+            return
+
         # 未知类型
         await websocket.send(
             json.dumps(
@@ -332,6 +366,146 @@ class AIRelayServer:
                 }
             )
         )
+
+    async def _dispatch_bus(
+        self, conn_id: str, websocket, mtype: str, msg: dict
+    ) -> dict | None:
+        """处理 Agent 消息总线相关的消息类型。
+
+        Returns:
+            dict: 响应消息（发送给调用方）
+            None: 非总线消息，交给后续处理
+        """
+        if not self.agent_registry or not self.message_bus:
+            bus_types = {
+                "register_agent", "inter_chat", "inter_reply",
+                "list_agents", "list_conversations",
+                "channel_create", "channel_join", "channel_leave",
+                "channel_post", "list_channels", "channel_history",
+            }
+            if mtype in bus_types:
+                return {"type": "error", "message": "消息总线未启用"}
+            return None
+
+        # Agent 注册
+        if mtype == "register_agent":
+            agent_id = msg.get("agent_id", "")
+            if not agent_id:
+                return {"type": "error", "message": "agent_id 必填"}
+            self.agent_registry.register(
+                agent_id, websocket,
+                name=msg.get("name", agent_id),
+                description=msg.get("description", ""),
+                capabilities=msg.get("capabilities", []),
+            )
+            self._agent_connections[conn_id] = agent_id
+            return {
+                "type": "agent_registered",
+                "agent_id": agent_id,
+                "message": "代理已注册到消息总线",
+            }
+
+        # 获取当前代理ID（后续操作需要）
+        agent_id = self._agent_connections.get(conn_id)
+
+        # Agent 间直接消息
+        if mtype == "inter_chat":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            return await self.message_bus.send_direct(
+                from_id=agent_id,
+                to_id=msg.get("to", ""),
+                text=msg.get("text", ""),
+                conversation_id=msg.get("conversation_id"),
+            )
+
+        # Agent 间回复
+        if mtype == "inter_reply":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            return await self.message_bus.send_direct(
+                from_id=agent_id,
+                to_id=msg.get("to", ""),
+                text=msg.get("text", ""),
+                conversation_id=msg.get("conversation_id"),
+            )
+
+        # 列出代理
+        if mtype == "list_agents":
+            agents = self.agent_registry.list_all()
+            return {
+                "type": "agents_list",
+                "agents": agents,
+                "count": len(agents),
+            }
+
+        # 列出对话
+        if mtype == "list_conversations":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            convs = self.message_bus.list_conversations(agent_id)
+            return {
+                "type": "conversations_list",
+                "conversations": convs,
+                "count": len(convs),
+            }
+
+        # 频道创建
+        if mtype == "channel_create":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            return self.message_bus.create_channel(
+                channel_id=msg.get("channel_id", ""),
+                creator=agent_id,
+                name=msg.get("name"),
+                description=msg.get("description"),
+            )
+
+        # 频道加入
+        if mtype == "channel_join":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            return self.message_bus.join_channel(
+                channel_id=msg.get("channel_id", ""),
+                agent_id=agent_id,
+            )
+
+        # 频道离开
+        if mtype == "channel_leave":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            return self.message_bus.leave_channel(
+                channel_id=msg.get("channel_id", ""),
+                agent_id=agent_id,
+            )
+
+        # 频道消息
+        if mtype == "channel_post":
+            if not agent_id:
+                return {"type": "error", "message": "请先 register_agent"}
+            return await self.message_bus.post_to_channel(
+                channel_id=msg.get("channel_id", ""),
+                from_id=agent_id,
+                text=msg.get("text", ""),
+            )
+
+        # 列出频道
+        if mtype == "list_channels":
+            channels = self.message_bus.list_channels()
+            return {
+                "type": "channels_list",
+                "channels": channels,
+                "count": len(channels),
+            }
+
+        # 频道历史
+        if mtype == "channel_history":
+            return self.message_bus.get_channel_history(
+                channel_id=msg.get("channel_id", ""),
+                limit=msg.get("limit", 50),
+            )
+
+        return None
 
     async def _pending_cleanup_loop(self):
         """定期清理过期的 pending 条目，防止内存泄漏。"""
@@ -357,6 +531,9 @@ class AIRelayServer:
         self.backends.clear()
         self.routing.clear()
         self.pending.clear()
+        self._agent_connections.clear()
+        if self.message_bus:
+            await self.message_bus.stop()
         if self.server:
             self.server.close()
             await self.server.wait_closed()
@@ -372,7 +549,7 @@ async def main():
             backend_secret = settings.security.secret_key
     except Exception:
         pass
-    server = AIRelayServer(host="0.0.0.0", port=8765, backend_secret=backend_secret)
+    server = AIRelayServer(host="0.0.0.0", port=8766, backend_secret=backend_secret)
     await server.start()
 
 

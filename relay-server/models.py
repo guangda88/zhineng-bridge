@@ -163,6 +163,184 @@ class AuthSuccessResponse(BaseModel):
     csrf_token: Optional[str] = Field(None, description="CSRF令牌（用于后续请求）")
 
 
+class RegisterAgentMessage(BaseMessage):
+    """AI代理注册到消息总线"""
+
+    type: Literal["register_agent"] = "register_agent"
+    agent_id: str = Field(..., min_length=1, description="代理ID")
+    name: Optional[str] = Field(None, description="显示名称")
+    description: Optional[str] = Field(None, description="代理描述")
+    capabilities: List[str] = Field(default_factory=list, description="能力列表")
+
+
+class InterChatMessage(BaseMessage):
+    """AI代理间直接消息"""
+
+    type: Literal["inter_chat"] = "inter_chat"
+    to: str = Field(..., min_length=1, description="目标代理ID")
+    text: str = Field(..., min_length=1, description="消息内容")
+    conversation_id: Optional[str] = Field(None, description="对话线程ID")
+
+
+class InterReplyMessage(BaseMessage):
+    """AI代理间消息回复确认"""
+
+    type: Literal["inter_reply"] = "inter_reply"
+    message_id: str = Field(..., description="原始消息ID")
+    text: str = Field(..., min_length=1, description="回复内容")
+    conversation_id: Optional[str] = Field(None, description="对话线程ID")
+
+
+class ListAgentsMessage(BaseMessage):
+    """列出所有已注册的AI代理"""
+
+    type: Literal["list_agents"] = "list_agents"
+
+
+class ListConversationsMessage(BaseMessage):
+    """列出当前代理参与的对话"""
+
+    type: Literal["list_conversations"] = "list_conversations"
+
+
+class ChannelCreateMessage(BaseMessage):
+    """创建频道"""
+
+    type: Literal["channel_create"] = "channel_create"
+    channel_id: str = Field(..., min_length=1, description="频道ID")
+    name: Optional[str] = Field(None, description="频道名称")
+    description: Optional[str] = Field(None, description="频道描述")
+
+
+class ChannelJoinMessage(BaseMessage):
+    """加入频道"""
+
+    type: Literal["channel_join"] = "channel_join"
+    channel_id: str = Field(..., min_length=1, description="频道ID")
+
+
+class ChannelLeaveMessage(BaseMessage):
+    """离开频道"""
+
+    type: Literal["channel_leave"] = "channel_leave"
+    channel_id: str = Field(..., min_length=1, description="频道ID")
+
+
+class ChannelPostMessage(BaseMessage):
+    """向频道发送消息"""
+
+    type: Literal["channel_post"] = "channel_post"
+    channel_id: str = Field(..., min_length=1, description="频道ID")
+    text: str = Field(..., min_length=1, description="消息内容")
+
+
+class ListChannelsMessage(BaseMessage):
+    """列出所有频道"""
+
+    type: Literal["list_channels"] = "list_channels"
+
+
+class ChannelHistoryMessage(BaseMessage):
+    """获取频道历史消息"""
+
+    type: Literal["channel_history"] = "channel_history"
+    channel_id: str = Field(..., min_length=1, description="频道ID")
+    limit: int = Field(default=50, ge=1, le=200, description="返回条数")
+
+
+# ============================================================================
+# 响应模型
+# ============================================================================
+
+
+class AgentRegisteredResponse(BaseModel):
+    """代理注册成功响应"""
+
+    type: Literal["agent_registered"] = "agent_registered"
+    agent_id: str
+    message: str = "代理已注册到消息总线"
+
+
+class AgentsListResponse(BaseModel):
+    """代理列表响应"""
+
+    type: Literal["agents_list"] = "agents_list"
+    agents: List[Dict[str, Any]]
+    count: int
+
+
+class ConversationsListResponse(BaseModel):
+    """对话列表响应"""
+
+    type: Literal["conversations_list"] = "conversations_list"
+    conversations: List[Dict[str, Any]]
+    count: int
+
+
+class InterChatSentResponse(BaseModel):
+    """跨代理消息已发送响应"""
+
+    type: Literal["inter_chat_sent"] = "inter_chat_sent"
+    message_id: str
+    to: str
+    conversation_id: str
+    timestamp: str
+
+
+class ChannelCreatedResponse(BaseModel):
+    """频道创建成功响应"""
+
+    type: Literal["channel_created"] = "channel_created"
+    channel_id: str
+    name: str
+    members: List[str]
+    member_count: int
+
+
+class ChannelJoinedResponse(BaseModel):
+    """频道加入成功响应"""
+
+    type: Literal["channel_joined"] = "channel_joined"
+    channel_id: str
+    agent_id: str
+    members: List[str]
+
+
+class ChannelLeftResponse(BaseModel):
+    """频道离开成功响应"""
+
+    type: Literal["channel_left"] = "channel_left"
+    channel_id: str
+    agent_id: str
+
+
+class ChannelPostSentResponse(BaseModel):
+    """频道消息已发送响应"""
+
+    type: Literal["channel_post_sent"] = "channel_post_sent"
+    message_id: str
+    channel_id: str
+    delivered_to: int
+    timestamp: str
+
+
+class ChannelsListResponse(BaseModel):
+    """频道列表响应"""
+
+    type: Literal["channels_list"] = "channels_list"
+    channels: List[Dict[str, Any]]
+    count: int
+
+
+class ChannelHistoryResponse(BaseModel):
+    """频道历史响应"""
+
+    type: Literal["channel_history"] = "channel_history"
+    channel_id: str
+    messages: List[Dict[str, Any]]
+    count: int
+
+
 # ============================================================================
 # 会话模型
 # ============================================================================
@@ -243,7 +421,7 @@ class ServerConfig(BaseModel):
     """服务器配置"""
 
     host: str = Field(default="0.0.0.0", description="监听主机")
-    port: int = Field(default=8765, ge=1, le=65535, description="监听端口")
+    port: int = Field(default=8766, ge=1, le=65535, description="监听端口")
     max_connections: int = Field(default=100, ge=1, le=1000, description="最大连接数")
     ping_interval: int = Field(default=10, ge=1, le=60, description="心跳间隔(秒)")
     session_timeout: int = Field(default=3600, ge=60, le=86400, description="会话超时(秒)")
@@ -283,6 +461,17 @@ def validate_message(message: str) -> BaseMessage:
         "stop_session": StopSessionMessage,
         "delete_session": DeleteSessionMessage,
         "send_input": SendInputMessage,
+        "register_agent": RegisterAgentMessage,
+        "inter_chat": InterChatMessage,
+        "inter_reply": InterReplyMessage,
+        "list_agents": ListAgentsMessage,
+        "list_conversations": ListConversationsMessage,
+        "channel_create": ChannelCreateMessage,
+        "channel_join": ChannelJoinMessage,
+        "channel_leave": ChannelLeaveMessage,
+        "channel_post": ChannelPostMessage,
+        "list_channels": ListChannelsMessage,
+        "channel_history": ChannelHistoryMessage,
     }
 
     message_class = message_types.get(message_type)
@@ -307,6 +496,17 @@ __all__ = [
     "StopSessionMessage",
     "DeleteSessionMessage",
     "SendInputMessage",
+    "RegisterAgentMessage",
+    "InterChatMessage",
+    "InterReplyMessage",
+    "ListAgentsMessage",
+    "ListConversationsMessage",
+    "ChannelCreateMessage",
+    "ChannelJoinMessage",
+    "ChannelLeaveMessage",
+    "ChannelPostMessage",
+    "ListChannelsMessage",
+    "ChannelHistoryMessage",
     # 响应模型
     "SessionsListResponse",
     "SessionStartedResponse",
@@ -315,6 +515,16 @@ __all__ = [
     "OutputResponse",
     "ErrorResponse",
     "AuthSuccessResponse",
+    "AgentRegisteredResponse",
+    "AgentsListResponse",
+    "ConversationsListResponse",
+    "InterChatSentResponse",
+    "ChannelCreatedResponse",
+    "ChannelJoinedResponse",
+    "ChannelLeftResponse",
+    "ChannelPostSentResponse",
+    "ChannelsListResponse",
+    "ChannelHistoryResponse",
     # 会话模型
     "Session",
     "SessionInfo",

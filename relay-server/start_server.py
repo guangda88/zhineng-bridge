@@ -32,7 +32,7 @@ async def main():
     print("🚀 启动 zhineng-bridge 中继服务器")
     print()
 
-    server = AIRelayServer(host="0.0.0.0", port=8765)
+    server = AIRelayServer(host="0.0.0.0", port=8766)
 
     try:
         await _health_server("0.0.0.0", 8080)

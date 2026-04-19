@@ -8,8 +8,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from file_api import FileAPI
-from health.checks import HealthChecker
-from health.root_page import ROOT_HTML
+from .checks import HealthChecker
+from .root_page import ROOT_HTML
 from logger import get_logger
 from metrics import get_metrics
 from push_service import PushService
