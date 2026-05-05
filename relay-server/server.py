@@ -2,16 +2,16 @@
 """智桥 AI Relay Server — 用户与AI后端之间的WebSocket中继。
 
 架构:
-  用户(浏览器) ←ws→ 智桥(:8765) ←ws→ AI后端(灵依/灵克/灵知...)
+  用户(浏览器) ←ws→ 智桥(:8765) ←ws→ AI后端(灵克/灵知...)
 
 协议:
-  用户 → 智桥: {"type":"chat","target":"lingyi","text":"..."}
+  用户 → 智桥: {"type":"chat","target":"lingke","text":"..."}
   智桥 → AI:   {"type":"chat","from":"user_xxx","text":"..."}
   AI → 智桥:   {"type":"reply","text":"...","audio":"base64..."}
   智桥 → 用户: {"type":"reply","text":"...","audio":"base64..."}
 
-  用户 → 智桥: {"type":"register_backend","backend_id":"lingyi"}
-  智桥确认:    {"type":"backend_registered","backend_id":"lingyi"}
+  用户 → 智桥: {"type":"register_backend","backend_id":"lingke"}
+  智桥确认:    {"type":"backend_registered","backend_id":"lingke"}
 """
 
 import asyncio
@@ -37,6 +37,13 @@ except Exception:
     _bus_available = False
 else:
     _bus_available = True
+
+try:
+    from session_protocol.manager import FamilySessionManager
+except Exception:
+    _session_mgr_available = False
+else:
+    _session_mgr_available = True
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("zhineng-bridge")
@@ -70,9 +77,13 @@ class AIRelayServer:
         # 已注册的代理: conn_id → agent_id
         self._agent_connections: dict[str, str] = {}
 
+        # 全族会话管理
+        self.session_manager: FamilySessionManager | None = None
+        self._session_map: dict[str, str] = {}  # conn_id → session_id
+
     async def start(self):
         ssl_kwargs = {}
-        cert_dir = Path.home() / ".lingyi"
+        cert_dir = Path.home() / ".zhibridge"
         cert_pem = cert_dir / "cert.pem"
         cert_key = cert_dir / "cert.key"
         if cert_pem.exists() and cert_key.exists():
@@ -92,6 +103,12 @@ class AIRelayServer:
             self.message_bus = MessageBus(self.agent_registry)
             await self.message_bus.start()
             logger.info("智桥 Agent 消息总线已启用")
+
+        # 初始化全族会话管理
+        if _session_mgr_available:
+            self.session_manager = FamilySessionManager()
+            self.session_manager.update_heartbeat("ZhiBridge")
+            logger.info("智桥 全族会话管理器已启用")
 
         self.server = await websockets.serve(
             self._handle_connection,
@@ -144,6 +161,12 @@ class AIRelayServer:
                 self.agent_registry.unregister(agent_id)
                 logger.info(f"[断开] 代理 {agent_id} 从消息总线注销")
 
+            # 清理会话
+            session_id = self._session_map.pop(conn_id, None)
+            if session_id and self.session_manager:
+                self.session_manager.update_session_status(session_id, "archived")
+                logger.info(f"[断开] 会话 {session_id[:8]} 已归档")
+
             if conn_id in self.users:
                 del self.users[conn_id]
                 if conn_id in self.routing:
@@ -195,6 +218,14 @@ class AIRelayServer:
                 )
             )
             logger.info(f"[注册] AI后端 {backend_id} 已注册")
+
+            # 创建后端会话记录
+            if self.session_manager:
+                sess = self.session_manager.create_session(
+                    member_id=backend_id,
+                    metadata={"role": "backend", "conn_id": conn_id},
+                )
+                self._session_map[conn_id] = sess["session_id"]
             return
 
         # AI后端回复（转发给用户）
@@ -249,7 +280,7 @@ class AIRelayServer:
 
         # 用户聊天消息（转发给AI后端）
         if mtype == "chat":
-            target = msg.get("target", "lingyi")
+            target = msg.get("target", "lingke")
             text = msg.get("text", "").strip()
             if not text:
                 await websocket.send(json.dumps({"type": "error", "message": "消息不能为空"}))
@@ -261,6 +292,14 @@ class AIRelayServer:
                 if conn_id not in self.routing:
                     self.routing[conn_id] = target
                 logger.info(f"[用户] 新用户 {conn_id} 默认路由 → {target}")
+
+                # 创建会话记录
+                if self.session_manager and conn_id not in self._session_map:
+                    sess = self.session_manager.create_session(
+                        member_id="ZhiBridge",
+                        metadata={"conn_id": conn_id, "target": target},
+                    )
+                    self._session_map[conn_id] = sess["session_id"]
 
             backend_id = self.routing.get(conn_id, target)
             backend_ws = self.backends.get(backend_id)
@@ -303,7 +342,7 @@ class AIRelayServer:
 
         # 用户切换AI后端
         if mtype == "switch_backend":
-            target = msg.get("target", "lingyi")
+            target = msg.get("target", "lingke")
             self.routing[conn_id] = target
             await websocket.send(
                 json.dumps(
@@ -534,6 +573,13 @@ class AIRelayServer:
         self._agent_connections.clear()
         if self.message_bus:
             await self.message_bus.stop()
+        if self.session_manager:
+            for sid in self._session_map.values():
+                try:
+                    self.session_manager.update_session_status(sid, "archived")
+                except Exception:
+                    pass
+            self._session_map.clear()
         if self.server:
             self.server.close()
             await self.server.wait_closed()
