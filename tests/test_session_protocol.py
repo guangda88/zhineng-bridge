@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import tempfile
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -22,6 +23,7 @@ from session_protocol.protocol import (
     SessionStatus,
 )
 from session_protocol.manager import FamilySessionManager
+from session_protocol.auth import AuthorizationManager, AuthorizationError
 from session_protocol.zhi_bridge_adapter import ZhiBridgeAdapter
 
 
@@ -278,3 +280,181 @@ class TestIntegration:
             adapter2 = ZhiBridgeAdapter(data_dir=data_dir)
             restored = adapter2.restore_context(snapshot.session_id)
             assert restored is True
+
+
+class TestAuthorizationManager:
+    @pytest.fixture
+    def auth(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_auth.db")
+            yield AuthorizationManager(db_path)
+
+    def test_self_access_always_allowed(self, auth):
+        assert auth.check_permission("ZhiBridge", "ZhiBridge", "write") is True
+        assert auth.check_permission("ZhiBridge", "ZhiBridge", "delete") is True
+        assert auth.check_permission("ZhiBridge", "ZhiBridge", "read") is True
+
+    def test_cross_member_denied_by_default(self, auth):
+        assert auth.check_permission("ZhiBridge", "lingflow", "write") is False
+        assert auth.check_permission("ZhiBridge", "lingclaude", "delete") is False
+        assert auth.check_permission("ZhiBridge", "lingresearch", "delegate_save") is False
+
+    def test_grant_permission(self, auth):
+        auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        assert auth.check_permission("ZhiBridge", "lingflow", "write") is True
+        assert auth.check_permission("ZhiBridge", "lingflow", "delete") is False
+
+    def test_require_permission_self_ok(self, auth):
+        auth.require_permission("ZhiBridge", "ZhiBridge", "write")
+
+    def test_require_permission_raises(self, auth):
+        with pytest.raises(AuthorizationError):
+            auth.require_permission("ZhiBridge", "lingflow", "write")
+
+    def test_require_permission_after_grant(self, auth):
+        auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        auth.require_permission("ZhiBridge", "lingflow", "write")
+
+    def test_revoke_permission(self, auth):
+        auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        assert auth.revoke_permission("ZhiBridge", "lingflow", "write") is True
+        assert auth.check_permission("ZhiBridge", "lingflow", "write") is False
+        assert auth.revoke_permission("ZhiBridge", "lingflow", "write") is False
+
+    def test_list_permissions(self, auth):
+        auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        auth.grant_permission("ZhiBridge", "lingclaude", "read", granted_by="human")
+        perms = auth.list_permissions(caller_id="ZhiBridge")
+        assert len(perms) == 2
+        all_perms = auth.list_permissions()
+        assert len(all_perms) == 2
+
+    def test_invalid_operation(self, auth):
+        with pytest.raises(ValueError):
+            auth.grant_permission("ZhiBridge", "lingflow", "invalid_op", granted_by="human")
+
+    def test_audit_log(self, auth):
+        auth.require_permission("ZhiBridge", "ZhiBridge", "write")
+        auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        auth.require_permission("ZhiBridge", "lingflow", "write")
+        with pytest.raises(AuthorizationError):
+            auth.require_permission("ZhiBridge", "lingclaude", "write")
+
+        logs = auth.get_audit_log()
+        assert len(logs) >= 4
+        denied = [l for l in logs if l["result"] == "denied"]
+        assert len(denied) >= 1
+
+    def test_audit_log_filter(self, auth):
+        auth.require_permission("ZhiBridge", "ZhiBridge", "write")
+        auth.require_permission("lingflow", "lingflow", "read")
+        zb_logs = auth.get_audit_log(caller_id="ZhiBridge")
+        assert all(l["caller_id"] == "ZhiBridge" for l in zb_logs)
+
+
+class TestFamilySessionManagerAuth:
+    @pytest.fixture
+    def mgr(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test_auth_mgr.db")
+            m = FamilySessionManager(db_path=db_path, caller_id="ZhiBridge")
+            yield m
+
+    def test_create_session_self_allowed(self, mgr):
+        sid = mgr.create_session("ZhiBridge", tool_name="crush")
+        assert sid is not None
+
+    def test_create_session_cross_member_denied(self, mgr):
+        with pytest.raises(AuthorizationError):
+            mgr.create_session("lingflow", tool_name="web")
+
+    def test_create_session_cross_member_after_grant(self, mgr):
+        mgr.auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        sid = mgr.create_session("lingflow", tool_name="web")
+        assert sid is not None
+
+    def test_delete_session_self_allowed(self, mgr):
+        sid = mgr.create_session("ZhiBridge")
+        mgr.delete_session(sid)
+        assert mgr.get_session(sid) is None
+
+    def test_delete_session_cross_member_denied(self, mgr):
+        mgr.auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+        sid = mgr.create_session("lingflow")
+        mgr.auth.revoke_permission("ZhiBridge", "lingflow", "write")
+        mgr.auth.revoke_permission("ZhiBridge", "lingflow", "delete")
+        with pytest.raises(AuthorizationError):
+            mgr.delete_session(sid)
+
+    def test_list_sessions_self_allowed(self, mgr):
+        mgr.create_session("ZhiBridge")
+        sessions = mgr.list_sessions(member_id="ZhiBridge")
+        assert len(sessions) == 1
+
+    def test_list_sessions_cross_member_denied(self, mgr):
+        with pytest.raises(AuthorizationError):
+            mgr.list_sessions(member_id="lingflow")
+
+    def test_list_sessions_all_system(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test.db")
+            mgr = FamilySessionManager(db_path=db_path, caller_id="system")
+            mgr.create_session("ZhiBridge")
+            mgr.create_session("lingflow")
+            sessions = mgr.list_sessions()
+            assert len(sessions) == 2
+
+    def test_list_snapshots_cross_member_denied(self, mgr):
+        with pytest.raises(AuthorizationError):
+            mgr.list_snapshots(member_id="lingclaude")
+
+    def test_list_snapshots_self_allowed(self, mgr):
+        sid = mgr.create_session("ZhiBridge")
+        mgr.save_snapshot(SessionSnapshot(
+            member_id="ZhiBridge", session_id=sid,
+        ))
+        snaps = mgr.list_snapshots(member_id="ZhiBridge")
+        assert len(snaps) == 1
+
+    def test_delegate_save_cross_member_denied(self, mgr):
+        with pytest.raises(AuthorizationError):
+            mgr.delegate_save("lingflow")
+
+    def test_delegate_restore_cross_member_denied(self, mgr):
+        with pytest.raises(AuthorizationError):
+            mgr.delegate_restore("lingflow", "fake-session")
+
+    def test_delegate_compress_cross_member_denied(self, mgr):
+        with pytest.raises(AuthorizationError):
+            mgr.delegate_compress("lingflow")
+
+    def test_delegate_save_self_allowed(self, mgr):
+        adapter = ZhiBridgeAdapter(data_dir=os.path.join(
+            os.path.dirname(mgr.db_path), "data"
+        ))
+        mgr.register_protocol("ZhiBridge", adapter)
+        adapter.add_context_entry("test", {"msg": "hello"}, tokens=50)
+        snapshot = mgr.delegate_save("ZhiBridge")
+        assert snapshot is not None
+        assert snapshot.member_id == "ZhiBridge"
+
+    def test_delegate_cross_member_with_grant(self, mgr):
+        mgr.auth.grant_permission("ZhiBridge", "lingflow", "delegate_save", granted_by="human")
+        mock_protocol = MagicMock()
+        snapshot = SessionSnapshot(member_id="lingflow", session_id="test-session")
+        mock_protocol.save_context.return_value = snapshot
+        mgr.register_protocol("lingflow", mock_protocol)
+        result = mgr.delegate_save("lingflow")
+        assert result is not None
+        assert result.member_id == "lingflow"
+
+    def test_system_caller_has_no_special_access(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test.db")
+            mgr = FamilySessionManager(db_path=db_path, caller_id="ZhiBridge")
+            mgr.auth.grant_permission("ZhiBridge", "lingflow", "write", granted_by="human")
+            mgr.create_session("lingflow")
+            with pytest.raises(AuthorizationError):
+                mgr.delete_session(
+                    mgr.list_sessions(member_id="lingflow")[0]["session_id"]
+                )

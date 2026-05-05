@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from .auth import AuthorizationManager, AuthorizationError
 from .protocol import (
     CompressionStrategy,
     ContextBudget,
@@ -87,17 +88,20 @@ MEMBER_REGISTRY = {
 class FamilySessionManager:
     """全族会话管理器 — SQLite持久化，管理12成员会话元数据"""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None,
+                 caller_id: str = "system"):
         if db_path is None:
             db_dir = os.path.join(os.path.expanduser("~"), ".zhineng-bridge")
             os.makedirs(db_dir, exist_ok=True)
             db_path = os.path.join(db_dir, "family_sessions.db")
 
         self.db_path = db_path
+        self.caller_id = caller_id
         self._local_protocols: Dict[str, SessionProtocol] = {}
         self._init_db()
+        self.auth = AuthorizationManager(db_path)
         self._register_known_members()
-        logger.info(f"[FamilySessionManager] 初始化完成: {db_path}")
+        logger.info(f"[FamilySessionManager] 初始化完成: {db_path} (caller={caller_id})")
 
     def _init_db(self):
         conn = sqlite3.connect(self.db_path)
@@ -168,6 +172,7 @@ class FamilySessionManager:
 
     def create_session(self, member_id: str, tool_name: str = "",
                        session_id: Optional[str] = None) -> str:
+        self.auth.require_permission(self.caller_id, member_id, "write")
         sid = session_id or str(uuid.uuid4())
         now = datetime.now().isoformat()
         conn = sqlite3.connect(self.db_path)
@@ -197,6 +202,12 @@ class FamilySessionManager:
         }
 
     def list_sessions(self, member_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        effective_member = member_id or "__all__"
+        if effective_member != "__all__":
+            self.auth.require_permission(self.caller_id, member_id, "read")
+        elif self.caller_id != "system":
+            self.auth.log_audit(self.caller_id, "__all__", "list_sessions",
+                                "allowed", {"reason": "system_overview"})
         conn = sqlite3.connect(self.db_path)
         if member_id:
             rows = conn.execute(
@@ -229,6 +240,9 @@ class FamilySessionManager:
         conn.close()
 
     def delete_session(self, session_id: str):
+        session = self.get_session(session_id)
+        if session:
+            self.auth.require_permission(self.caller_id, session["member_id"], "delete")
         conn = sqlite3.connect(self.db_path)
         conn.execute("DELETE FROM snapshots WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
@@ -276,6 +290,8 @@ class FamilySessionManager:
     def list_snapshots(self, member_id: Optional[str] = None,
                        session_id: Optional[str] = None,
                        limit: int = 50) -> List[SessionSnapshot]:
+        if member_id and member_id != self.caller_id:
+            self.auth.require_permission(self.caller_id, member_id, "read")
         conn = sqlite3.connect(self.db_path)
         query = (
             "SELECT snapshot_id, session_id, member_id, status, budget_json, context_json, "
@@ -323,6 +339,7 @@ class FamilySessionManager:
     # ---- 跨成员操作 ----
 
     def delegate_save(self, member_id: str, session_id: Optional[str] = None) -> Optional[SessionSnapshot]:
+        self.auth.require_permission(self.caller_id, member_id, "delegate_save")
         protocol = self._local_protocols.get(member_id)
         if not protocol:
             logger.warning(f"[FamilySessionManager] 无本地协议: {member_id}")
@@ -333,6 +350,7 @@ class FamilySessionManager:
         return snapshot
 
     def delegate_restore(self, member_id: str, session_id: str) -> bool:
+        self.auth.require_permission(self.caller_id, member_id, "delegate_restore")
         protocol = self._local_protocols.get(member_id)
         if not protocol:
             return False
@@ -342,6 +360,7 @@ class FamilySessionManager:
 
     def delegate_compress(self, member_id: str,
                           strategy: Optional[CompressionStrategy] = None) -> Optional[SessionSnapshot]:
+        self.auth.require_permission(self.caller_id, member_id, "delegate_compress")
         protocol = self._local_protocols.get(member_id)
         if not protocol:
             return None

@@ -15,6 +15,7 @@ SessionProtocol — 灵族全族会话管理协议
 
 from session_protocol.protocol import SessionProtocol, SessionSnapshot, ContextBudget
 from session_protocol.manager import FamilySessionManager
+from session_protocol.auth import AuthorizationManager, AuthorizationError
 from session_protocol.zhi_bridge_adapter import ZhiBridgeAdapter
 
 __all__ = [
@@ -22,6 +23,8 @@ __all__ = [
     "SessionSnapshot",
     "ContextBudget",
     "FamilySessionManager",
+    "AuthorizationManager",
+    "AuthorizationError",
     "ZhiBridgeAdapter",
 ]
 __version__ = "0.1.0"
