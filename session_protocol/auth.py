@@ -67,6 +67,10 @@ class AuthorizationManager:
     def check_permission(self, caller_id: str, target_id: str,
                          operation: str) -> bool:
         if caller_id == self.SYSTEM_CALLER:
+            logger.warning(
+                f"[Auth] system caller bypasses auth check: "
+                f"target={target_id} op={operation}"
+            )
             return True
         if caller_id == target_id:
             return True

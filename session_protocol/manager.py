@@ -89,13 +89,25 @@ class FamilySessionManager:
     """全族会话管理器 — SQLite持久化，管理12成员会话元数据"""
 
     def __init__(self, db_path: Optional[str] = None,
-                 caller_id: str = "system"):
+                 caller_id: Optional[str] = None):
         if db_path is None:
             db_dir = os.path.join(os.path.expanduser("~"), ".zhineng-bridge")
             os.makedirs(db_dir, exist_ok=True)
             db_path = os.path.join(db_dir, "family_sessions.db")
 
         self.db_path = db_path
+        if caller_id is None:
+            import warnings as _w
+            _w.warn(
+                "FamilySessionManager initialized without explicit caller_id. "
+                "Defaulting to 'system' which bypasses all auth checks. "
+                "Pass caller_id explicitly for proper authorization.",
+                stacklevel=2
+            )
+            logger.warning(
+                "[FamilySessionManager] caller_id未指定，降级为system模式 — 所有auth检查被绕过"
+            )
+            caller_id = "system"
         self.caller_id = caller_id
         self._local_protocols: Dict[str, SessionProtocol] = {}
         self._init_db()
