@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
 Ling-term-mcp 参数优化配置
-使用 LingMinOpt 框架优化 MCP Server 性能参数
+使用 lingminopt 框架优化 MCP Server 性能参数
 """
 
 import sys
 from pathlib import Path
 
-# 添加 LingMinOpt 路径
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "LingMinOpt"))
+# 添加 lingminopt 路径
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "lingminopt"))
 
 import json
 import subprocess

@@ -1,14 +1,14 @@
 # ✅ zhineng-bridge 端到端测试完成报告
 
 **执行日期**: 2026-03-27
-**测试框架**: LingFlow v3.5.1
+**测试框架**: lingflow v3.5.1
 **项目版本**: zhineng-bridge v1.0.0
 
 ---
 
 ## 🎯 测试目标
 
-使用 LingFlow 测试框架对 zhineng-bridge 项目进行全面的端到端测试，验证以下核心功能：
+使用 lingflow 测试框架对 zhineng-bridge 项目进行全面的端到端测试，验证以下核心功能：
 - WebSocket 通信
 - 会话管理
 - 消息交换
@@ -22,8 +22,8 @@
 
 | 测试套件 | 测试数量 | 通过 | 失败 | 成功率 |
 |----------|----------|------|------|--------|
-| LingFlow 基础 E2E | 5 | 5 | 0 | 100% |
-| LingFlow 场景测试 | 3 | 3 | 0 | 100% |
+| lingflow 基础 E2E | 5 | 5 | 0 | 100% |
+| lingflow 场景测试 | 3 | 3 | 0 | 100% |
 | WebSocket 通信 | 16 | 16 | 0 | 100% |
 | **总计** | **24** | **24** | **0** | **100%** |
 
@@ -31,7 +31,7 @@
 
 ## ✨ 测试覆盖详情
 
-### 1. LingFlow 基础 E2E 测试 (test_zhineng_bridge_lingflow.py)
+### 1. lingflow 基础 E2E 测试 (test_zhineng_bridge_lingflow.py)
 
 **状态**: ✅ 全部通过 (5/5)
 
@@ -42,7 +42,7 @@
 - ✅ 消息交换场景
 - ✅ 综合端到端测试
 
-### 2. LingFlow 场景驱动 AI 测试 (test_zhineng_bridge_scenarios.py)
+### 2. lingflow 场景驱动 AI 测试 (test_zhineng_bridge_scenarios.py)
 
 **状态**: ✅ 全部通过 (3/3)
 
@@ -115,7 +115,7 @@
 
 ## 🛠️ 测试工具和技术
 
-### LingFlow 测试框架
+### lingflow 测试框架
 
 使用的核心组件:
 - ✅ **CodeTestScenario** - 场景定义
@@ -228,9 +228,9 @@
 
 ### 文档
 
-- [LingFlow 测试框架文档](/home/ai/LingFlow/lingflow/testing/README.md)
-- [zhineng-bridge API 文档](/home/ai/zhineng-bridge/docs/API.md)
-- [zhineng-bridge 用户指南](/home/ai/zhineng-bridge/docs/README.md)
+- [lingflow 测试框架文档](/home/ai/lingflow/lingflow/testing/README.md)
+- [zhineng-bridge API 文档](/home/ai/zhibridge/docs/API.md)
+- [zhineng-bridge 用户指南](/home/ai/zhibridge/docs/README.md)
 
 ### 测试命令
 
@@ -254,7 +254,7 @@ python3 -m pytest tests/e2e/test_websocket.py::TestWebSocketStress -v
 
 **报告生成时间**: 2026-03-27 22:59
 **测试执行时间**: ~62s
-**测试框架版本**: LingFlow v3.5.1
+**测试框架版本**: lingflow v3.5.1
 **项目版本**: zhineng-bridge v1.0.0
 **Python 版本**: 3.12.3
 
@@ -265,7 +265,7 @@ python3 -m pytest tests/e2e/test_websocket.py::TestWebSocketStress -v
 1. 🎯 **100% 测试通过率** - 所有 24 个测试全部通过
 2. ⚡ **优秀的性能表现** - 所有响应时间优于目标值
 3. 🔄 **完整的场景覆盖** - 覆盖正常、异常、并发场景
-4. 🛠️ **强大的测试框架** - 基于 LingFlow 现代化测试框架
+4. 🛠️ **强大的测试框架** - 基于 lingflow 现代化测试框架
 5. 📊 **详细的测试报告** - 生成全面的可视化报告
 
 ---

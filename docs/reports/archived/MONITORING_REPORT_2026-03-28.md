@@ -80,7 +80,7 @@
 ## 监控工具 (Monitoring Tools)
 
 ### 创建的监控脚本
-已创建 `/home/ai/zhineng-bridge/scripts/monitor_logs.py`，提供：
+已创建 `/home/ai/zhibridge/scripts/monitor_logs.py`，提供：
 - 实时日志监控
 - 统计信息汇总
 - 错误和警告检测
@@ -89,10 +89,10 @@
 ### 使用方法
 ```bash
 # 运行监控脚本
-python3 /home/ai/zhineng-bridge/scripts/monitor_logs.py
+python3 /home/ai/zhibridge/scripts/monitor_logs.py
 
 # 或者在后台运行
-python3 /home/ai/zhineng-bridge/scripts/monitor_logs.py > /tmp/monitor_output.log 2>&1 &
+python3 /home/ai/zhibridge/scripts/monitor_logs.py > /tmp/monitor_output.log 2>&1 &
 ```
 
 ## 结论 (Conclusion)

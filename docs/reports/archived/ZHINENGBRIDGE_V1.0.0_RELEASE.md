@@ -4,17 +4,17 @@
 
 **发布日期：** 2026-03-24 02:30
 **版本：** V1.0.0
-**项目：** LingMinOpt + zhineng-bridge
+**项目：** lingminopt + zhineng-bridge
 **状态：** ✅ 正式发布
 
 ---
 
 ## ✅ 完成的所有工作
 
-### 1. LingMinOpt 框架 ✅
+### 1. lingminopt 框架 ✅
 
 **成就：**
-- ✅ 创建 LingMinOpt V0.1.0 框架
+- ✅ 创建 lingminopt V0.1.0 框架
 - ✅ 创建核心组件
 - ✅ 创建智桥落地案例
 - ✅ 运行优化实验
@@ -135,13 +135,13 @@
 
 **成就：**
 - ✅ 创建全面测试脚本
-- ✅ 运行 LingMinOpt 框架测试（3/3 通过）
+- ✅ 运行 lingminopt 框架测试（3/3 通过）
 - ✅ 运行 zhineng-bridge 优化测试（2/2 通过）
 - ✅ 运行 zhineng-bridge 前端测试（3/3 通过）
 - ✅ 运行 zhineng-bridge 加密测试（2/2 通过）
 
 **测试结果：**
-- LingMinOpt 框架：3/3 通过 ✅
+- lingminopt 框架：3/3 通过 ✅
 - zhineng-bridge 优化：2/2 通过 ✅
 - zhineng-bridge 前端：3/3 通过 ✅
 - zhineng-bridge 加密：2/2 通过 ✅
@@ -170,7 +170,7 @@
 
 ## 📊 创建的所有文件（39+个）
 
-### LingMinOpt（6个）
+### lingminopt（6个）
 1. ✅ `lingminopt/__init__.py`
 2. ✅ `lingminopt/core/__init__.py`
 3. ✅ `lingminopt/core/searcher.py`
@@ -217,7 +217,7 @@
 
 | 类别 | 测试数 | 通过 | 失败 | 通过率 |
 |------|--------|------|------|--------|
-| LingMinOpt 框架 | 3 | 3 | 0 | 100% |
+| lingminopt 框架 | 3 | 3 | 0 | 100% |
 | zhineng-bridge 优化 | 2 | 2 | 0 | 100% |
 | zhineng-bridge 前端 | 3 | 3 | 0 | 100% |
 | zhineng-bridge 加密 | 2 | 2 | 0 | 100% |
@@ -237,7 +237,7 @@
 
 ### 核心成就
 
-✅ **LingMinOpt V0.1.0 发布完成**
+✅ **lingminopt V0.1.0 发布完成**
    - SearchSpace（搜索空间）
    - MinimalOptimizer（优化器）
    - ExperimentConfig（实验配置）
@@ -259,7 +259,7 @@
 
 | 项目 | 提交数 | 文件数 | 代码行数 | 状态 |
 |------|--------|--------|---------|------|
-| LingMinOpt | 1 | 6 | ~250 | ✅ |
+| lingminopt | 1 | 6 | ~250 | ✅ |
 | zhineng-bridge | 5 | 33 | ~3500 | ✅ |
 | **总计** | **6** | **39** | **~3750** | **✅** |
 
@@ -269,19 +269,19 @@
 
 ### GitHub
 
-- **LingMinOpt:** https://github.com/guangda88/LingMinOpt
+- **lingminopt:** https://github.com/guangda88/lingminopt
 - **zhineng-bridge:** https://github.com/guangda88/zhineng-bridge
 
 ### Gitea
 
-- **LingMinOpt:** http://zhinenggitea.iepose.cn/guangda/LingMinOpt
+- **lingminopt:** http://zhinenggitea.iepose.cn/guangda/lingminopt
 - **zhineng-bridge:** http://zhinenggitea.iepose.cn/guangda/zhineng-bridge
 
 ---
 
 ## 🎯 发布目标
 
-### LingMinOpt V0.1.0
+### lingminopt V0.1.0
 
 ```
 ✅ SearchSpace（搜索空间）
@@ -349,7 +349,7 @@ python3 e2e_test.py
 
 ### 核心成就
 
-✅ **LingMinOpt V0.1.0 正式发布**
+✅ **lingminopt V0.1.0 正式发布**
 ✅ **zhineng-bridge V1.0.0 正式发布**
 ✅ **所有功能完成**
 ✅ **所有测试通过（12/12）**

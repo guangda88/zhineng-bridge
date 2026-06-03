@@ -1,8 +1,8 @@
 # zhineng-bridge 端到端测试报告
-## 基于 LingFlow 测试框架
+## 基于 lingflow 测试框架
 
 **测试日期**: 2026-03-27
-**测试框架**: LingFlow v3.5.1
+**测试框架**: lingflow v3.5.1
 **项目**: zhineng-bridge v1.0.0
 **测试环境**: Linux, Python 3.12.3
 
@@ -162,7 +162,7 @@
 
 ## 测试工具
 
-### LingFlow 测试框架特性
+### lingflow 测试框架特性
 
 - ✅ 场景驱动测试
 - ✅ AI 场景运行器 (AIScenarioRunner)
@@ -199,7 +199,7 @@
 | pytest | 9.0.2 | ✅ |
 | pytest-asyncio | 1.3.0 | ✅ |
 | websockets | ✅ | ✅ |
-| LingFlow | 3.5.1 | ✅ |
+| lingflow | 3.5.1 | ✅ |
 
 ---
 
@@ -263,7 +263,7 @@
 
 ✅ **所有端到端测试通过 (24/24)**
 
-本次测试使用 LingFlow 测试框架对 zhineng-bridge 项目进行了全面的端到端测试，涵盖了以下方面：
+本次测试使用 lingflow 测试框架对 zhineng-bridge 项目进行了全面的端到端测试，涵盖了以下方面：
 
 1. **WebSocket 通信**: 连接、消息交换、心跳机制
 2. **会话管理**: 创建、列表、停止、删除
@@ -310,12 +310,12 @@ python3 -m pytest tests/e2e/test_websocket.py::TestWebSocketStress -v
 
 ### 文档参考
 
-- [LingFlow 测试框架文档](/home/ai/LingFlow/lingflow/testing/README.md)
-- [zhineng-bridge API 文档](/home/ai/zhineng-bridge/docs/API.md)
-- [zhineng-bridge 用户指南](/home/ai/zhineng-bridge/docs/README.md)
+- [lingflow 测试框架文档](/home/ai/lingflow/lingflow/testing/README.md)
+- [zhineng-bridge API 文档](/home/ai/zhibridge/docs/API.md)
+- [zhineng-bridge 用户指南](/home/ai/zhibridge/docs/README.md)
 
 ---
 
 **报告生成时间**: 2026-03-27
-**测试框架版本**: LingFlow v3.5.1
+**测试框架版本**: lingflow v3.5.1
 **项目版本**: zhineng-bridge v1.0.0

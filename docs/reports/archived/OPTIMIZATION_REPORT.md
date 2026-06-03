@@ -5,7 +5,7 @@
 ## 执行摘要
 
 ### 优化目标
-使用 LingMinOpt 框架优化智桥的关键性能参数，提升系统整体性能。
+使用 lingminopt 框架优化智桥的关键性能参数，提升系统整体性能。
 
 ### 优化范围
 - **WebSocket 参数**: 连接管理、心跳机制、消息队列
@@ -23,7 +23,7 @@
 ## 1. 优化方法
 
 ### 1.1 框架选择
-- **优化框架**: LingMinOpt
+- **优化框架**: lingminopt
 - **优化算法**: MinimalOptimizer (基于随机搜索)
 - **评估函数**: 自定义评分函数
 - **搜索空间**: 离散和连续变量混合
@@ -341,12 +341,12 @@ def evaluate_with_constraints(params, cpu_limit, memory_limit):
 ### 9.1 快速开始
 
 ```bash
-# 安装 LingMinOpt（如果还没有）
-cd /home/ai/LingMinOpt
+# 安装 lingminopt（如果还没有）
+cd /home/ai/lingminopt
 pip install -e .
 
 # 运行优化（快速测试，5 次迭代）
-cd /home/ai/zhineng-bridge
+cd /home/ai/zhibridge
 python3 scripts/optimize-params.py --iterations 5
 
 # 运行完整优化（50 次迭代）
@@ -385,7 +385,7 @@ cat optimization_results.json | jq .
 
 ### 10.1 优化成果
 
-- ✅ 成功使用 LingMinOpt 框架优化关键参数
+- ✅ 成功使用 lingminopt 框架优化关键参数
 - ✅ WebSocket 参数得分提升 385.7%
 - ✅ 性能参数得分提升 139.8%
 - ✅ 综合得分提升 224.9%
@@ -427,7 +427,7 @@ cat optimization_results.json | jq .
 
 ### E. 参考文档
 
-- [LingMinOpt 文档](/home/ai/LingMinOpt/README.md)
+- [lingminopt 文档](/home/ai/lingminopt/README.md)
 - [智桥使用指南](./USAGE_GUIDE.md)
 - [智桥故障排查](./TROUBLESHOOTING.md)
 
@@ -435,5 +435,5 @@ cat optimization_results.json | jq .
 
 **报告生成时间**: 2026-03-24
 **优化版本**: 1.0.0
-**LingMinOpt 版本**: 基于 /home/ai/LingMinOpt
+**lingminopt 版本**: 基于 /home/ai/lingminopt
 **评估者**: AI Assistant (Crush)

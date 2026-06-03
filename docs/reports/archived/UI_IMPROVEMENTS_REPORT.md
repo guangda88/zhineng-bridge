@@ -360,7 +360,7 @@ http://100.66.1.8:8000/web/ui/index.html
 
 - ChromeDevTools MCP: https://github.com/ChromeDevTools/chrome-devtools-mcp
 - 设计原则: https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/master/docs/design-principles.md
-- 智桥项目: /home/ai/zhineng-bridge
+- 智桥项目: /home/ai/zhibridge
 
 ## 总结
 

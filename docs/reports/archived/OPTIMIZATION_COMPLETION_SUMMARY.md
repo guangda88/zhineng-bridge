@@ -107,7 +107,7 @@
   - 构建验证
 
 - **OPTIMIZATION_REPORT.md**: 参数优化报告
-  - LingMinOpt 优化结果
+  - lingminopt 优化结果
   - 性能对比分析
   - 配置建议
 
@@ -149,7 +149,7 @@
 
 #### 3.2 参数优化脚本
 - **文件**: `scripts/optimize-params.py`
-- **框架**: LingMinOpt
+- **框架**: lingminopt
 - **功能**:
   - WebSocket 参数优化
   - 性能参数优化
@@ -283,7 +283,7 @@
 - **新增**: QUICKSTART、USAGE_GUIDE、TROUBLESHOOTING、CONTRIBUTING、RELEASE_CHECKLIST、OPTIMIZATION_REPORT 等
 
 ### 3. 参数优化
-- **框架**: LingMinOpt
+- **框架**: lingminopt
 - **优化对象**: WebSocket 参数、性能参数
 - **综合得分**: 0.8206 (82.06%)
 - **改进**: WebSocket +385.7%，性能 +139.8%
@@ -491,5 +491,5 @@ python3 scripts/push-dual.py status
 
 - [智桥主页](https://github.com/guangda88/zhineng-bridge)
 - [智桥镜像](http://zhinenggitea.iepose.cn/guangda/zhineng-bridge)
-- [Ling-term-mcp 项目](/home/ai/Ling-term-mcp)
-- [LingMinOpt 框架](/home/ai/LingMinOpt)
+- [Ling-term-mcp 项目](/home/ai/lingxi)
+- [lingminopt 框架](/home/ai/lingminopt)

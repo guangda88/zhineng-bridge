@@ -101,7 +101,7 @@ CMD ["npx", "-y", "chrome-devtools-mcp@latest"]
 ### 3. Relay Server 启动 ✅
 
 ```bash
-cd /home/ai/zhineng-bridge/relay-server
+cd /home/ai/zhibridge/relay-server
 python3 start_server.py
 ```
 

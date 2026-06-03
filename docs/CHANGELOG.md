@@ -237,7 +237,7 @@
 
 ### 测试
 
-- ✅ LingMinOpt 框架测试: 3/3 通过
+- ✅ lingminopt 框架测试: 3/3 通过
 - ✅ zhineng-bridge 优化测试: 2/2 通过
 - ✅ zhineng-bridge 前端测试: 3/3 通过
 - ✅ zhineng-bridge 加密测试: 2/2 通过

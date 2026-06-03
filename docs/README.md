@@ -138,7 +138,7 @@ python3 e2e_test.py
 - 🚀 页面加载时间: < 2s
 - 🚀 内存使用: < 100MB
 
-### LingMinOpt 优化结果
+### lingminopt 优化结果
 
 - WebSocket 连接优化: 1.0000 (max_connections=200, ping_interval=5, message_queue_size=5000)
 - 性能参数优化: 1.0866 (output_update_interval=51ms, compression_enabled=False, batch_size=1000)
@@ -159,8 +159,8 @@ python3 e2e_test.py
 
 ## 🙏 致谢
 
-- LingMinOpt - 极简自优化框架
-- LingFlow - 灵研流式AI框架
+- lingminopt - 极简自优化框架
+- lingflow - 灵研流式AI框架
 - 灵研 - 极简自主研究哲学
 
 ## 📞 联系方式

@@ -42,30 +42,24 @@ env/
 
 # Logs
 *.log
-logs/
 *.log.*
+logs/
+log/
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
-zhineng-bridge.db
-
-# Docker
-.dockerignore
 
 # Coverage
 .coverage
 .coverage.*
 htmlcov/
 coverage.json
-.coverage.*
+coverage.xml
 
-# Testing
-.pytest_cache/
-.tox/
-.cache
-nosetests.xml
+# Benchmarks
+.benchmarks/
 
 # SSL Certificates
 certs/
@@ -86,6 +80,9 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 
+# TypeScript build output
+typescript/
+
 # Temporary files
 tmp/
 temp/
@@ -96,55 +93,43 @@ Thumbs.db
 Desktop.ini
 
 # Build artifacts
-dist/
-build/
 *.tgz
 
 # Prometheus and Grafana data
 prometheus-data/
 grafana-data/
 
-# Docker volumes (data directories)
+# Docker volumes
 data/
 volumes/
 postgres-data/
 redis-data/
-
-# Nginx logs
 nginx-logs/
 
-# Application logs
-*.log
-log/
-logs/
-
-# Security files with secrets
+# Security files
 secrets/
 *.secret
 credentials.json
 
-# Web UI configuration (users create their own)
-web/ui/config/config.js
-
 # Process IDs
 *.pid
 
-# Temporary root-level test/debug scripts
-/test_*.py
-/chat_*.py
-/reverse_string.py
-/simple_chat.py
-/wait_and_test.sh
-
-# Temp files
-=5.3.0,
-__pycache__/
+# Testing
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
 
 # Audit records
 .audit/
 
 # AI agent identity cache
 .crush/
+.claude/
 
-# Coverage
-coverage.xml
+# Temp root-level scripts
+/test_*.py
+/chat_*.py
+/reverse_string.py
+/simple_chat.py
+/wait_and_test.sh

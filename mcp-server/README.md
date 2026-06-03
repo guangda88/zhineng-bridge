@@ -12,7 +12,7 @@
 
 - 🎯 **MCP 原生**: 完全兼容 MCP 标准，无缝对接主流 AI 助手
 - 🔒 **安全优先**: 命令白名单/黑名单、沙箱执行、权限控制
-- ⚡ **高性能**: 基于 LingMinOpt 自动优化，响应时间 < 100ms
+- ⚡ **高性能**: 基于 lingminopt 自动优化，响应时间 < 100ms
 - 🚀 **会话管理**: 支持多会话、会话持久化、状态同步
 - 📊 **性能监控**: 内置性能监控，实时追踪指标
 - 🧪 **严格测试**: 单元测试 + 集成测试 + E2E 测试，覆盖率 >= 85%
@@ -38,7 +38,7 @@ npm install
 # 生成配置文件
 npm run config
 
-# 或者使用 LingMinOpt 自动优化配置
+# 或者使用 lingminopt 自动优化配置
 cd optimization
 python3 optimize_mcp_params.py
 ```
@@ -218,13 +218,13 @@ Ling-term-mcp/
 │   ├── unit/               # 单元测试
 │   ├── integration/        # 集成测试
 │   └── e2e/                # E2E 测试
-├── optimization/           # LingMinOpt 优化
+├── optimization/           # lingminopt 优化
 │   ├── optimize_mcp_params.py
 │   └── search_space.py
 ├── docs/                   # 文档
 │   ├── API.md
 │   └── USER_GUIDE.md
-└── .lingflow/              # LingFlow 工作流
+└── .lingflow/              # lingflow 工作流
     └── workflows/
         └── develop_ling_term_mcp.yaml
 ```
@@ -233,13 +233,13 @@ Ling-term-mcp/
 
 ## 🔧 开发
 
-### 基于 LingFlow + LingMinOpt 的开发流程
+### 基于 lingflow + lingminopt 的开发流程
 
 ```bash
-# 1. 使用 LingFlow 执行开发工作流
+# 1. 使用 lingflow 执行开发工作流
 lingflow workflow .lingflow/workflows/develop_ling_term_mcp.yaml
 
-# 2. 运行 LingMinOpt 参数优化
+# 2. 运行 lingminopt 参数优化
 cd optimization
 python3 optimize_mcp_params.py
 
@@ -256,7 +256,7 @@ npm run build
 ### 添加新工具
 
 ```bash
-# 使用 LingFlow 模板生成新工具
+# 使用 lingflow 模板生成新工具
 lingflow run skill-creator \
   --params '{
     "skill_type": "mcp-tool",
@@ -269,7 +269,7 @@ lingflow run skill-creator \
 
 ## 📊 性能
 
-### 优化结果（LingMinOpt）
+### 优化结果（lingminopt）
 
 | 指标 | 目标 | 实际 | 状态 |
 |------|------|------|------|
@@ -350,8 +350,8 @@ npm run test:coverage
 - [API 文档](docs/API.md)
 - [用户指南](docs/USER_GUIDE.md)
 - [开发指南](docs/DEVELOPMENT.md)
-- [LingMinOpt 集成](docs/LINGMINOPT_INTEGRATION.md)
-- [LingFlow 工作流](.lingflow/workflows/develop_ling_term_mcp.yaml)
+- [lingminopt 集成](docs/LINGMINOPT_INTEGRATION.md)
+- [lingflow 工作流](.lingflow/workflows/develop_ling_term_mcp.yaml)
 
 ---
 
@@ -361,7 +361,7 @@ npm run test:coverage
 
 1. Fork 仓库
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 使用 LingFlow 执行开发工作流
+3. 使用 lingflow 执行开发工作流
 4. 运行测试 (`npm test`)
 5. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 6. 推送到分支 (`git push origin feature/AmazingFeature`)
@@ -377,8 +377,8 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ## 🙏 致谢
 
-- **LingMinOpt** - 灵研极简自优化框架
-- **LingFlow** - 灵研流式AI框架
+- **lingminopt** - 灵研极简自优化框架
+- **lingflow** - 灵研流式AI框架
 - **灵研** - 极简自主研究哲学
 - **Model Context Protocol** - MCP 标准协议
 
@@ -395,4 +395,4 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 **版本**: 1.0.0
 **发布日期**: 2026-03-24
-**基于**: LingMinOpt + LingFlow
+**基于**: lingminopt + lingflow

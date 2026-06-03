@@ -1,0 +1,17 @@
+[Unit]
+Description=智桥 - 灵族对外统一网关
+After=network.target
+
+[Service]
+Type=simple
+User=ai
+WorkingDirectory=/home/ai/zhibridge
+Environment=PYTHONPATH=/home/ai/zhibridge
+ExecStart=/usr/bin/python3 -m gateway.app
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/ai/zhibridge/gateway.log
+StandardError=append:/home/ai/zhibridge/gateway.log
+
+[Install]
+WantedBy=multi-user.target

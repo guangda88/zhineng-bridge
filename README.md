@@ -1,318 +1,119 @@
-# 智桥（Zhineng-bridge）
+# 智桥 (zhibridge)
 
-> 连接多个 AI 编码工具的统一桥梁
+> 灵族对外统一API网关 — 薄层路由、鉴权、限流
 
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-167%20passed-brightgreen.svg)](tests/)
-
----
 
 ## 项目简介
 
-**智桥（Zhineng-bridge）** 是一个跨平台的实时同步和通信 SDK，支持多种 AI 编码工具和 IDE，提供统一的接口和用户体验。
+**智桥** 是灵族的对外统一API网关，为7个对外工程（灵康、灵视、灵声、灵触、四诊、灵戴、灵律）和5个内部服务（灵通+、灵知、灵通问道、灵研、LLM Proxy）提供统一入口。
 
-### 核心特性
+**核心职责**：路由、鉴权、限流、熔断 — 不做业务逻辑。
 
-- **多工具支持**: 支持 15+ AI 编码工具与团队协作
-- **WebSocket 通信**: 实时双向通信
-- **会话管理**: 统一的会话生命周期管理
-- **安全认证**: JWT + OAuth2 + TOTP 2FA + CSRF + 速率限制
-- **插件系统**: 动态加载与生命周期管理
-- **高性能**: 优化的性能和响应速度
-- **易于集成**: 简洁的 API 和友好的 UI
-- **安全加固**: 48 + 17 = 65 项安全审计发现已修复
-
----
-
-## 支持的 AI 工具
-
-| 工具 | 说明 | 状态 |
-|------|------|------|
-| Crush | Charmbracelet Crush | ✅ |
-| Claude Code | Anthropic Claude Code | ✅ |
-| iFlow CLI | 阿里巴巴心流 iFlow CLI | ✅ |
-| Cursor | Anysphere Cursor | ✅ |
-| Trae | 字节跳动 Trae | ✅ |
-| Droid | Factory Droid | ✅ |
-| OpenClaw | OpenClaw | ✅ |
-| GitHub Copilot | GitHub Copilot | ✅ |
-| Aider | AI 结对编程 (GPT-4/Claude) | ✅ |
-| Continue | Continue.dev 开源 AI 代码助手 | ✅ |
-| Tabnine | AI 代码补全 | ✅ |
-| CodiumAI | AI 测试与代码完整性 | ✅ |
-| Windsurf | Codeium Windsurf AI IDE | ✅ |
-| Cody | Sourcegraph Cody AI 代码助手 | ✅ |
-| Augment | Augment Code AI 编程助手 | ✅ |
-
----
-
-## 快速开始
-
-### 环境要求
-
-- Python 3.8+
-- Node.js 16+（用于 Web UI 开发）
-- 现代浏览器
-
-### 安装
+## 快速启动
 
 ```bash
-# 克隆仓库
-git clone https://github.com/guangda88/zhineng-bridge.git
-cd zhineng-bridge
-
-# 安装 Python 依赖
+# 安装依赖
 pip install -r requirements.txt
 
-# 安装 JavaScript 依赖（可选）
-npm install
+# 启动网关
+bash gateway/gateway.sh start
+
+# 验证
+curl http://localhost:8767/v1/health
 ```
 
-### 启动服务
-
-```bash
-# 终端 1：启动中继服务器
-cd relay-server
-python3 start_server.py
-
-# 终端 2：启动 Session Manager
-cd phase1/session_manager
-python3 start_manager.py
-```
-
-### 访问 Web UI
+## 架构
 
 ```
-http://localhost:8000/web/ui/index.html
+外部请求 → 智桥网关(:8767) → 后端服务
+              │
+              ├─ 路由 (router.py)      — 32条路由
+              ├─ 鉴权 (auth.py)        — API Key / Bearer Token
+              ├─ 限流 (middleware.py)   — 100/min, burst 20
+              ├─ 熔断 (circuit.py)     — 连续失败自动熔断
+              └─ 指标 (metrics.py)     — Prometheus
 ```
 
----
+### 后端服务
+
+| 服务 | 端口 | 类型 |
+|------|------|------|
+| lingtong_plus | 8765 | 内部 |
+| lingzhi | 8000 | 内部 |
+| lingtong_ask | 8902 | 内部 |
+| lingresearch | 8903 | 内部 |
+| llm_proxy | 8080 | 内部 |
+| linghealth | 8200 | 对外 |
+| lingvision | 8781 | 对外 |
+| lingvoice | 8100 | 对外 |
+| lingtouch | 8784 | 对外 |
+| sizhen | 8785 | 对外 |
+| lingwear | 8787 | 对外 |
+| linglaw | 8002 | 对外 |
+
+### API 端点
+
+| 方法 | 路径 | 说明 | 鉴权 |
+|------|------|------|------|
+| GET | `/v1/health` | 健康检查（含后端状态） | 否 |
+| POST | `/v1/chat/completions` | LLM代理 | 是 |
+| POST | `/api/knowledge/query` | 知识库语义检索 | 是 |
+| GET | `/api/status` | 灵族健康仪表盘 | 是 |
+| GET | `/projects/{project}/{path}` | 对外工程通配代理 | 是 |
+| GET | `/internal/{backend}/{path}` | 内部服务回调查询 | 可选 |
+| GET | `/metrics` | Prometheus指标 | 否 |
+
+详见 `gateway/README.md` 和 Swagger UI: `http://localhost:8767/docs`
 
 ## 项目结构
 
 ```
-zhineng-bridge/
-├── relay-server/          # WebSocket + HTTP 中继服务器
-│   ├── server.py          # 主服务器
-│   ├── auth*.py           # 认证模块 (JWT/OAuth2/TOTP/CSRF)
-│   ├── plugin_system.py   # 插件系统
-│   ├── models.py          # 数据模型 (Pydantic)
-│   ├── rate_limit.py      # 速率限制
-│   └── start_server.py    # 启动脚本
-├── phase1/                # 第一阶段功能
-│   └── session_manager/   # 会话管理器 (15 AI 工具)
-├── phase3/                # 第三阶段功能
-│   ├── encryption/        # 加密模块
-│   └── storage/           # 存储模块
-├── phase4/                # 第四阶段功能
-│   ├── security/          # 安全模块 (CSP/CSRF/速率限制)
-│   ├── optimization/      # 性能优化
-│   └── monitoring/        # 监控面板
-├── web/ui/                # Web UI
-│   ├── index.html         # 主页面
-│   ├── css/               # 样式
-│   └── js/                # JavaScript 模块
-├── tests/                 # 测试代码
-│   ├── unit/              # 单元测试
-│   ├── integration/       # 集成测试
-│   ├── e2e/               # 端到端测试
-│   ├── performance/       # 性能测试
-│   └── frontend/          # 前端测试
-├── scripts/               # 运维脚本 (部署/备份/诊断)
-├── docs/                  # 文档
-├── Dockerfile             # Docker 镜像
-├── docker-compose.yml     # 开发环境编排
-└── docker-compose.prod.yml # 生产环境编排
+gateway/          — 网关核心（FastAPI）
+  ├── app.py        入口
+  ├── config.py     配置（pydantic-settings）
+  ├── auth.py       鉴权
+  ├── router.py     路由
+  ├── proxy.py      反向代理
+  ├── middleware.py  限流 + CORS
+  ├── circuit.py    熔断器
+  ├── metrics.py    Prometheus
+  └── tests/        测试
+docs/             — 文档
+nginx/            — Nginx配置
+mcp-server/       — MCP服务端（开发中）
 ```
 
----
+## 配置
 
-## 性能指标
-
-| 指标 | 值 |
-|------|-----|
-| 会话创建时间 | < 100ms |
-| WebSocket 连接时间 | < 50ms |
-| 页面加载时间 | < 2s |
-| 内存使用 | < 100MB |
-| 测试 | 167 passed, 12 skipped |
-| 安全审计修复 | 65/65 (48 + 17) |
-
----
-
-## 生产环境部署
-
-智桥提供完整的 Docker 化生产环境部署方案，支持以下特性：
-
-### 部署特性
-
-- **Docker Compose 编排**: 一键部署所有服务
-- **PostgreSQL 数据库**: 生产级数据库支持
-- **Redis 缓存**: 高性能缓存层
-- **Nginx 反向代理**: SSL 终止和负载均衡
-- **Prometheus + Grafana**: 完整的监控和可视化
-- **自动化脚本**: 部署、备份、恢复、更新
-
-### 快速部署
+环境变量前缀 `ZHIBRIDGE_`，或通过 `.env` 文件：
 
 ```bash
-# 1. 配置环境变量
-cp .env.example .env.prod
-vim .env.prod  # 修改必要的配置
-
-# 2. 配置 SSL 证书（可选但推荐）
-# 参考 docs/SSL_SETUP.md
-
-# 3. 运行部署脚本
-chmod +x scripts/*.sh
-./scripts/deploy.sh
-
-# 4. 验证部署
-./scripts/verify_deployment.sh
+ZHIBRIDGE_HOST=127.0.0.1
+ZHIBRIDGE_PORT=8767
+ZHIBRIDGE_SSL_ENABLED=false
+ZHIBRIDGE_RATE_LIMIT=100/minute
 ```
 
-### 文档
-
-- 📘 [生产环境部署指南](docs/PRODUCTION_DEPLOYMENT.md) - 完整的部署文档
-- 🔐 [SSL 证书设置指南](docs/SSL_SETUP.md) - SSL/TLS 配置说明
-
-### 管理命令
+## 测试
 
 ```bash
-# 查看服务状态
-docker-compose -f docker-compose.prod.yml ps
-
-# 查看日志
-docker-compose -f docker-compose.prod.yml logs -f
-
-# 停止服务
-docker-compose -f docker-compose.prod.yml down
-
-# 备份数据
-./scripts/backup.sh -t full
-
-# 恢复数据
-./scripts/restore.sh backups/full_backup_*.tar.gz
-
-# 更新服务
-./scripts/update.sh
-
-# 验证部署
-./scripts/verify_deployment.sh
+pytest gateway/tests/ -v
 ```
 
----
-
-## 文档
-
-### 用户文档
-
-- [API 文档](docs/API.md) - WebSocket API 参考
-- [认证文档](docs/AUTHENTICATION.md) - JWT/OAuth2 认证说明
-- [更新日志](docs/CHANGELOG.md) - 版本变更记录
-
-### 开发文档
-
-- [安全审计报告](docs/DEEP_AUDIT_REPORT.md) - 65 项安全发现及修复记录 (v1.2 + v1.4.0)
-- [测试审计报告](docs/TEST_AUDIT_REPORT.md) - 测试质量审计
-- [贡献指南](CONTRIBUTING.md) - 贡献流程和规范
-- [开发指南](AGENTS.md) - Agent 配置说明
-
----
-
-## 安全
-
-v1.2 完成全面安全审计（48 项），v1.4.0 完成审计 Phase 1（17 项），共修复 65 项安全发现：
-
-- **WebSocket 认证**: 首消息 token 验证 + 后端注册密钥
-- **XSS 防护**: 全前端 DOM-based escapeHtml + CSP
-- **OAuth2 安全**: HTTP-only cookie + state 验证
-- **CSRF 防护**: 令牌 + fetch 拦截链
-- **密码安全**: PBKDF2-HMAC-SHA256 可配置迭代次数
-- **信息泄露**: 移除 HTML 注释中的配置信息 + 敏感字段脱敏
-- **内存安全**: pending 字典 TTL 自动清理
-- **时序攻击**: hmac.compare_digest 替换
-- **Host header 注入**: 白名单验证
-- **RCE 防护**: 插件白名单 + 文件系统检查
-- **TOTP 2FA**: 双因素认证
-
-详见 [安全审计报告](docs/DEEP_AUDIT_REPORT.md)。
-
----
-
-## 开发
-
-### 运行测试
+## 部署
 
 ```bash
-# 运行所有测试
-python3 -m pytest tests/ -v
-
-# 运行测试并生成覆盖率报告
-python3 -m pytest tests/ --cov=. --cov-report=html
-
-# 查看覆盖率报告
-open htmlcov/index.html
+# systemd
+sudo cp gateway/zhibridge-gateway.service /etc/systemd/system/
+sudo systemctl enable --now zhibridge-gateway
 ```
 
-### 代码规范
+## 安全策略
 
-项目遵循以下规范：
-
-- **PEP 8** - Python 代码风格
-- **Conventional Commits** - 提交消息规范
-- **Google 风格** - 文档字符串规范
-- **Black** - 代码格式化
-- **isort** - 导入排序
-
-### 提交规范
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-| Type | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | Bug 修复 |
-| `docs` | 文档更新 |
-| `style` | 代码格式 |
-| `refactor` | 重构 |
-| `test` | 测试相关 |
-| `chore` | 构建/工具 |
-
----
-
-## 贡献
-
-欢迎贡献代码！请查看 [贡献指南](CONTRIBUTING.md) 了解详情。
-
-### 贡献流程
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'feat: Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
----
+详见 [`SECURITY.md`](SECURITY.md)。
 
 ## 许可证
 
-[MIT License](LICENSE)
-
----
-
-## 联系方式
-
-- GitHub: https://github.com/guangda88/zhineng-bridge
-- Issues: https://github.com/guangda88/zhineng-bridge/issues
-
----
-
-**智桥（Zhineng-bridge） - 让 AI 编码工具更易用** 🚀
+MIT

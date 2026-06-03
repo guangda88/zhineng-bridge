@@ -1,6 +1,6 @@
 # Ling-term-mcp（灵犀）详细实施计划
 
-**基于 LingMinOpt + LingFlow 架构**
+**基于 lingminopt + lingflow 架构**
 **版本**: 1.0.0
 **创建日期**: 2026-03-24
 **预计完成**: 2026-04-28（5 周）
@@ -9,14 +9,14 @@
 
 ## 📋 执行摘要
 
-本文档详细规划了 Ling-term-mcp（灵犀）项目的开发流程，基于 LingMinOpt 自动优化框架和 LingFlow 工作流执行系统，确保精细计划、准确实施、严格测试。
+本文档详细规划了 Ling-term-mcp（灵犀）项目的开发流程，基于 lingminopt 自动优化框架和 lingflow 工作流执行系统，确保精细计划、准确实施、严格测试。
 
 ### 核心原则
 
 1. **精细计划**: 每个任务都有明确的输入、输出和验收标准
-2. **准确实施**: 使用 LingFlow 工作流自动执行，减少人为错误
+2. **准确实施**: 使用 lingflow 工作流自动执行，减少人为错误
 3. **严格测试**: 单元测试、集成测试、E2E 测试，覆盖率 >= 85%
-4. **数据驱动**: 使用 LingMinOpt 自动优化关键参数
+4. **数据驱动**: 使用 lingminopt 自动优化关键参数
 
 ---
 
@@ -86,7 +86,7 @@
 **任务 1.1: 创建项目结构**
 
 **输入**:
-- 工作目录: `/home/ai/zhineng-bridge/mcp-server`
+- 工作目录: `/home/ai/zhibridge/mcp-server`
 - 项目模板: TypeScript + Node.js 18+
 
 **输出**:
@@ -113,7 +113,7 @@ mcp-server/
 - [ ] package.json 配置完成
 - [ ] .gitignore 文件配置
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
@@ -134,7 +134,7 @@ mcp-server/
 - [ ] node_modules 目录存在
 - [ ] package-lock.json 生成
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
@@ -153,7 +153,7 @@ mcp-server/
 - [ ] strict: true
 - [ ] 类型检查正常工作
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -195,7 +195,7 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -214,7 +214,7 @@ await server.connect(transport);
 - [ ] 构建失败立即通知
 - [ ] 测试覆盖率报告生成
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -235,7 +235,7 @@ await server.connect(transport);
 - [ ] 测试框架正常运行
 - [ ] 所有依赖正确加载
 
-**执行方式**: LingFlow `test-runner` 技能
+**执行方式**: lingflow `test-runner` 技能
 
 ---
 
@@ -254,7 +254,7 @@ await server.connect(transport);
 - [ ] 使用示例可运行
 - [ ] 架构图清晰
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
@@ -313,7 +313,7 @@ await server.connect(transport);
 }
 ```
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -334,7 +334,7 @@ await server.connect(transport);
 - [ ] 状态返回格式正确
 - [ ] 单元测试通过
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -353,7 +353,7 @@ await server.connect(transport);
 - [ ] 返回格式符合 MCP 标准
 - [ ] 单元测试通过
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -377,7 +377,7 @@ await server.connect(transport);
 - [ ] 会话持久化正常
 - [ ] 单元测试覆盖率 > 80%
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -398,7 +398,7 @@ await server.connect(transport);
 - [ ] 会话数据正确读取
 - [ ] 单元测试通过
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -421,7 +421,7 @@ await server.connect(transport);
 - [ ] 代码覆盖率 >= 70%
 - [ ] 无 TypeScript 错误
 
-**执行方式**: LingFlow `test-runner` 技能
+**执行方式**: lingflow `test-runner` 技能
 
 ---
 
@@ -435,11 +435,11 @@ await server.connect(transport);
 
 ---
 
-## 📅 第三阶段：LingMinOpt 参数优化（第 3 周，前 3 天）
+## 📅 第三阶段：lingminopt 参数优化（第 3 周，前 3 天）
 
 ### 目标
 
-使用 LingMinOpt 优化 MCP Server 性能参数
+使用 lingminopt 优化 MCP Server 性能参数
 
 ### 详细任务清单
 
@@ -449,7 +449,7 @@ await server.connect(transport);
 
 **输入**:
 - MCP Server 配置参数
-- LingMinOpt SearchSpace API
+- lingminopt SearchSpace API
 
 **输出**:
 - `optimization/search_space.py`
@@ -468,7 +468,7 @@ await server.connect(transport);
 - session_cache_ttl: [300, 600, 1800, 3600]
 - log_level: ["debug", "info", "warn", "error"]
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -496,18 +496,18 @@ Score = 0.4 * response_time_score
       + 0.05 * log_score
 ```
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
 #### Day 2: 运行优化
 
-**任务 3.3: 运行 LingMinOpt 优化**
+**任务 3.3: 运行 lingminopt 优化**
 
 **输入**:
 - 搜索空间定义
 - 评估函数
-- LingMinOpt 配置
+- lingminopt 配置
 
 **输出**:
 - `optimization/results.json`
@@ -518,7 +518,7 @@ Score = 0.4 * response_time_score
 - [ ] 结果文件生成
 - [ ] 报告可读性强
 
-**执行方式**: LingFlow `task-runner` 技能
+**执行方式**: lingflow `task-runner` 技能
 
 ---
 
@@ -539,7 +539,7 @@ Score = 0.4 * response_time_score
 - [ ] 配置文件格式正确
 - [ ] 文档更新完整
 
-**执行方式**: LingFlow `code-refactor` 技能
+**执行方式**: lingflow `code-refactor` 技能
 
 ---
 
@@ -608,13 +608,13 @@ Score = 0.4 * response_time_score
 
 ---
 
-## 🔄 LingFlow 工作流执行
+## 🔄 lingflow 工作流执行
 
 ### 启动完整工作流
 
 ```bash
 # 进入项目目录
-cd /home/ai/zhineng-bridge/mcp-server
+cd /home/ai/zhibridge/mcp-server
 
 # 执行完整开发工作流
 lingflow workflow .lingflow/workflows/develop_ling_term_mcp.yaml
@@ -637,13 +637,13 @@ lingflow status develop_ling_term_mcp
 
 ---
 
-## 🔍 LingMinOpt 优化
+## 🔍 lingminopt 优化
 
 ### 手动运行优化
 
 ```bash
 # 进入优化目录
-cd /home/ai/zhineng-bridge/mcp-server/optimization
+cd /home/ai/zhibridge/mcp-server/optimization
 
 # 运行优化
 python3 optimize_mcp_params.py
@@ -681,7 +681,7 @@ cat optimization_report.md
 
 ### 第三阶段验收
 
-- [ ] LingMinOpt 优化完成
+- [ ] lingminopt 优化完成
 - [ ] 性能改善 >= 10%
 - [ ] 优化参数正确应用
 
@@ -711,7 +711,7 @@ cat optimization_report.md
 
 **项目负责人**: Guangda
 **技术栈**: TypeScript + Node.js + MCP SDK
-**框架**: LingMinOpt + LingFlow
+**框架**: lingminopt + lingflow
 **项目名称**: Ling-term-mcp（灵犀）
 
 ---

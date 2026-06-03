@@ -1,0 +1,449 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "智桥 - 灵族对外统一网关",
+    "description": "薄层API网关，只做路由、鉴权、限流，不做业务",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "P0 健康检查",
+        "operationId": "health_check_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "summary": "Chat Completions",
+        "description": "P0 LLM代理 - 转发到灵通+:8765",
+        "operationId": "chat_completions_v1_chat_completions_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/query": {
+      "post": {
+        "summary": "Knowledge Query",
+        "description": "P0 知识库语义检索 - 转发到灵知:8000",
+        "operationId": "knowledge_query_api_knowledge_query_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "summary": "Status Dashboard",
+        "description": "P1 灵族健康仪表盘 - 转发到灵通+:8765",
+        "operationId": "status_dashboard_api_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents": {
+      "get": {
+        "summary": "Agents List",
+        "description": "P1 成员状态列表 - 转发到灵通+:8765",
+        "operationId": "agents_list_api_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/podcast/episodes": {
+      "get": {
+        "summary": "Podcast Episodes",
+        "description": "P1 播客元数据 - 静态数据或灵通问道",
+        "operationId": "podcast_episodes_api_podcast_episodes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/research/papers": {
+      "get": {
+        "summary": "Research Papers",
+        "description": "P2 论文检索 - 转发到灵研:8903",
+        "operationId": "research_papers_api_research_papers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/generations": {
+      "post": {
+        "summary": "Image Generations",
+        "description": "P2 图片生成 - 转发到LLM Proxy:8080",
+        "operationId": "image_generations_v1_images_generations_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingvision/diagnose": {
+      "post": {
+        "summary": "Lingvision Diagnose",
+        "description": "灵视望诊分析 - 转发到灵视:8781",
+        "operationId": "lingvision_diagnose_lingvision_diagnose_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingvision/teaching/analyze": {
+      "post": {
+        "summary": "Lingvision Teaching",
+        "description": "灵视视觉教学分析 - 转发到灵视:8781",
+        "operationId": "lingvision_teaching_lingvision_teaching_analyze_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingvision/health": {
+      "get": {
+        "summary": "Lingvision Health",
+        "description": "灵视健康检查",
+        "operationId": "lingvision_health_lingvision_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingkang/knowledge/query": {
+      "post": {
+        "summary": "Lingkang Knowledge",
+        "description": "灵康调度灵知知识检索 - 转发到灵知:8000",
+        "operationId": "lingkang_knowledge_lingkang_knowledge_query_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingtouch/diagnose": {
+      "post": {
+        "summary": "Lingtouch Diagnose",
+        "description": "灵触切诊分析 - 转发到灵触:8784",
+        "operationId": "lingtouch_diagnose_lingtouch_diagnose_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingtouch/pulse/classify": {
+      "post": {
+        "summary": "Lingtouch Pulse Classify",
+        "description": "灵触脉象分类 - 转发到灵触:8784",
+        "operationId": "lingtouch_pulse_classify_lingtouch_pulse_classify_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingtouch/health": {
+      "get": {
+        "summary": "Lingtouch Health",
+        "description": "灵触健康检查",
+        "operationId": "lingtouch_health_lingtouch_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingwear/data/upload": {
+      "post": {
+        "summary": "Lingwear Upload",
+        "description": "灵戴数据上传 - 转发到灵戴:8787",
+        "operationId": "lingwear_upload_lingwear_data_upload_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingwear/health/report": {
+      "get": {
+        "summary": "Lingwear Report",
+        "description": "灵戴健康报告 - 转发到灵戴:8787",
+        "operationId": "lingwear_report_lingwear_health_report_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingwear/devices": {
+      "get": {
+        "summary": "Lingwear Devices",
+        "description": "灵戴设备列表 - 转发到灵戴:8787",
+        "operationId": "lingwear_devices_lingwear_devices_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lingwear/health": {
+      "get": {
+        "summary": "Lingwear Health",
+        "description": "灵戴健康检查",
+        "operationId": "lingwear_health_lingwear_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "Metrics Endpoint",
+        "description": "Prometheus指标端点",
+        "operationId": "metrics_endpoint_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
