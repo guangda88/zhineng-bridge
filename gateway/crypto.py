@@ -9,8 +9,10 @@ E2E加密模块 — 对敏感路由(linghealth/linglaw)的请求体/响应体做
 实际实现：gateway作为透传层，客户端在请求头传 encrypted=true，
 gateway标记日志但直接转发body（加密由客户端/后端自行协商）。
 """
+
 import base64
 import os
+
 import structlog
 
 log = structlog.get_logger()
@@ -28,8 +30,7 @@ def generate_key() -> str:
 
 def is_encrypted_request(headers: dict) -> bool:
     """检查请求是否标记为加密（兼容Starlette小写header和原始大小写）"""
-    val = headers.get(ENCRYPTED_HEADER.lower(),
-                      headers.get(ENCRYPTED_HEADER, ""))
+    val = headers.get(ENCRYPTED_HEADER.lower(), headers.get(ENCRYPTED_HEADER, ""))
     return val.lower() == "true"
 
 

@@ -3,8 +3,9 @@
 
 注：httpx.AsyncClient mock复杂，留待后续集成测试覆盖。
 """
-import pytest
+
 from fastapi.testclient import TestClient
+
 from gateway.app import create_app
 
 

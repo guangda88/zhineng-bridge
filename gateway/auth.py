@@ -4,9 +4,11 @@
 策略：网关用hmac.compare_digest验证key真伪，通过后透传给后端服务。
 Key从环境变量ZHIBRIDGE_API_KEY读取（config.py的settings.api_key）。
 """
+
 import hmac
-from fastapi import Request, HTTPException, status
+
 import structlog
+from fastapi import HTTPException, Request, status
 
 from . import config
 

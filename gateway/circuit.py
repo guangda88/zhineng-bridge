@@ -1,20 +1,24 @@
 """
 后端健康检查 + 熔断器
 """
-from httpx import AsyncClient, ConnectError, TimeoutException
+
 from datetime import datetime, timedelta
 from typing import Dict
+
 import structlog
+from httpx import AsyncClient, ConnectError, TimeoutException
 
 from .config import BACKEND_SERVICES
 
 log = structlog.get_logger()
 
+
 # 熔断器状态
 class CircuitState:
-    OPEN = "open"      # 熔断开启，请求直接返回503
+    OPEN = "open"  # 熔断开启，请求直接返回503
     HALF_OPEN = "half_open"  # 测试状态
     CLOSED = "closed"  # 正常
+
 
 _circuit_states: Dict[str, CircuitState] = {}
 _last_failure: Dict[str, datetime] = {}

@@ -1,14 +1,16 @@
 """
 中间件模块 - 限流 + CORS + 请求日志
 """
-from fastapi import Request
-from starlette.middleware.cors import CORSMiddleware
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from starlette.responses import JSONResponse
-import structlog
+
 import time
+
+import structlog
+from fastapi import Request
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 
 from .config import settings
 
@@ -19,12 +21,19 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_lim
 
 
 async def log_requests(request: Request, call_next):
-    """请求日志 + Prometheus指标中间件"""
-    from .metrics import record_request, ACTIVE_REQUESTS
+    """请求日志 + Prometheus指标 + SDTH优先级检测 + 延迟gap追踪"""
+    from .metrics import ACTIVE_REQUESTS, record_latency_gap, record_request, record_urgent_request
 
-    start_time = time.time()
+    arrival_time = time.time()
     method = request.method
     path = request.url.path
+
+    # SDTH: 检测urgent标记（用户请求优先）
+    priority = request.headers.get(settings.priority_header, "normal")
+    is_urgent = priority.lower() == "urgent"
+    if is_urgent:
+        record_urgent_request(method, path)
+        log.info("urgent_request_detected", method=method, path=path)
 
     ACTIVE_REQUESTS.inc()
     try:
@@ -32,8 +41,20 @@ async def log_requests(request: Request, call_next):
     finally:
         ACTIVE_REQUESTS.dec()
 
-    duration = time.time() - start_time
+    duration = time.time() - arrival_time
     record_request(method, path, response.status_code, duration)
+
+    # SDTH: 延迟gap = 总耗时（含排队）。超过阈值记录告警
+    record_latency_gap(method, path, duration, threshold=settings.latency_alert_threshold)
+    if duration > settings.latency_alert_threshold:
+        log.warning(
+            "latency_gap_exceeded",
+            method=method,
+            path=path,
+            gap_seconds=round(duration, 2),
+            threshold=settings.latency_alert_threshold,
+            priority=priority,
+        )
 
     log.info(
         "request_completed",
@@ -41,6 +62,7 @@ async def log_requests(request: Request, call_next):
         path=path,
         status=response.status_code,
         duration_ms=round(duration * 1000, 2),
+        priority=priority,
     )
     return response
 
@@ -61,7 +83,7 @@ def setup_middleware(app):
         allow_origins=settings.cors_origins,
         allow_credentials=bool(settings.cors_origins),
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["X-API-Key", "Content-Type", "Authorization"],
+        allow_headers=["X-API-Key", "Content-Type", "Authorization", settings.priority_header],
     )
 
     # 请求日志

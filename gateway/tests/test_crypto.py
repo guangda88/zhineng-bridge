@@ -1,15 +1,17 @@
 """
 E2E加密模块测试
 """
+
 import pytest
+
 from gateway.crypto import (
+    ENCRYPTED_HEADER,
+    KEY_ID_HEADER,
+    NONCE_HEADER,
     generate_key,
     is_encrypted_request,
     is_sensitive_backend,
     strip_encryption_headers,
-    ENCRYPTED_HEADER,
-    NONCE_HEADER,
-    KEY_ID_HEADER,
 )
 
 
@@ -17,6 +19,7 @@ class TestCrypto:
     def test_generate_key_returns_base64(self):
         key = generate_key()
         import base64
+
         decoded = base64.b64decode(key)
         assert len(decoded) == 32
 
@@ -45,8 +48,15 @@ class TestCrypto:
         assert is_sensitive_backend("linglaw") is True
 
     def test_is_sensitive_backend_others(self):
-        for b in ("lingvision", "lingvoice", "lingtouch", "sizhen",
-                   "lingwear", "lingtong_plus", "lingzhi"):
+        for b in (
+            "lingvision",
+            "lingvoice",
+            "lingtouch",
+            "sizhen",
+            "lingwear",
+            "lingtong_plus",
+            "lingzhi",
+        ):
             assert is_sensitive_backend(b) is False
 
     def test_strip_encryption_headers_removes_all(self):
@@ -70,7 +80,8 @@ class TestCrypto:
         assert stripped == headers
 
     def test_encrypt_decrypt_roundtrip(self):
-        from gateway.crypto import encrypt, decrypt
+        from gateway.crypto import decrypt, encrypt
+
         key = generate_key()
         plaintext = b'{"patient_id": "123", "diagnosis": "hypertension"}'
         ciphertext_b64, nonce_b64 = encrypt(plaintext, key)
@@ -79,6 +90,7 @@ class TestCrypto:
 
     def test_encrypt_produces_different_ciphertext(self):
         from gateway.crypto import encrypt
+
         key = generate_key()
         plaintext = b"same data"
         ct1, _ = encrypt(plaintext, key)
@@ -86,8 +98,8 @@ class TestCrypto:
         assert ct1 != ct2
 
     def test_decrypt_wrong_key_fails(self):
-        from gateway.crypto import encrypt, decrypt
-        import base64
+        from gateway.crypto import decrypt, encrypt
+
         key1 = generate_key()
         key2 = generate_key()
         plaintext = b"secret data"
@@ -96,8 +108,10 @@ class TestCrypto:
             decrypt(ct, nonce, key2)
 
     def test_decrypt_tampered_ciphertext_fails(self):
-        from gateway.crypto import encrypt, decrypt
         import base64
+
+        from gateway.crypto import decrypt, encrypt
+
         key = generate_key()
         plaintext = b"secret data"
         ct, nonce = encrypt(plaintext, key)

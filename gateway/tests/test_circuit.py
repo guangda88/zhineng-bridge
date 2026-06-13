@@ -1,14 +1,21 @@
 """
 熔断器测试
 """
+
+import importlib
+import os
+
 import pytest
+
 from gateway.circuit import (
     CircuitState,
+    check_backend_health,
     get_circuit_state,
     record_circuit_failure,
     record_circuit_success,
-    check_backend_health,
 )
+
+TEST_KEY = "test-api-key-for-gateway-tests-1234567890"
 
 
 class TestCircuitBreaker:
@@ -43,6 +50,11 @@ class TestCircuitBreaker:
     def test_open_circuit_returns_503(self):
         """熔断开启的服务会被拒绝"""
         from fastapi.testclient import TestClient
+
+        os.environ["ZHIBRIDGE_API_KEY"] = TEST_KEY
+        import gateway.config as cfg
+
+        importlib.reload(cfg)
         from gateway.app import create_app
 
         service = "lingtong_plus"
@@ -54,7 +66,7 @@ class TestCircuitBreaker:
         resp = client.post(
             "/v1/chat/completions",
             json={"model": "test", "messages": []},
-            headers={"X-API-Key": "test_lpkey_1234567890abcdef"},
+            headers={"X-API-Key": TEST_KEY},
         )
         # 由于后端不可达，预期返回503或504，熔断开启时是503
         assert resp.status_code in [503, 504]
@@ -70,8 +82,9 @@ async def test_check_unavailable_backend():
 @pytest.mark.asyncio
 async def test_circuit_half_open_after_window():
     """窗口时间后进入half-open状态"""
-    from gateway.circuit import _last_failure, _circuit_states
     from datetime import datetime, timedelta
+
+    from gateway.circuit import _last_failure
 
     service = "test_half_open"
     for _ in range(3):

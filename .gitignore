@@ -133,3 +133,4 @@ nosetests.xml
 /reverse_string.py
 /simple_chat.py
 /wait_and_test.sh
+gateway/frpc_zhibridge.toml

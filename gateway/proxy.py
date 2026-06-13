@@ -1,16 +1,19 @@
 """
 反向代理核心模块
 """
-from fastapi import HTTPException, status
-from httpx import AsyncClient, TimeoutException, ConnectError, HTTPError
+
 import asyncio
+import os
 import time
 import uuid
-from typing import Dict, Any, Optional
-import structlog
+from typing import Any, Dict, Optional
 
+import structlog
+from fastapi import HTTPException, status
+from httpx import AsyncClient, ConnectError, HTTPError, TimeoutException
+
+from .circuit import CircuitState, get_circuit_state, record_circuit_failure, record_circuit_success
 from .config import BACKEND_SERVICES
-from .circuit import get_circuit_state, record_circuit_failure, record_circuit_success, CircuitState
 
 log = structlog.get_logger()
 
@@ -25,7 +28,9 @@ class RetryQueue:
         self.retry_delay = retry_delay
         self._task: Optional[asyncio.Task] = None
 
-    def enqueue(self, backend: str, path: str, body: dict, user: dict, method: str) -> Optional[str]:
+    def enqueue(
+        self, backend: str, path: str, body: dict, user: dict, method: str
+    ) -> Optional[str]:
         if len(self._queue) >= self.max_size:
             log.warning("retry_queue_full", size=len(self._queue))
             return None
@@ -76,7 +81,10 @@ class RetryQueue:
             async with AsyncClient(timeout=30.0) as client:
                 url = f"{entry['backend']}{entry['path']}"
                 headers = {
-                    "X-API-Key": entry["user"].get("api_key", ""),
+                    "X-API-Key": os.environ.get(
+                        "ZHIBRIDGE_BACKEND_TOKEN", entry["user"].get("api_key", "")
+                    ),
+                    "X-Forwarded-By": "zhibridge",
                     "Content-Type": "application/json",
                 }
                 if entry["method"] == "POST":
@@ -98,7 +106,9 @@ class RetryQueue:
                     entry["retries"] += 1
                     if entry["retries"] >= self.max_retries:
                         self._queue.pop(0)
-                        log.warning("retry_exhausted", entry_id=entry["id"], retries=entry["retries"])
+                        log.warning(
+                            "retry_exhausted", entry_id=entry["id"], retries=entry["retries"]
+                        )
                     else:
                         self._queue.append(self._queue.pop(0))
         except (TimeoutException, ConnectError, HTTPError) as e:
@@ -119,24 +129,34 @@ async def proxy_request(
     body: dict,
     user: dict,
     method: str = "POST",
+    urgent: bool = False,
 ) -> dict:
-    """通用反向代理函数，内置熔断器"""
-    # 熔断检查
+    """通用反向代理函数，内置熔断器。
+
+    SDTH: urgent=True时，请求跳过重试队列（直接失败），使用更短超时快速反馈。
+    """
     service_name = _get_service_name(backend)
     circuit = get_circuit_state(service_name)
     if circuit == CircuitState.OPEN:
+        if urgent:
+            log.warning("urgent_blocked_by_circuit", service=service_name, path=path)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Backend {service_name} circuit breaker open",
         )
 
     url = f"{backend}{path}"
+    internal_token = os.environ.get("ZHIBRIDGE_BACKEND_TOKEN", user.get("api_key", ""))
     headers = {
-        "X-API-Key": user.get("api_key", ""),
+        "X-API-Key": internal_token,
+        "X-Forwarded-By": "zhibridge",
         "Content-Type": "application/json",
     }
+    if urgent:
+        headers["X-Priority"] = "urgent"
+    timeout = 30.0 if urgent else 120.0
     try:
-        async with AsyncClient(timeout=120.0) as client:
+        async with AsyncClient(timeout=timeout) as client:
             if method == "POST":
                 resp = await client.post(url, json=body, headers=headers)
             elif method == "GET":
@@ -152,7 +172,7 @@ async def proxy_request(
                 )
 
             if resp.status_code >= 500:
-                log.error("proxy_backend_error", url=url, status=resp.status_code)
+                log.error("proxy_backend_error", url=url, status=resp.status_code, urgent=urgent)
                 record_circuit_failure(service_name)
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
@@ -163,16 +183,16 @@ async def proxy_request(
             return resp.json()
 
     except TimeoutException:
-        log.warning("proxy_timeout", url=url)
+        log.warning("proxy_timeout", url=url, urgent=urgent)
         record_circuit_failure(service_name)
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Backend timeout",
+            detail="Backend timeout" + (" (urgent)" if urgent else ""),
         )
     except ConnectError as e:
-        log.warning("proxy_connect_error", url=url, error=str(e))
+        log.warning("proxy_connect_error", url=url, error=str(e), urgent=urgent)
         record_circuit_failure(service_name)
-        if method == "POST":
+        if not urgent and method == "POST":
             entry_id = retry_queue.enqueue(backend, path, body, user, method)
             if entry_id:
                 raise HTTPException(
@@ -184,7 +204,7 @@ async def proxy_request(
             detail="Backend unavailable",
         )
     except HTTPError as e:
-        log.error("proxy_http_error", url=url, error=str(e))
+        log.error("proxy_http_error", url=url, error=str(e), urgent=urgent)
         record_circuit_failure(service_name)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
