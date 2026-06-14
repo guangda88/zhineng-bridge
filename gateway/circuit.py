@@ -59,7 +59,7 @@ def record_circuit_success(service: str):
 
 async def check_backend_health(service: str, url: str) -> bool:
     """检查后端服务健康状态，兼容灵族不同的健康检查端点"""
-    health_endpoints = ["/health", "/api/status", "/api/health", "/"]
+    health_endpoints = ["/health", "/healthz", "/v1/health", "/api/status", "/api/health", "/"]
 
     for endpoint in health_endpoints:
         try:

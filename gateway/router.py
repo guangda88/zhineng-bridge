@@ -89,6 +89,12 @@ async def _forward(
 # ============================================================
 
 
+@router.get("/healthz")
+async def liveness_probe():
+    """免认证存活探针 — 供监控/外部健康检查使用，不暴露任何敏感信息"""
+    return {"status": "ok"}
+
+
 @router.get("/")
 async def root(user: dict = Depends(require_auth)):
     return {
@@ -97,6 +103,7 @@ async def root(user: dict = Depends(require_auth)):
         "description": "智桥 - 灵族对外统一网关",
         "endpoints": {
             "health": "/v1/health",
+            "liveness": "/healthz",
             "docs": "/docs",
             "metrics": "/metrics",
         },
