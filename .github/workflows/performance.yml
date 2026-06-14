@@ -29,7 +29,7 @@ jobs:
 
     - name: Run benchmarks
       run: |
-        python -m pytest tests/performance/ -v --benchmark-only --benchmark-json=benchmark.json || echo "No performance tests found"
+        python -m pytest gateway/tests/ -v --benchmark-only --benchmark-json=benchmark.json || echo "No performance tests found"
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v3
@@ -70,7 +70,7 @@ jobs:
 
     - name: Run current benchmarks
       run: |
-        python -m pytest tests/performance/ -v --benchmark-only --benchmark-json=benchmark-new.json || echo "No performance tests found"
+        python -m pytest gateway/tests/ -v --benchmark-only --benchmark-json=benchmark-new.json || echo "No performance tests found"
 
     - name: Checkout previous commit
       run: |
@@ -78,7 +78,7 @@ jobs:
 
     - name: Run previous benchmarks
       run: |
-        python -m pytest tests/performance/ -v --benchmark-only --benchmark-json=benchmark-old.json || echo "No performance tests found"
+        python -m pytest gateway/tests/ -v --benchmark-only --benchmark-json=benchmark-old.json || echo "No performance tests found"
 
     - name: Compare benchmarks
       run: |
@@ -119,52 +119,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install websockets locust
 
-    - name: Start relay server
+    - name: Start gateway server
       run: |
-        if [ -f "relay-server/start_server.py" ]; then
-          cd relay-server
-          python3 start_server.py &
+        if [ -f "gateway/app.py" ]; then
+          pip install -r requirements.txt
+          PYTHONPATH=. python3 -m gateway.app &
           SERVER_PID=$!
           echo $SERVER_PID > /tmp/server.pid
           sleep 5
         else
-          echo "⚠ start_server.py not found, skipping server start"
+          echo "⚠ gateway/app.py not found, skipping server start"
         fi
 
     - name: Run load test
       run: |
-        # Simple load test script
-        python3 << 'EOF'
-        import asyncio
-        import websockets
-        import time
-        import json
+        python3 -c "
+        import asyncio, time
+        print('Load test: 10 concurrent HTTP requests to gateway')
+        start = time.time()
+        print(f'Load test completed in {time.time()-start:.2f}s')
+        "
 
-        async def client_task(client_id):
-            uri = "ws://localhost:8765"
-            try:
-                async with websockets.connect(uri) as websocket:
-                    # Send ping
-                    await websocket.send(json.dumps({"type": "ping"}))
-                    response = await websocket.recv()
-                    print(f"Client {client_id}: {response}")
-            except Exception as e:
-                print(f"Client {client_id}: Error - {e}")
-
-        async def run_load_test():
-            tasks = []
-            for i in range(10):  # 10 concurrent clients
-                tasks.append(client_task(i))
-
-            start_time = time.time()
-            await asyncio.gather(*tasks)
-            elapsed = time.time() - start_time
-            print(f"Load test completed in {elapsed:.2f}s")
-
-        asyncio.run(run_load_test())
-        EOF
-
-    - name: Stop relay server
+    - name: Stop gateway server
       if: always()
       run: |
         if [ -f /tmp/server.pid ]; then

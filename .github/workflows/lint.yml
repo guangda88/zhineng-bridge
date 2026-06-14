@@ -36,7 +36,7 @@ jobs:
     - name: Run pylint
       run: |
         files=""
-        for f in relay-server/*.py phase1/session_manager/*.py; do
+        for f in gateway/*.py; do
           if [ -f "$f" ]; then files="$files $f"; fi
         done
         if [ -n "$files" ]; then
@@ -68,11 +68,7 @@ jobs:
 
     - name: Check JavaScript formatting with Prettier
       run: |
-        find web/ui -name "*.js" -type f -exec prettier --check {} + || true
-
-    - name: Check for console.log
-      run: |
-        grep -r "console\.log" web/ui/ --include="*.js" || echo "No console.log found"
+        find mcp-server -name "*.ts" -type f -exec prettier --check {} + || echo "No JS/TS files or prettier check skipped"
 
   check-docs:
     name: Check Documentation
@@ -86,11 +82,8 @@ jobs:
       run: |
         required_docs=(
           "README.md"
-          "CHANGELOG.md"
-          "QUICKSTART.md"
-          "USAGE_GUIDE.md"
-          "TROUBLESHOOTING.md"
-          "CONTRIBUTING.md"
+          "docs/CHANGELOG.md"
+          "SECURITY.md"
         )
 
         missing=0
@@ -115,15 +108,13 @@ jobs:
           echo "markdown-link-check not installed, skipping"
         fi
 
-    - name: Check examples
+    - name: Check gateway tests
       run: |
-        if [ -d "examples" ]; then
-          echo "✓ examples directory exists"
-          if [ -f "examples/basic_usage.py" ]; then
-            python3 -m py_compile examples/basic_usage.py || echo "Warning: basic_usage.py has syntax issues"
-          fi
+        if [ -d "gateway/tests" ]; then
+          echo "✓ gateway/tests directory exists"
+          python3 -m py_compile gateway/tests/*.py || echo "Warning: some test files have syntax issues"
         else
-          echo "⚠ examples directory missing (non-blocking)"
+          echo "⚠ gateway/tests directory missing (non-blocking)"
         fi
 
   security-scan:

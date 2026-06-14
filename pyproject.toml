@@ -1,10 +1,10 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "zhineng-bridge"
-version = "2.0.0"
+version = "2.1.0"
 description = "灵族对外统一网关 — 薄层API网关，只做路由、鉴权、限流，不做业务"
 readme = "README.md"
 license = {text = "MIT"}
@@ -69,3 +69,7 @@ line_length = 100
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
+
+[tool.setuptools.packages.find]
+include = ["gateway*"]
+exclude = ["docs*", "tests*", "relay-server*"]

@@ -39,23 +39,11 @@ jobs:
 
     - name: Run unit tests
       run: |
-        python3 -m pytest tests/unit/ -v --tb=short || echo "No unit tests found"
-
-    - name: Run integration tests
-      run: |
-        python3 -m pytest tests/integration/ -v --tb=short || echo "No integration tests found"
-
-    - name: Run performance tests
-      run: |
-        python3 -m pytest tests/performance/ -v --tb=short || echo "No performance tests found"
-
-    - name: Run E2E tests
-      run: |
-        python3 -m pytest tests/e2e/ -v --tb=short || echo "No E2E tests found"
+        python3 -m pytest gateway/tests/ -v --tb=short || echo "No unit tests found"
 
     - name: Generate coverage report
       run: |
-        python3 -m pytest tests/ --cov=. --cov-report=xml --cov-report=html || echo "Coverage report generation completed with errors"
+        python3 -m pytest gateway/tests/ --cov=. --cov-report=xml --cov-report=html || echo "Coverage report generation completed with errors"
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -116,6 +104,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install build
+
+    - name: Build package
+      continue-on-error: true
+      run: |
+        python3 -m build
 
     - name: Build package
       run: |
